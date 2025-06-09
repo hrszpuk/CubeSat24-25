@@ -1,7 +1,7 @@
 """
 Start up script
 """
-from OBDH import run
+from OBDH import start
 
 if __name__ == '__main__':
-    run()
+    start()
