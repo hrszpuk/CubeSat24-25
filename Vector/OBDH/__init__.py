@@ -1,3 +1,12 @@
+from process_manager import ProcessManager
 
-def run():
+
+def start():
+    manager = ProcessManager()
+    manager.add_process()
+
+
+def stop():
     pass
+
+
