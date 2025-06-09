@@ -1,4 +1,4 @@
-# CubeSat 24-25
+ADCS# CubeSat 24-25
 
 There are 2 modes: manual and automatic.
 
