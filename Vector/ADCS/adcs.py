@@ -1,0 +1,156 @@
+from imu import Imu
+from reaction_wheel import ReactionWheel
+from sun_sensor import SunSensor
+import time
+import threading
+
+class Adcs:
+    def __init__(self):
+        self.reaction_wheel = ReactionWheel()
+        self.initialize_sun_sensors()
+        self.initialize_imu()
+
+    def health_check(self):
+
+        health_check_text = ""
+        errors = []
+
+        # activate the reaction wheel
+        # activate and start measuring light sensors
+        # calibrate the IMU
+        # assert that all sensors are working
+
+        # get the status of the IMU
+        imu_health_check_text, imu_health_check, imu_errors = self.get_imu_health_check()
+        health_check_text += imu_health_check_text
+        errors.append(imu_errors)
+
+        # get the status of the sun sensors
+        ss_health_check_text, ss_health_check, ss_errors = self.get_sun_sensors_health_check()
+        health_check_text += ss_health_check_text
+        errors.append(ss_errors)
+
+
+        # assemble the data and return it
+
+        if ss_health_check and imu_health_check:
+            self.status = "OK"
+            health_check_text += "STATUS: OK"
+        else:
+            self.status = "DOWN"
+            health_check_text += "STATUS: DOWN - Error in one or more components"
+
+        return health_check_text, errors
+
+    def get_status(self):
+        pass
+
+    def get_gyroscope(self):
+        pass
+
+    def get_orientation(self):
+        pass
+
+    def get_reaction_wheel_RPM(self):
+        pass
+
+    def calibrate_sun_sensor(self):
+        # Get all sen
+        pass
+
+    def initialize_imu(self):
+        # Initialize the IMU
+        self.imu = Imu()
+        imu_status = self.imu.get_status()
+        if imu_status["status"] == "ACTIVE":
+            print("IMU initialized successfully.")
+            # Create and start a thread for IMU calibration
+            calibration_thread = threading.Thread(target=self.calibrate_imu)
+            calibration_thread.start()
+
+            # Wait for 32 seconds to ensure calibration completes
+            print("Waiting for IMU calibration to complete...")
+            time.sleep(32)
+            print("IMU calibration completed successfully.")
+
+            # Ensure the calibration thread has finished
+            calibration_thread.join()
+        else:
+            print(f"IMU initialization failed: {imu_status['errors']}")
+
+    def get_imu_health_check(self):
+        health_check_text = ""
+        is_component_ready = False
+        errors = []
+
+        data = self.imu.get_imu_data()
+        gyroscope_data = data.get("gyroscope", None)
+        orientation_data = data.get("orientation", None)
+        errors = data.get("errors", None)
+
+        if not gyroscope_data:
+            gyroscope_text = "No data available"
+        else:
+            gyroscope_text = f"X: {gyroscope_data[0]} º/s, Y: {gyroscope_data[1]} º/s, Z: {gyroscope_data[2]} º/s"
+
+        if not orientation_data:
+            orientation_text = "No data available"
+        else:
+            orientation_text = f"X: {orientation_data[0]} º, Y: {orientation_data[1]} º, Z: {orientation_data[2]} º"
+
+        health_check_text += f"Gyroscope: {gyroscope_text}\n"
+        health_check_text += f"Orientation: {orientation_text}\n"
+
+        return health_check_text, is_component_ready, errors
+    
+    def calibrate_imu(self):
+        # Calibrate the IMU
+        #TODO add error handling for IMU calibration
+        # Start IMU calibration
+        self.imu.send_command("CALIBRATE")
+        while threading.current_thread().is_alive():
+            print("TEXT:", self.imu.get_serial_text())
+
+    def initialize_sun_sensors(self):
+        # Initialize the four sun sensors
+        self.sun_sensors = [
+            SunSensor(id=1, i2c_address=0x23, bus=1),
+            SunSensor(id=2, i2c_address=0x5c, bus=1),
+            SunSensor(id=3, i2c_address=0x23, bus=3),
+            SunSensor(id=4, i2c_address=0x5c, bus=3),
+        ]
+        
+    def get_sun_sensors_status(self):
+        # Get the status of all sun sensors
+        statuses = []
+        for sensor in self.sun_sensors:
+            status = sensor.get_status()
+            statuses.append(status)
+        return statuses
+
+    def get_sun_sensors_health_check(self):
+        health_check_text = ""
+        is_component_ready = False
+        errors = []
+
+        sun_sensors_status = self.get_sun_sensors_status() 
+        if not sun_sensors_status:
+            health_check_text += "ERROR: No sun sensors found!\n"
+        else:
+            for sensor in sun_sensors_status:
+                health_check_text += f"Mock Sun Sensor {sensor['id']}: {sensor['status']}\n"
+                errors += sensor["errors"] if "errors" in sensor else []
+                
+        if errors == []:
+            is_component_ready = True
+
+        return health_check_text, is_component_ready, errors
+
+adcs = Adcs()
+adcs_health_check_text, adcs_errors = adcs.health_check()
+print(adcs_health_check_text)
+if adcs_errors:
+    print("Errors found during health check:")
+    for error in adcs_errors:
+        print(error)
+adcs.calibrate_imu()
