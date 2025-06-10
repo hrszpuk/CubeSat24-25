@@ -10,15 +10,9 @@ class Adcs:
         self.initialize_sun_sensors()
         self.initialize_imu()
 
-    def health_check(self):
-
+    def health_check(self, calibrate_orientation_system=True):
         health_check_text = ""
         errors = []
-
-        # activate the reaction wheel
-        # activate and start measuring light sensors
-        # calibrate the IMU
-        # assert that all sensors are working
 
         # get the status of the IMU
         imu_health_check_text, imu_health_check, imu_errors = self.get_imu_health_check()
@@ -30,9 +24,11 @@ class Adcs:
         health_check_text += ss_health_check_text
         errors.append(ss_errors)
 
-
-        # assemble the data and return it
-
+        # get the status of the reaction wheel
+        rw_health_check_text = self.get_reaction_wheel_health_check()
+        health_check_text += rw_health_check_text
+        
+        # check subsystem health
         if ss_health_check and imu_health_check:
             self.status = "OK"
             health_check_text += "STATUS: OK"
@@ -40,23 +36,13 @@ class Adcs:
             self.status = "DOWN"
             health_check_text += "STATUS: DOWN - Error in one or more components"
 
+
+        # If calibrate_sun_sensors is True, calibrate the sun sensors
+            # TODO:activate the reaction wheel
+            # TODO:activate and start measuring light sensors
+        if calibrate_orientation_system:
+            pass
         return health_check_text, errors
-
-    def get_status(self):
-        pass
-
-    def get_gyroscope(self):
-        pass
-
-    def get_orientation(self):
-        pass
-
-    def get_reaction_wheel_RPM(self):
-        pass
-
-    def calibrate_sun_sensor(self):
-        # Get all sen
-        pass
 
     def initialize_imu(self):
         # Initialize the IMU
@@ -145,6 +131,11 @@ class Adcs:
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
+    
+    def get_reaction_wheel_health_check(self):
+        # Get the status of the reaction wheel
+        health_check_text = f"Reaction Wheel RPM: {self.reaction_wheel.get_status()}\n"
+        return health_check_text
 
 adcs = Adcs()
 adcs_health_check_text, adcs_errors = adcs.health_check()

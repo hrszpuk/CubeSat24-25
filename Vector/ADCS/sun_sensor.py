@@ -7,6 +7,10 @@ CMD_READ = 0x10 # Command to read data from the sensor
 class SunSensor:
     """
     Class to interface with a Sun Sensor (BH1750) using I2C communication.
+    Attributes:
+        id (str): Unique identifier for the sensor.
+        i2c_address (int): I2C address of the sensor, default is 0x23.
+        bus (smbus.SMBus): SMBus object for I2C communication.
     """
     def __init__(self, id, i2c_address=0x23, bus=1):
         self.id = id

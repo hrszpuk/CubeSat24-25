@@ -31,6 +31,13 @@ class Imu:
         except Exception as e:
             error = ((f"Failed to read from IMU: {e}"))
             return {"gyroscope": None, "orientation": None, "error": error}
+    
+    def get_orientation(self):
+        imu_data = self.get_imu_data()
+        if imu_data["gyroscope"] is not None and imu_data["orientation"] is not None:
+            return imu_data["orientation"]
+        else:
+            raise ValueError("IMU data is not available or incomplete.")
 
     def start_imu(self):
         if not self.serial_connection.is_open:

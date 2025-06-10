@@ -1,4 +1,7 @@
+import time
+from brushless_motor import BrushlessMotor
 from imu import Imu
+import numpy as np
 
 # Satellite Variables
 SAT_MASS = 1.5  # kg
@@ -18,7 +21,25 @@ KI = 0.05  # Integral gain
 KD = 0.01  # Derivative gain
 
 class ReactionWheel:
-    def __init__(self):
+    """
+    A class to control a reaction wheel for attitude control in a satellite.
+    This class uses PID control to adjust the wheel speed based on the satellite's orientation.
+    Attributes:
+        sat_mass (float): Mass of the satellite in kg.
+        sat_side1 (float): Length of one side of the satellite in meters.
+        sat_side2 (float): Length of another side of the satellite in meters.
+        I_sat (float): Moment of inertia of the satellite.
+        wheel_mass (float): Mass of the reaction wheel in kg.
+        wheel_radius (float): Radius of the reaction wheel in meters.
+        kt (float): Motor torque constant in N·m/A.
+        ke (float): Back-EMF constant in V·s/rad.
+        r (float): Motor resistance in Ohms.
+        omega_sat (float): Angular velocity of the satellite in rad/s.
+        omega_wheel (float): Angular velocity of the reaction wheel in rad/s.
+        I_wheel (float): Moment of inertia of the reaction wheel.
+        Imu (Imu): Instance of the IMU class for orientation data.
+    """
+    def __init__(self, imu):
         # Satellite Parameters
         self.sat_mass = SAT_MASS
         self.sat_side1 = SAT_SIDE1
@@ -35,11 +56,13 @@ class ReactionWheel:
         self.omega_wheel = 0.0
         self.I_wheel = self.calculate_moment_of_inertia(self.wheel_mass, self.wheel_radius, I_type="wheel")
 
-        # IMU Initialization
-        self.Imu = Imu()
+        # IMU and Brushless Initialization
+        self.imu = imu
+        self.motor = BrushlessMotor()
     
-    def get_orientation(self):
-        pitch, roll, yaw = self.Imu.get_orientation()
+    def get_current_yaw(self):
+        orientation_data= self.imu.get_orientation()
+        yaw = orientation_data[0]
         return yaw
 
     def pid_controller(self, setpoint, kp, ki, kd, previous_error=0, integral=0, dt=0.1):
@@ -63,3 +86,59 @@ class ReactionWheel:
             I = 1/2 * m * r
             """
             return 0.5 * mass * (side1)
+        
+def activate_wheel(self, speed_percentage, setpoint):
+    """
+    Activate the reaction wheel to adjust the satellite's orientation.
+    Parameters: 
+        - speed_percentage: Initial speed percentage (0-100) for the wheel.
+        - setpoint: Target yaw angle (degrees/radians).
+    """
+    # Initialize PID variables
+    previous_error = 0
+    integral = 0
+    dt = 0.1  # Time step in seconds
+    omega_wheel = 0  # Initialize angular velocity
+    
+    while True:  # Replace with your termination condition
+        # Get current yaw and compute PID control
+        pv = self.get_current_yaw()
+        control, error, integral = self.pid_controller(
+            setpoint, pv, KP, KI, KD, previous_error, integral, dt
+        )
+
+        # Calculate new satellite and wheel angles
+        new_pv = pv + control * dt
+        angle_delta_sat = new_pv - pv
+        angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
+
+        # Update angular velocities
+        new_omega_wheel = angle_delta_wheel / dt
+        alpha_wheel = (new_omega_wheel - omega_wheel) / dt
+        omega_wheel = new_omega_wheel
+
+        # Convert to motor voltage (simplified for unidirectional ESC)
+        voltage = (R * self.I_wheel * alpha_wheel) / self.kt + self.ke * omega_wheel
+        
+        # Cap voltage to motor's operational range and convert to duty cycle (0-100%)
+        voltage = np.clip(voltage, 0, self.motor.v)  # Force positive voltage
+        duty_cycle = (voltage / self.motor.v) * 100  # 0-100% range
+        
+        # Ensure duty cycle stays within 0-100%
+        duty_cycle = np.clip(duty_cycle, 0, 100)
+        
+        # Update motor speed
+        self.motor.set_speed(duty_cycle)
+        
+        # Logging (optional)
+        print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+        
+        time.sleep(dt)
+    
+def get_status(self):
+    """
+    Get the status of the reaction wheel and IMU.
+    Returns:
+        dict: Status information including errors if any.
+    """
+    return self.motor.get_current_speed()
