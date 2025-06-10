@@ -1,18 +1,15 @@
 import logging
-from functools import wraps
+from logging.handlers import QueueListener
+from multiprocessing import Queue
 
-logging.basicConfig(
-    filename='vector.log',
-    level=logging.INFO,
-    format='<%(asctime)s> [%(levelname)s]: %(message)s'
-)
+log_queue = Queue() # Send everything to the queue
 
-def log(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        logging.info(f"Calling {func.__name__} with args: {args} kwargs: {kwargs}")
-        result = func(*args, **kwargs)
-        logging.info(f"{func.__name__} returned: {result}")
-        return result
-    return wrapper
+file_handler = logging.FileHandler('vector.log') # Only want this to write stuff to the file
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
+listener = QueueListener(log_queue, file_handler)
+listener.start()
+
+def get_logger():
+    return log_queue
