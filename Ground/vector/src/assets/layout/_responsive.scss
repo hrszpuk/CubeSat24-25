@@ -1,0 +1,22 @@
+@media (max-width: 1080px) {
+    .layout__header {
+        justify-content: space-between;
+
+        .layout__header-logo {
+            margin-right: 0;
+            order: 1;
+        }
+
+        .layout__header-nav {
+            display: flex;
+            flex-grow: 0;
+        }
+
+        .layout__header-buttons {
+            order: 2;
+            background-color: var(--surface-overlay);
+            -webkit-animation: scalein 0.15s linear;
+            animation: scalein 0.15s linear;        
+        }
+    }
+}
