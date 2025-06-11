@@ -6,9 +6,9 @@ import threading
 
 class Adcs:
     def __init__(self):
-        self.reaction_wheel = ReactionWheel()
         self.initialize_sun_sensors()
         self.initialize_imu()
+        self.reaction_wheel = ReactionWheel(self.imu)
 
     def health_check(self, calibrate_orientation_system=True):
         health_check_text = ""
@@ -17,12 +17,12 @@ class Adcs:
         # get the status of the IMU
         imu_health_check_text, imu_health_check, imu_errors = self.get_imu_health_check()
         health_check_text += imu_health_check_text
-        errors.append(imu_errors)
+        errors.extend(imu_errors)
 
         # get the status of the sun sensors
         ss_health_check_text, ss_health_check, ss_errors = self.get_sun_sensors_health_check()
         health_check_text += ss_health_check_text
-        errors.append(ss_errors)
+        errors.extend(ss_errors)
 
         # get the status of the reaction wheel
         rw_health_check_text = self.get_reaction_wheel_health_check()
@@ -50,19 +50,20 @@ class Adcs:
         imu_status = self.imu.get_status()
         if imu_status["status"] == "ACTIVE":
             print("IMU initialized successfully.")
-            # Create and start a thread for IMU calibration
-            calibration_thread = threading.Thread(target=self.calibrate_imu)
-            calibration_thread.start()
-
-            # Wait for 32 seconds to ensure calibration completes
-            print("Waiting for IMU calibration to complete...")
-            time.sleep(32)
-            print("IMU calibration completed successfully.")
-
-            # Ensure the calibration thread has finished
-            calibration_thread.join()
+            self.calibrate_imu()
         else:
             print(f"IMU initialization failed: {imu_status['errors']}")
+
+    def calibrate_imu(self):
+        # Calibrate the IMU
+        #TODO add error handling for IMU calibration
+        # Start IMU calibration
+        print("Waiting for IMU calibration to complete...")
+        self.imu.calibrate()
+        while self.imu.get_serial_text() != "Calibration complete!":
+            print(self.imu.get_serial_text())
+        print("IMU calibration completed successfully.")
+
 
     def get_imu_health_check(self):
         health_check_text = ""
@@ -72,15 +73,17 @@ class Adcs:
         data = self.imu.get_imu_data()
         gyroscope_data = data.get("gyroscope", None)
         orientation_data = data.get("orientation", None)
-        errors = data.get("errors", None)
+        errors = data.get("errors", [])
 
         if not gyroscope_data:
             gyroscope_text = "No data available"
+            errors.append("Gyroscope data not available")
         else:
             gyroscope_text = f"X: {gyroscope_data[0]} º/s, Y: {gyroscope_data[1]} º/s, Z: {gyroscope_data[2]} º/s"
 
         if not orientation_data:
             orientation_text = "No data available"
+            errors.append("Orientation data not available")
         else:
             orientation_text = f"X: {orientation_data[0]} º, Y: {orientation_data[1]} º, Z: {orientation_data[2]} º"
 
@@ -88,14 +91,6 @@ class Adcs:
         health_check_text += f"Orientation: {orientation_text}\n"
 
         return health_check_text, is_component_ready, errors
-    
-    def calibrate_imu(self):
-        # Calibrate the IMU
-        #TODO add error handling for IMU calibration
-        # Start IMU calibration
-        self.imu.send_command("CALIBRATE")
-        while threading.current_thread().is_alive():
-            print("TEXT:", self.imu.get_serial_text())
 
     def initialize_sun_sensors(self):
         # Initialize the four sun sensors
@@ -134,14 +129,23 @@ class Adcs:
     
     def get_reaction_wheel_health_check(self):
         # Get the status of the reaction wheel
-        health_check_text = f"Reaction Wheel RPM: {self.reaction_wheel.get_status()}\n"
+        health_check_text = f"Reaction Wheel RPM: {self.reaction_wheel.get_current_speed():.2f}\n"
         return health_check_text
 
 adcs = Adcs()
 adcs_health_check_text, adcs_errors = adcs.health_check()
-print(adcs_health_check_text)
-if adcs_errors:
+print("\n===== ADCS HEALTH CHECK ======\n" + adcs_health_check_text)
+if adcs_errors != []:
     print("Errors found during health check:")
     for error in adcs_errors:
         print(error)
-adcs.calibrate_imu()
+
+time.sleep(4)
+
+while True:
+    try:
+        print(adcs.imu.get_serial_text())
+    except Exception as e:
+        print(f"Error retrieving IMU orientation: {e}")
+    time.sleep(1)  # Adjust the sleep time as needed
+

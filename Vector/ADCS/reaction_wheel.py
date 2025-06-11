@@ -65,6 +65,14 @@ class ReactionWheel:
         yaw = orientation_data[0]
         return yaw
 
+    def get_current_speed(self):
+        """
+        Get the current speed of the reaction wheel.
+        Returns:
+            float: Current speed in RPM.
+        """
+        return self.motor.get_current_speed()
+
     def pid_controller(self, setpoint, kp, ki, kd, previous_error=0, integral=0, dt=0.1):
         error = setpoint - self.get_orientation() # This is PV
         integral += error * dt
@@ -87,58 +95,58 @@ class ReactionWheel:
             """
             return 0.5 * mass * (side1)
         
-def activate_wheel(self, speed_percentage, setpoint):
-    """
-    Activate the reaction wheel to adjust the satellite's orientation.
-    Parameters: 
-        - speed_percentage: Initial speed percentage (0-100) for the wheel.
-        - setpoint: Target yaw angle (degrees/radians).
-    """
-    # Initialize PID variables
-    previous_error = 0
-    integral = 0
-    dt = 0.1  # Time step in seconds
-    omega_wheel = 0  # Initialize angular velocity
-    
-    while True:  # Replace with your termination condition
-        # Get current yaw and compute PID control
-        pv = self.get_current_yaw()
-        control, error, integral = self.pid_controller(
-            setpoint, pv, KP, KI, KD, previous_error, integral, dt
-        )
+    def activate_wheel(self, speed_percentage, setpoint):
+        """
+        Activate the reaction wheel to adjust the satellite's orientation.
+        Parameters: 
+            - speed_percentage: Initial speed percentage (0-100) for the wheel.
+            - setpoint: Target yaw angle (degrees/radians).
+        """
+        # Initialize PID variables
+        previous_error = 0
+        integral = 0
+        dt = 0.1  # Time step in seconds
+        omega_wheel = 0  # Initialize angular velocity
+        
+        while True:  # Replace with your termination condition
+            # Get current yaw and compute PID control
+            pv = self.get_current_yaw()
+            control, error, integral = self.pid_controller(
+                setpoint, pv, KP, KI, KD, previous_error, integral, dt
+            )
 
-        # Calculate new satellite and wheel angles
-        new_pv = pv + control * dt
-        angle_delta_sat = new_pv - pv
-        angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
+            # Calculate new satellite and wheel angles
+            new_pv = pv + control * dt
+            angle_delta_sat = new_pv - pv
+            angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
 
-        # Update angular velocities
-        new_omega_wheel = angle_delta_wheel / dt
-        alpha_wheel = (new_omega_wheel - omega_wheel) / dt
-        omega_wheel = new_omega_wheel
+            # Update angular velocities
+            new_omega_wheel = angle_delta_wheel / dt
+            alpha_wheel = (new_omega_wheel - omega_wheel) / dt
+            omega_wheel = new_omega_wheel
 
-        # Convert to motor voltage (simplified for unidirectional ESC)
-        voltage = (R * self.I_wheel * alpha_wheel) / self.kt + self.ke * omega_wheel
+            # Convert to motor voltage (simplified for unidirectional ESC)
+            voltage = (R * self.I_wheel * alpha_wheel) / self.kt + self.ke * omega_wheel
+            
+            # Cap voltage to motor's operational range and convert to duty cycle (0-100%)
+            voltage = np.clip(voltage, 0, self.motor.v)  # Force positive voltage
+            duty_cycle = (voltage / self.motor.v) * 100  # 0-100% range
+            
+            # Ensure duty cycle stays within 0-100%
+            duty_cycle = np.clip(duty_cycle, 0, 100)
+            
+            # Update motor speed
+            self.motor.set_speed(duty_cycle)
+            
+            # Logging (optional)
+            print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+            
+            time.sleep(dt)
         
-        # Cap voltage to motor's operational range and convert to duty cycle (0-100%)
-        voltage = np.clip(voltage, 0, self.motor.v)  # Force positive voltage
-        duty_cycle = (voltage / self.motor.v) * 100  # 0-100% range
-        
-        # Ensure duty cycle stays within 0-100%
-        duty_cycle = np.clip(duty_cycle, 0, 100)
-        
-        # Update motor speed
-        self.motor.set_speed(duty_cycle)
-        
-        # Logging (optional)
-        print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
-        
-        time.sleep(dt)
-    
-def get_status(self):
-    """
-    Get the status of the reaction wheel and IMU.
-    Returns:
-        dict: Status information including errors if any.
-    """
-    return self.motor.get_current_speed()
+    def get_status(self):
+        """
+        Get the status of the reaction wheel and IMU.
+        Returns:
+            dict: Status information including errors if any.
+        """
+        return self.motor.get_current_speed()

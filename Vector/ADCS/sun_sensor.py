@@ -24,13 +24,17 @@ class SunSensor:
             return format(result,'.0f')
         except OSError as error:
             if 121 == error.errno:
-                print('No sensor found')
+                # Device not found, return None
+                return None
             else:
-                print('Error:', sys.exc_info()[0])
+                raise Exception(f'Error Sun Sensor: {sys.exc_info()[0]}')
     
     def get_status(self):
         try:
             self.get_data()
+
+            if self.get_data() is None:
+                return {"id": self.id, "status": "INACTIVE", "errors": [f"SunSensor {self.id} not found."]}
             return {"id": self.id, "status": "ACTIVE", "errors": []}
         except Exception as e:
-            return {"id": self.id, "status": "INACTIVE", "errors": f"SunSensor {self.id} initialization failed. Error: {str(e)}"}
+            return {"id": self.id, "status": "INACTIVE", "errors": [f"SunSensor {self.id} initialization failed. Error: {str(e)}"]}
