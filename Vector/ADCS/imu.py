@@ -1,101 +1,138 @@
 import time
 import serial
+import logging
+from typing import Optional, Tuple, Dict, List
+
+# Set up logging
+#TODO
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Imu:
-    def __init__(self):
-        # Initialize with DTR=False to prevent Arduino reset
+    def __init__(self, port: str = '/dev/serial0', baudrate: int = 9600, timeout: float = 1.0):
         self.serial_connection = serial.Serial(
-            '/dev/ttyACM0',
-            baudrate=9600,
-            timeout=1,
-            dsrdtr=False  # This prevents Arduino from resetting
+            port=port,
+            baudrate=baudrate,
+            timeout=timeout,
+            dsrdtr=False,  # Prevents Arduino auto-reset
+            rtscts=False   # Disable hardware flow control
         )
-        time.sleep(2)  # Wait for the serial connection to initialize
+        time.sleep(2)  # Wait for serial stabilization
         self._clear_buffers()
 
-    def _clear_buffers(self):
-        """Clear serial buffers without causing resets"""
+    def _clear_buffers(self) -> None:
+        """Clear serial buffers to avoid stale data."""
         if self.serial_connection.is_open:
             self.serial_connection.reset_input_buffer()
             self.serial_connection.reset_output_buffer()
 
-    def get_serial_text(self):
+    def get_serial_text(self, max_attempts: int = 3) -> Optional[str]:
+        """Read a line from serial with retries."""
+        for attempt in range(max_attempts):
+            try:
+                line = self.serial_connection.read_until(b'\n').decode('ascii', errors='ignore').strip()
+                if line:  # Only return if data is valid
+                    return line
+            except (UnicodeDecodeError, serial.SerialException) as e:
+                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                time.sleep(0.1)
+        return None
+
+    def get_status(self) -> Dict[str, str | List[str]]:
+        """Check serial connection status."""
         try:
-            line = self.serial_connection.read_until(b'\n').decode('ascii', errors='ignore').strip()
-            return line
-        except UnicodeDecodeError:
-            # Fallback to raw bytes if decoding fails
-            return str(self.serial_connection.readline())  # Returns byte string representation
-        
-    def get_status(self):
-        try:
-            # Just check if connection is open, don't restart it
             return {
                 "status": "ACTIVE" if self.serial_connection.is_open else "INACTIVE",
                 "errors": []
             }
         except serial.SerialException as e:
             error = f"IMU connection error: {e}"
+            logger.error(error)
             return {"status": "INACTIVE", "errors": [error]}
-    
-    def get_imu_data(self):
-        try: 
-            line = self.get_serial_text()
-            if not line:
-                line = self.get_serial_text()
-                if not line:
-                    return {"gyroscope": None, "orientation": None, "errors": ["No data received"]}
-                
-            gyroscope_data, orientation_data = self.parse_imu_data(line)
-            return {"gyroscope": gyroscope_data, "orientation": orientation_data, "errors": []}
-        except Exception as e:
-            return {"gyroscope": None, "orientation": None, "errors": [str(e)]}
-    
-    def get_orientation(self):
-        imu_data = self.get_imu_data()
-        print(imu_data) # Debugging line to see the raw IMU data
-        if imu_data["orientation"] is not None:
-            return imu_data["orientation"]
-        else:
-            raise ValueError("IMU data is not available or incomplete.")
 
-    def send_command(self, command):
-        if not self.serial_connection.is_open:
-            raise serial.SerialException("Serial connection not open")
-        
-        self.serial_connection.write((command + '\n').encode('utf-8'))
-        self.serial_connection.flush()
-
-    def calibrate(self):
-        self.send_command('CALIBRATE')
-
-    def parse_imu_data(self, line):
-        # Example line: "Gyroscope: 0.2 0.5 0.02 | Orientation: 0.2 0.5 0.02"
+    def parse_imu_data(self, line: str) -> Tuple[List[float], List[float]]:
+        """
+        Parse IMU data with flexible formatting.
+        Example line: "Gyroscope: 0.1 0.2 0.3 | Orientation: 10.0 -5.0 20.0"
+        """
+        gyroscope, orientation = [], []
         try:
-            parts = line.split('|')
-
-            prints = [part.strip() for part in parts if part.strip()]
+            parts = [p.strip() for p in line.split('|') if p.strip()]
             
-            if len(parts) < 2:
-                raise ValueError("Invalid data format - missing parts")
+            # Parse Gyroscope (if available)
+            if len(parts) > 0 and ":" in parts[0]:
+                gyro_str = parts[0].split(":")[1].strip()
+                gyroscope = [float(x) for x in gyro_str.split()[:3]]  # Take first 3 values
             
-            gyroscope = []
-            orientation = []
-            
-            # Extract gyroscope data
-            if ":" in parts[0]:
-                gyroscope_data = parts[0].split(':')[1].strip().split()
-                gyroscope = [round(float(num), 2) for num in gyroscope_data[:3]]
-                if len(gyroscope) != 3:
-                    raise ValueError("IMU data incomplete for gyroscope")
-            
-            # Extract orientation data
-            if ":" in parts[1]:
-                orientation_data = parts[1].split(':')[1].strip().split()
-                orientation = [round(float(num), 2) for num in orientation_data[:3]]
-                if len(orientation) != 3:
-                    raise ValueError("IMU data incomplete for orientation")
+            # Parse Orientation (if available)
+            if len(parts) > 1 and ":" in parts[1]:
+                orient_str = parts[1].split(":")[1].strip()
+                orientation = [float(x) for x in orient_str.split()[:3]]  # Take first 3 values
             
             return gyroscope, orientation
-        except (IndexError, ValueError) as e:
-            raise ValueError(f"Failed to parse IMU data: {e}")
+        except (ValueError, IndexError, AttributeError) as e:
+            logger.error(f"Failed to parse IMU data: {e}")
+            return [], []  # Return empty lists on failure
+
+    def get_imu_data(self, max_attempts: int = 3) -> Dict[str, Optional[List[float]] | List[str]]:
+        """Fetch IMU data with error handling."""
+        errors = []
+        for attempt in range(max_attempts):
+            line = self.get_serial_text()
+            if not line:
+                errors.append(f"Attempt {attempt + 1}: No data received")
+                continue
+            
+            gyro, orient = self.parse_imu_data(line)
+            if gyro or orient:  # At least one dataset is valid
+                return {"gyroscope": gyro, "orientation": orient, "errors": errors}
+            else:
+                errors.append(f"Attempt {attempt + 1}: Invalid data format")
+        
+        return {"gyroscope": None, "orientation": None, "errors": errors}
+
+    def get_orientation(self) -> List[float]:
+        """Get orientation (convenience method)."""
+        imu_data = self.get_imu_data()
+        if imu_data["orientation"] is None:
+            raise ValueError(f"No orientation data. Errors: {imu_data['errors']}")
+        return imu_data["orientation"]
+
+    def get_current_yaw(self):
+        orientation_data= self.get_orientation()
+        yaw = orientation_data[0]
+        return yaw
+
+    def send_command(self, command: str) -> None:
+        """Send a command (e.g., 'CALIBRATE')."""
+        if not self.serial_connection.is_open:
+            raise serial.SerialException("Serial port not open")
+        self.serial_connection.write(f"{command}\n".encode('utf-8'))
+        self.serial_connection.flush()
+
+    def calibrate(self) -> None:
+        """Trigger calibration."""
+        #TODO add error handling for IMU calibration
+        print("Waiting for IMU calibration to complete...")
+        self.send_command('CALIBRATE')
+        time.sleep(0.3)
+        while True:
+            line = self.get_serial_text()
+            if line:
+                if "complete" in line:
+                    break
+                    print(line)
+            else:
+                print(".")
+        print("IMU calibration completed successfully!")
+
+# Example Usage
+if __name__ == "__main__":
+    imu = Imu()
+    try:
+        while True:
+            data = imu.get_imu_data()
+            print(f"Gyro: {data['gyroscope']}, Orient: {data['orientation']}")
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("\nExiting...")

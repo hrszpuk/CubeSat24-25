@@ -7,12 +7,20 @@ import threading
 class Adcs:
     def __init__(self):
         self.initialize_sun_sensors()
-        self.initialize_imu()
-        self.reaction_wheel = ReactionWheel(self.imu)
+        self.initialize_orientation_system()
 
-    def health_check(self, calibrate_orientation_system=True):
+    def initialize_orientation_system(self):
+        self.imu = Imu()
+        self.reaction_wheel = ReactionWheel(self.imu)
+        self.calibrate_orientation_system()
+
+    def health_check(self, calibrate_orientation_system=False):
         health_check_text = ""
         errors = []
+
+        # get the status of the reaction wheel
+        rw_health_check_text = self.get_reaction_wheel_health_check()
+        health_check_text += rw_health_check_text
 
         # get the status of the IMU
         imu_health_check_text, imu_health_check, imu_errors = self.get_imu_health_check()
@@ -23,10 +31,6 @@ class Adcs:
         ss_health_check_text, ss_health_check, ss_errors = self.get_sun_sensors_health_check()
         health_check_text += ss_health_check_text
         errors.extend(ss_errors)
-
-        # get the status of the reaction wheel
-        rw_health_check_text = self.get_reaction_wheel_health_check()
-        health_check_text += rw_health_check_text
         
         # check subsystem health
         if ss_health_check and imu_health_check:
@@ -36,34 +40,10 @@ class Adcs:
             self.status = "DOWN"
             health_check_text += "STATUS: DOWN - Error in one or more components"
 
-
-        # If calibrate_sun_sensors is True, calibrate the sun sensors
-            # TODO:activate the reaction wheel
-            # TODO:activate and start measuring light sensors
         if calibrate_orientation_system:
-            pass
+            self.calibrate_orientation_system()
+            #TODO sun sensors
         return health_check_text, errors
-
-    def initialize_imu(self):
-        # Initialize the IMU
-        self.imu = Imu()
-        imu_status = self.imu.get_status()
-        if imu_status["status"] == "ACTIVE":
-            print("IMU initialized successfully.")
-            self.calibrate_imu()
-        else:
-            print(f"IMU initialization failed: {imu_status['errors']}")
-
-    def calibrate_imu(self):
-        # Calibrate the IMU
-        #TODO add error handling for IMU calibration
-        # Start IMU calibration
-        print("Waiting for IMU calibration to complete...")
-        self.imu.calibrate()
-        while self.imu.get_serial_text() != "Calibration complete!":
-            print(self.imu.get_serial_text())
-        print("IMU calibration completed successfully.")
-
 
     def get_imu_health_check(self):
         health_check_text = ""
@@ -90,7 +70,21 @@ class Adcs:
         health_check_text += f"Gyroscope: {gyroscope_text}\n"
         health_check_text += f"Orientation: {orientation_text}\n"
 
+        if errors == []:
+            is_component_ready = True
+
         return health_check_text, is_component_ready, errors
+
+    def calibrate_orientation_system(self):
+        imu_status = self.imu.get_status()
+        if imu_status["status"] == "ACTIVE" and self.reaction_wheel is not None:
+            print("IMU initialized successfully.")
+            calibration_rotation_thread = threading.Thread(target=self.reaction_wheel.calibration_rotation)
+            calibration_rotation_thread.start()
+            self.imu.calibrate()
+            calibration_rotation_thread.join()
+        else:
+            print(f"Orientation system calibration failed: Errors: {imu_status['errors']}")
 
     def initialize_sun_sensors(self):
         # Initialize the four sun sensors
@@ -140,12 +134,14 @@ if adcs_errors != []:
     for error in adcs_errors:
         print(error)
 
-time.sleep(4)
+# while True:
+#     for sensor in adcs.sun_sensors:
+#         print(f"Sun Sensor {sensor.id} Measure: {sensor.get_data()}")
+#         time.sleep(0.1)
+
+#adcs.reaction_wheel.activate_wheel(180)
 
 while True:
-    try:
-        print(adcs.imu.get_serial_text())
-    except Exception as e:
-        print(f"Error retrieving IMU orientation: {e}")
-    time.sleep(1)  # Adjust the sleep time as needed
+    yaw = adcs.imu.get_serial_text()
+    print(yaw)
 

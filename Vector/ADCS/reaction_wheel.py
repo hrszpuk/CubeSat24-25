@@ -59,11 +59,6 @@ class ReactionWheel:
         # IMU and Brushless Initialization
         self.imu = imu
         self.motor = BrushlessMotor()
-    
-    def get_current_yaw(self):
-        orientation_data= self.imu.get_orientation()
-        yaw = orientation_data[0]
-        return yaw
 
     def get_current_speed(self):
         """
@@ -74,7 +69,7 @@ class ReactionWheel:
         return self.motor.get_current_speed()
 
     def pid_controller(self, setpoint, kp, ki, kd, previous_error=0, integral=0, dt=0.1):
-        error = setpoint - self.get_orientation() # This is PV
+        error = setpoint - self.get_current_yaw() # This is PV
         integral += error * dt
         derivative = (error - previous_error) / dt
         control = kp * error + ki * integral + kd * derivative
@@ -95,11 +90,10 @@ class ReactionWheel:
             """
             return 0.5 * mass * (side1)
         
-    def activate_wheel(self, speed_percentage, setpoint):
+    def activate_wheel(self, setpoint):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
-            - speed_percentage: Initial speed percentage (0-100) for the wheel.
             - setpoint: Target yaw angle (degrees/radians).
         """
         # Initialize PID variables
@@ -110,9 +104,9 @@ class ReactionWheel:
         
         while True:  # Replace with your termination condition
             # Get current yaw and compute PID control
-            pv = self.get_current_yaw()
+            pv = self.imu.get_current_yaw()
             control, error, integral = self.pid_controller(
-                setpoint, pv, KP, KI, KD, previous_error, integral, dt
+                setpoint, KP, KI, KD, previous_error, integral, dt
             )
 
             # Calculate new satellite and wheel angles
@@ -150,3 +144,17 @@ class ReactionWheel:
             dict: Status information including errors if any.
         """
         return self.motor.get_current_speed()
+    
+    def calibration_rotation(self):
+        """Perform a calibration rotation."""
+        # Test motor from 50% to 100% throttle
+        for percent in range(0, 41, 10):
+            self.motor.set_speed(percent)
+            time.sleep(2)
+
+        self.motor.set_speed(0)  # Stop the motor
+
+        # # Ramp down
+        # for percent in range(40, 0, -10):
+        #     self.motor.set_speed(percent)
+        #     time.sleep(3)
