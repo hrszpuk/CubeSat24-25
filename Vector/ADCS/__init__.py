@@ -1,15 +1,13 @@
-from adcs import Adcs
+from Vector.ADCS.adcs import Adcs
 
-def start():
-    Adcs()
+def start(pipe):
+    theGhostOfTheGoon = Adcs()
 
-def stop():
-    pass
-
-if __name__ == "__main__":
-    start()  # This will be called when run as subprocess
-    try:
-        while True:  # Keep process running
-            pass
-    except KeyboardInterrupt:
-        stop()
+    running = True
+    while running:
+        line = pipe.recv()
+        if line == "health_check":
+            variable = theGhostOfTheGoon.health_check()
+            pipe.send(variable)
+        elif line == "stop":
+            running = False

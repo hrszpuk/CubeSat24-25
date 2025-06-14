@@ -1,11 +1,15 @@
-from process_manager import ProcessManager
-from logger import get_logger
-
-manager = ProcessManager()
+import Vector.ADCS as adcs
+import multiprocessing as mp
 
 def start():
-    manager.add_process(name="ADCS")
+    pipeMain, pipeChild = mp.Pipe()
+    p = mp.Process(target=adcs.start, args=(pipeChild,))
+    p.start()
 
-def stop():
-    manager.stop_all()
-    manager.join_all()
+    pipeMain.send("health_check")
+    print(pipeMain.recv())
+
+    pipeMain.send("stop")
+
+    p.join()
+    pipeMain.close()

@@ -1,6 +1,6 @@
-from imu import Imu
-from reaction_wheel import ReactionWheel
-from sun_sensor import SunSensor
+from Vector.ADCS.imu import Imu
+from Vector.ADCS.reaction_wheel import ReactionWheel
+from Vector.ADCS.sun_sensor import SunSensor
 import time
 import threading
 
