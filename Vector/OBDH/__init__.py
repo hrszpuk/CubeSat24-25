@@ -6,7 +6,6 @@ manager = ProcessManager()
 
 def start():
     manager.add_process(name="ADCS", target=adcs_start)
-    manager.start_all()
 
 def stop():
     manager.stop_all()
