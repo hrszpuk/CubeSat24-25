@@ -1,6 +1,6 @@
-from process_manager import ProcessManager
-from logger import get_logger
-from Vector.ADCS import start as adcs_start
+from OBDH.process_manager import ProcessManager
+from OBDH.logger import get_logger
+from ADCS import start as adcs_start
 
 manager = ProcessManager()
 

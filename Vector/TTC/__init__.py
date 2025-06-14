@@ -1,4 +1,4 @@
-from main import TTC
+from TTC.main import TTC
 
 ttc = TTC()
 ttc.start()

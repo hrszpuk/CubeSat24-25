@@ -2,7 +2,7 @@ import os
 import socket
 import http.server
 # import paramiko
-from utils import read_in_chunks
+from TTC.utils import read_in_chunks
 
 class TTC:
     '''
