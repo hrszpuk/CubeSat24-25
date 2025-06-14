@@ -1,4 +1,4 @@
-from ADCS.adcs import Adcs
+from adcs import Adcs
 
 def start(pipe):
     adcs = Adcs()

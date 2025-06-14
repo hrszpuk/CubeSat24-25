@@ -1,11 +1,10 @@
-from OBDH.process_manager import ProcessManager
-from OBDH.logger import get_logger
-from ADCS import start as adcs_start
+from process_manager import ProcessManager
+from logger import get_logger
 
 manager = ProcessManager()
 
 def start():
-    manager.add_process(name="ADCS", target=adcs_start)
+    manager.add_process(name="ADCS")
 
 def stop():
     manager.stop_all()
