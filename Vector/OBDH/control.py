@@ -1,5 +1,5 @@
 from multiprocessing import Queue
-11111111111111111111111
+
 from Vector.OBDH.health_check import run_health_checks
 from process_manager import ProcessManager
 from logger import get_logger
