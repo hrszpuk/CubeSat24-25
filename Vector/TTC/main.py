@@ -1,20 +1,20 @@
 import os
 import socket
 import http.server
-import paramiko
+# import paramiko
 from utils import read_in_chunks
 
 class TTC:
     '''
     Telemetry, Tracking & Command module
     '''
-    def __init__(self, max_retries):
+    def __init__(self, max_retries=3):
         # module configuration
         self.BUFFER_SIZE = 1024
         self.MAX_RETRIES = max_retries
 
         # connection configuration
-        self.host_name = socket.gethostname()
+        self.host_name = socket.getfqdn(socket.gethostname())
         self.port = 65432
         self.ip = socket.gethostbyname(self.host_name)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,6 +32,18 @@ class TTC:
     def connect(self):
         self.connection, self.addr = self.socket.accept()
         print(f"Connection established with {self.addr}")
+
+    def get_connection(self):
+        return self.connection
+
+    def echo(self):
+        while True:
+            message = self.connection.recv(self.BUFFER_SIZE)
+
+            if not message: 
+                break
+
+            self.connection.sendall(message)
 
     def send_file(self, file_path, byteorder_length, size, format):
         retries = 0
