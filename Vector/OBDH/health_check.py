@@ -1,26 +1,30 @@
 from logger import get_logger
 import time
 
-retries = 3
-delay = 0.5
-
-def run_health_checks(subsystems):
+def run_health_checks(manager):
     logger = get_logger()
-    report_lines = []
+    results = []
 
-    for subsystem in subsystems:
-        name = getattr(subsystem, 'name', repr(subsystem))
-        for attempt in range(1, retries + 1):
-            try:
-                status = subsystem.health_check()
-                report_lines.append(status)
+    output = manager.get_stdout("ADCS")
+    name = "ADCS"
+
+    try:
+        lines = []
+        start = time.time()
+        while time.time() - start < 1:
+            line = output.readline()
+            if not line:
                 break
-            except Exception as e:
-                logger.warning(f"{name} health check attempt {attempt} failed: {e!r}")
-                if attempt < retries:
-                    time.sleep(delay)
-                else:
-                    err = f"{name} health CHECK FAILED after {retries} attempts: {e!r}"
-                    logger.error(err)
-                    report_lines.append(err)
-    return "\n".join(report_lines)
+            lines.append(line.strip())
+
+        if lines:
+            results.append(f"{name}: " + "\n".join(lines))
+        else:
+            results.append(f"{name}: No output received")
+
+    except Exception as e:
+        logger.error(f"{name} health check read failed: {e}")
+        results.append(f"{name}: ERROR - {e}")
+
+    return "\n".join(results)
+
