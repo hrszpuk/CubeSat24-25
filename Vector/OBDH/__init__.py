@@ -1,22 +1,48 @@
-import Vector.OBDH.process_manager as pm
+from OBDH.process_manager import ProcessManager, Logger
+from OBDH.health_check import run_health_checks
 
 def start(manual=False):
-    processManager = pm.ProcessManager()
-    processManager.start_all()
+    logger = Logger(log_to_console=True).get_logger()
+    manager = ProcessManager(logger)
 
+    manager.start("ADCS")
+    manager.start("Payload")
+
+    # NOTE(remy): each subsystem needs to be asked if they are 'ready' before asking it to do stuff.
+    # Otherwise, stuff is still starting up while OBDH is asking it for health report data.
+    
+    while True:
+        manager.send("ADCS", "is_ready", log=False)
+        is_ready = manager.receive("ADCS")
+        if is_ready == True:
+            break
+    
     if not manual:
-        processManager.send(pm.ADCS_PROCESS, "health_check")
-        print(processManager.recv(pm.ADCS_PROCESS))
-        processManager.send(pm.ADCS_PROCESS, "stop")
+
+        run_health_checks(manager)
+
+        manager.send("ADCS", "stop")
+        manager.send("Payload", "stop")
+
     else:
+        # NOTE(remy): we might want to refactor OBDH to have a state machine for MANUAL, TEST, and PROD modes
+        # MANUAL = Running manual commands (useful for debugging and testing individual parts)
+        # TEST = Run test code (like the health check written above)
+        # PROD = Accept commands from TT&C (like we would during the competition)
+        # With this ^ we could make the code more organised and better than just a big if-else like it is now
+        # This is just an idea, I think it would clean up the code a lot, up to you.
         running = True
         while running:
-            userInput = input("-> ")
+            userInput = input("-> ").strip().lower()
             if userInput == "stop":
-                processManager.send(pm.ADCS_PROCESS, "stop")
                 running = False
             elif userInput == "health_check":
-                processManager.send(pm.ADCS_PROCESS, "health_check")
-                print(processManager.recv(pm.ADCS_PROCESS))
+                manager.send("ADCS", "health_check")
+                print("ADCS:", manager.receive("ADCS"))
+                manager.send("ADCS", "stop")
 
-    processManager.join_all()
+                manager.send("Payload", "health_check")
+                print("Payload:", manager.receive("Payload"))
+                manager.send("Payload", "stop")
+
+    manager.shutdown()

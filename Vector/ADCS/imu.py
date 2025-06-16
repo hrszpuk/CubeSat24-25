@@ -19,6 +19,7 @@ class Imu:
         )
         time.sleep(2)  # Wait for serial stabilization
         self._clear_buffers()
+        self.calibration_offset = 0
 
     def _clear_buffers(self) -> None:
         """Clear serial buffers to avoid stale data."""
@@ -62,12 +63,16 @@ class Imu:
             # Parse Gyroscope (if available)
             if len(parts) > 0 and ":" in parts[0]:
                 gyro_str = parts[0].split(":")[1].strip()
-                gyroscope = [float(x) for x in gyro_str.split()[:3]]  # Take first 3 values
+                gyroscope = [round(float(x), 2) for x in gyro_str.split()[:3]]  # Take first 3 values
             
             # Parse Orientation (if available)
             if len(parts) > 1 and ":" in parts[1]:
                 orient_str = parts[1].split(":")[1].strip()
-                orientation = [float(x) for x in orient_str.split()[:3]]  # Take first 3 values
+                orientation = []
+                for x in orient_str.split()[:3]:
+                    val = float(x) % 360  # Wrap value to [0, 360)
+                    val_w_offset = (val - self.calibration_offset) % 360
+                    orientation.append(round(val, 2))
             
             return gyroscope, orientation
         except (ValueError, IndexError, AttributeError) as e:
@@ -113,7 +118,7 @@ class Imu:
     def calibrate(self) -> None:
         """Trigger calibration."""
         #TODO add error handling for IMU calibration
-        print("Waiting for IMU calibration to complete...")
+        #print("Waiting for IMU calibration to complete...")
         self.send_command('CALIBRATE')
         time.sleep(0.3)
         while True:
@@ -121,10 +126,18 @@ class Imu:
             if line:
                 if "complete" in line:
                     break
-                    print(line)
-            else:
-                print(".")
-        print("IMU calibration completed successfully!")
+                    #print(line)
+            #else:
+                #print(".")
+        #print("IMU calibration completed successfully!")
+
+    def set_calibration_offset(self, offset: float) -> None:
+        """Set calibration offset for orientation."""
+
+        if offset >= 0 and offset < 360:
+            self.calibration_offset = offset
+        else:
+            raise ValueError("Offset must be in the range [0, 360) degrees")
 
 # Example Usage
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import time
-from Vector.ADCS.brushless_motor import BrushlessMotor
-from Vector.ADCS.imu import Imu
+from ADCS.brushless_motor import BrushlessMotor
+from ADCS.imu import Imu
 import numpy as np
 
 # Satellite Variables
@@ -153,6 +153,8 @@ class ReactionWheel:
             time.sleep(2)
 
         self.motor.set_speed(0)  # Stop the motor
+
+        #print("Calibration rotation complete. Motor stopped.")
 
         # # Ramp down
         # for percent in range(40, 0, -10):
