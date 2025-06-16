@@ -8,8 +8,7 @@ while not ttc.get_connection():
 
 ttc.echo()
 
-def start(pipe):
-    pass
+def start(pipe, log_queue):
+    log_queue.put(("TTC", "Starting Subsystem"))
 
-def stop():
-    pass
+    return
