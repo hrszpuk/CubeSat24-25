@@ -5,9 +5,14 @@ import time
 import threading
 
 class AdcsController:
-    def __init__(self):
+    def __init__(self, log_queue):
         self.initialize_sun_sensors()
         self.initialize_orientation_system()
+
+        self.log_queue = log_queue
+
+    def log(self, msg):
+        self.log_queue.put(("ADCS", msg))
 
     def initialize_orientation_system(self):
         self.imu = Imu()
@@ -78,7 +83,7 @@ class AdcsController:
     def calibrate_orientation_system(self):
         imu_status = self.imu.get_status()
         if imu_status["status"] == "ACTIVE" and self.reaction_wheel is not None:
-            print("IMU initialized successfully.")
+            self.log("IMU initialized successfully.")
             calibration_rotation_thread = threading.Thread(target=self.reaction_wheel.calibration_rotation)
             calibration_rotation_thread.start()
             self.imu.calibrate()
