@@ -1,6 +1,7 @@
 from ADCS.adcs_controller import AdcsController
 
-def start(pipe):
+def start(pipe, log_queue):
+    log_queue.put(("ADCS", "Starting Subsystem"))
     adcs_controller = AdcsController()
     
     running = True
