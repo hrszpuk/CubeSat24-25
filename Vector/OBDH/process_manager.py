@@ -1,7 +1,6 @@
 import multiprocessing as mp
 import Vector.ADCS as adcs
 
-from types import ModuleType
 from typing import Tuple
 
 ADCS_PROCESS = 0
@@ -33,3 +32,8 @@ class ProcessManager():
         else:
             raise IndexError(f"No process with ID {id}")
 
+    def recv(self, id=ADCS_PROCESS):
+        if 0 <= id < len(self.process):
+            return self.process[id][1].recv()
+        else:
+            raise IndexError(f"No process with ID {id}")

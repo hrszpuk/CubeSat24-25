@@ -1,26 +1,22 @@
-import Vector.ADCS as adcs
-import multiprocessing as mp
+import Vector.OBDH.process_manager as pm
 
-def start(manual = False):
-    pipeMain, pipeChild = mp.Pipe()
-    p = mp.Process(target=adcs.start, args=(pipeChild,))
-    p.start()
+def start(manual=False):
+    processManager = pm.ProcessManager()
+    processManager.start_all()
 
-    # TEST CODE
     if not manual:
-        pipeMain.send("health_check")
-        print(pipeMain.recv())
-        pipeMain.send("stop")
+        processManager.send(pm.ADCS_PROCESS, "health_check")
+        print(processManager.recv(pm.ADCS_PROCESS))
+        processManager.send(pm.ADCS_PROCESS, "stop")
     else:
         running = True
         while running:
             userInput = input("-> ")
             if userInput == "stop":
+                processManager.send(pm.ADCS_PROCESS, "stop")
                 running = False
             elif userInput == "health_check":
-                pipeMain.send("health_check")
-                print(pipeMain.recv())
-                pipeMain.send("stop")
+                processManager.send(pm.ADCS_PROCESS, "health_check")
+                print(processManager.recv(pm.ADCS_PROCESS))
 
-    p.join()
-    pipeMain.close()
+    processManager.join_all()

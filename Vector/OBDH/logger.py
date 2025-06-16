@@ -14,3 +14,6 @@ file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 
 listener = QueueListener(log_queue, file_handler)
 listener.start()
+
+def get_logger():
+    return logger
