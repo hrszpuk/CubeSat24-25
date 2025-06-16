@@ -1,7 +1,8 @@
 from Payload.payload_controller import PayloadController
 
 
-def start(pipe):
+def start(pipe, log_queue):
+    log_queue.put(("Payload", "Starting Subsystem"))
     payload_controller = PayloadController()
 
     running = True
@@ -12,7 +13,3 @@ def start(pipe):
             pipe.send(variable)
         elif line == "stop":
             running = False
-
-
-def stop():
-    pass

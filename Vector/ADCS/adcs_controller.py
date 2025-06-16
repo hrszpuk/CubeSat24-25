@@ -7,10 +7,15 @@ import queue
 import numpy as np
 
 class AdcsController:
-    def __init__(self):
+    def __init__(self, log_queue):
         self.initialize_sun_sensors()
         self.initialize_orientation_system()
         self.calibrating_orientation_system = False
+
+        self.log_queue = log_queue
+
+    def log(self, msg):
+        self.log_queue.put(("ADCS", msg))
 
     def initialize_orientation_system(self):
         self.imu = Imu()
@@ -82,6 +87,7 @@ class AdcsController:
         imu_status = self.imu.get_status()
         if imu_status["status"] == "ACTIVE" and self.reaction_wheel is not None:
             print("IMU initialized successfully.")
+            self.log("IMU initialized successfully.")
             self.calibrating_orientation_system = True
             readings_queue = queue.Queue()
 
