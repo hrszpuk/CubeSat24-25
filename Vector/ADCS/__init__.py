@@ -1,8 +1,8 @@
-from Vector.ADCS.adcs_controller import AdcsController
+from ADCS.adcs_controller import AdcsController
 
 def start(pipe):
     adcs_controller = AdcsController()
-
+    
     running = True
     while running:
         line = pipe.recv()

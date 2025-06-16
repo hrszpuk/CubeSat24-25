@@ -1,5 +1,5 @@
-import Vector.ADCS as adcs
-import Vector.Payload as payload
+import ADCS as adcs
+import Payload as payload
 import multiprocessing as mp
 
 def start(manual=False):
@@ -14,12 +14,21 @@ def start(manual=False):
 
     # TEST CODE
     if not manual:
+
+        print("\n--- Vector CubeSat Health Check Report ---")
+
         pipeMain_adcs.send("health_check")
-        print("ADCS:", pipeMain_adcs.recv())
+        response = pipeMain_adcs.recv()
+        print("\n--- ADCS Subsystem ---")
+        for line in response[:-1]:
+            print(line)
         pipeMain_adcs.send("stop")
 
         pipeMain_payload.send("health_check")
-        print("Payload:", pipeMain_payload.recv())
+        response = pipeMain_payload.recv()
+        print("\n--- Payload Subsystem ---")
+        for line in response[:-1]:
+            print(line)
         pipeMain_payload.send("stop")
     else:
         running = True

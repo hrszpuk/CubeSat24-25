@@ -1,5 +1,5 @@
-from Vector.Payload.distance_sensor import DistanceSensor
-from Vector.Payload.stereo_camera import StereoCamera
+from Payload.distance_sensor import DistanceSensor
+from Payload.stereo_camera import StereoCamera
 
 class PayloadController:
     def __init__(self):
@@ -38,12 +38,15 @@ class PayloadController:
         left_image = self.stereo_camera.get_left_image()
         right_image = self.stereo_camera.get_right_image()
 
-        if not left_image:
+        if left_image is None:
             errors.append("Left camera not available")
-        if not right_image:
+        if right_image is None:
             errors.append("Right camera not available")
+        
+        if errors:
+            health_check_text += "Stereo Camera: DOWN\n"
         else:
-            health_check_text += f"Stereo Camera: OPERATIONAL"
+            health_check_text += f"Stereo Camera: ACTIVE\n"
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
@@ -54,11 +57,12 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        distance_data = self.distance_sensor.get_data()
+        distance_data = self.distance_sensor.get_distance()
         if not distance_data:
             errors.append("Distance sensor data not available")
+            health_check_text += f"Distance Sensor: DOWN\n"
         else:
-            health_check_text += f"Distance Sensor: {distance_data} cm"
+            health_check_text += f"Distance Sensor: {distance_data} cm\n"
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors

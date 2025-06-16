@@ -1,4 +1,4 @@
-from Vector.Payload.payload_controller import PayloadController
+from Payload.payload_controller import PayloadController
 
 
 def start(pipe):

@@ -1,7 +1,7 @@
 import numpy as np
 import cv2 as cv
 from matplotlib import pyplot as plt
-from camera import Camera
+from Payload.camera import Camera
 
 class StereoCamera:
     def __init__(self):

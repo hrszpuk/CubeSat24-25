@@ -1,6 +1,6 @@
 import time
-from Vector.ADCS.brushless_motor import BrushlessMotor
-from Vector.ADCS.imu import Imu
+from ADCS.brushless_motor import BrushlessMotor
+from ADCS.imu import Imu
 import numpy as np
 
 # Satellite Variables
