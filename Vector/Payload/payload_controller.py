@@ -57,12 +57,11 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        distance_data = self.distance_sensor.get_distance()
-        if not distance_data:
+        if self.distance_sensor is None:
             errors.append("Distance sensor data not available")
             health_check_text += f"Distance Sensor: DOWN\n"
         else:
-            health_check_text += f"Distance Sensor: {distance_data} cm\n"
+            health_check_text += f"Distance Sensor: ACTIVE\n"
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors

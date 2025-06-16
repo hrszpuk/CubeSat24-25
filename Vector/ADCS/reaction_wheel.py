@@ -154,6 +154,8 @@ class ReactionWheel:
 
         self.motor.set_speed(0)  # Stop the motor
 
+        print("Calibration rotation complete. Motor stopped.")
+
         # # Ramp down
         # for percent in range(40, 0, -10):
         #     self.motor.set_speed(percent)

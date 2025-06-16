@@ -19,6 +19,7 @@ class Imu:
         )
         time.sleep(2)  # Wait for serial stabilization
         self._clear_buffers()
+        self.calibration_offset = 0
 
     def _clear_buffers(self) -> None:
         """Clear serial buffers to avoid stale data."""
@@ -70,6 +71,7 @@ class Imu:
                 orientation = []
                 for x in orient_str.split()[:3]:
                     val = float(x) % 360  # Wrap value to [0, 360)
+                    val_w_offset = (val - self.calibration_offset) % 360
                     orientation.append(round(val, 2))
             
             return gyroscope, orientation
@@ -128,6 +130,14 @@ class Imu:
             else:
                 print(".")
         print("IMU calibration completed successfully!")
+
+    def set_calibration_offset(self, offset: float) -> None:
+        """Set calibration offset for orientation."""
+
+        if offset >= 0 and offset < 360:
+            self.calibration_offset = offset
+        else:
+            raise ValueError("Offset must be in the range [0, 360) degrees")
 
 # Example Usage
 if __name__ == "__main__":
