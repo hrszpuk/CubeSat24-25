@@ -14,9 +14,9 @@ class TTC:
         self.MAX_RETRIES = max_retries
 
         # connection configuration
-        self.host_name = socket.getfqdn(socket.gethostname())
+        self.host_name = socket.gethostname()
         self.port = 65432
-        self.ip = socket.gethostbyname(self.host_name)
+        self.ip = "0.0.0.0"
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connection = None
         self.addr = None
@@ -25,7 +25,7 @@ class TTC:
 
     def start(self):
         print("Starting TT&C...")
-        self.socket.bind((self.host_name, self.port))
+        self.socket.bind((self.ip, self.port))
         self.socket.listen()
         print(f"Listening for connections on {self.host_name} ({self.ip})")
 
@@ -35,6 +35,13 @@ class TTC:
 
     def get_connection(self):
         return self.connection
+
+    def get_status(self):
+        # downlink frequency
+        # uplink frequency
+        # signal strength
+        # data transmission rate
+        pass
 
     def echo(self):
         while True:
