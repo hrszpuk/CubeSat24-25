@@ -1,6 +1,7 @@
 from logger import get_logger
 import time
 
+# NOTE(remy): The logger import no longer works because of the refactor.
 def run_health_checks(manager):
     logger = get_logger()
     results = []
