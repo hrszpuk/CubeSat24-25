@@ -133,8 +133,6 @@ class Imu:
 
     def set_calibration_offset(self, offset: float) -> None:
         """Set calibration offset for orientation."""
-        if not isinstance(offset, (int, float)):
-            raise ValueError("Offset must be a numeric value")
 
         if offset >= 0 and offset < 360:
             self.calibration_offset = offset
