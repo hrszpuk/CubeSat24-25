@@ -1,5 +1,5 @@
-from process_manager import ProcessManager, Logger
-
+from OBDH.process_manager import ProcessManager, Logger
+from OBDH.health_check import run_health_checks
 
 def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
@@ -10,22 +10,18 @@ def start(manual=False):
 
     # NOTE(remy): each subsystem needs to be asked if they are 'ready' before asking it to do stuff.
     # Otherwise, stuff is still starting up while OBDH is asking it for health report data.
-
+    
+    while True:
+        manager.send("ADCS", "is_ready", log=False)
+        is_ready = manager.receive("ADCS")
+        if is_ready == True:
+            break
+    
     if not manual:
-        print("\n--- Vector CubeSat Health Check Report ---")
 
-        manager.send("ADCS", "health_check")
-        response = manager.receive("ADCS")
-        print("\n--- ADCS Subsystem ---")
-        for line in response[:-1]:
-            print(line)
+        run_health_checks(manager)
+
         manager.send("ADCS", "stop")
-
-        manager.send("Payload", "health_check")
-        response = manager.receive("Payload")
-        print("\n--- Payload Subsystem ---")
-        for line in response[:-1]:
-            print(line)
         manager.send("Payload", "stop")
 
     else:

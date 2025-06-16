@@ -118,7 +118,7 @@ class Imu:
     def calibrate(self) -> None:
         """Trigger calibration."""
         #TODO add error handling for IMU calibration
-        print("Waiting for IMU calibration to complete...")
+        #print("Waiting for IMU calibration to complete...")
         self.send_command('CALIBRATE')
         time.sleep(0.3)
         while True:
@@ -126,10 +126,10 @@ class Imu:
             if line:
                 if "complete" in line:
                     break
-                    print(line)
-            else:
-                print(".")
-        print("IMU calibration completed successfully!")
+                    #print(line)
+            #else:
+                #print(".")
+        #print("IMU calibration completed successfully!")
 
     def set_calibration_offset(self, offset: float) -> None:
         """Set calibration offset for orientation."""

@@ -2,9 +2,15 @@ from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
 
 class PayloadController:
-    def __init__(self):
+    def __init__(self, log_queue):
+        self.state = "INITIALIZING"
+        self.log_queue = log_queue
         self.stereo_camera = StereoCamera()
         self.distance_sensor = DistanceSensor()
+        self.state = "READY"
+
+    def get_state(self):
+        return self.state
 
     def health_check(self):
         health_check_text = ""

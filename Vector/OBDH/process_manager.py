@@ -1,5 +1,5 @@
 import multiprocessing as mp
-from logger import Logger
+from OBDH.logger import Logger
 import importlib
 
 
@@ -43,32 +43,40 @@ class ProcessManager:
         if name not in self.processes:
             self.logger.warning(f"{name} is not running.")
             return
-        self.pipes[name].send("stop")
+        try:
+            self.pipes[name].send("stop")
+        except (BrokenPipeError, EOFError, OSError) as e:
+            self.logger.warning(f"Could not send stop to {name}: {e}")
         self.processes[name].join()
         self.logger.info(f"Stopped {name} subsystem.")
         del self.processes[name]
         del self.pipes[name]
 
-    def send(self, name, msg):
+    def send(self, name, msg, log=True):
         if name not in self.pipes:
             self.logger.warning(f"{name} is not running.")
             return
-        self.pipes[name].send(f"MSG:{msg}")
-        self.logger.info(f"Sent message to {name}: {msg}")
+        self.pipes[name].send(msg)
+        if log:
+            self.logger.info(f"Sent message to {name}: {msg}")
 
     def receive(self, name, timeout=None):
         if name not in self.pipes:
             self.logger.warning(f"{name} is not running.")
             return None
         conn = self.pipes[name]
-        if timeout:
-            if conn.poll(timeout):
-                return conn.recv()
+        try:
+            if timeout:
+                if conn.poll(timeout):
+                    return conn.recv()
+                else:
+                    self.logger.warning(f"Timeout waiting for response from {name}.")
+                    return None
             else:
-                self.logger.warning(f"Timeout waiting for response from {name}.")
-                return None
-        else:
-            return conn.recv()
+                return conn.recv()
+        except (EOFError, OSError) as e:
+            self.logger.error(f"Error receiving from {name}: {e}")
+            return None
 
     def shutdown(self):
         for name in list(self.processes.keys()):

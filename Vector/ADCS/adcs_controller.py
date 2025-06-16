@@ -8,11 +8,15 @@ import numpy as np
 
 class AdcsController:
     def __init__(self, log_queue):
+        self.state = "INITIALIZING"
+        self.log_queue = log_queue
         self.initialize_sun_sensors()
         self.initialize_orientation_system()
         self.calibrating_orientation_system = False
+        self.state = "READY"
 
-        self.log_queue = log_queue
+    def get_state(self):
+        return self.state
 
     def log(self, msg):
         self.log_queue.put(("ADCS", msg))
@@ -50,7 +54,6 @@ class AdcsController:
 
         if calibrate_orientation_system:
             self.calibrate_orientation_system()
-            #TODO sun sensors
         return health_check_text, errors
 
     def get_imu_health_check(self):
@@ -86,10 +89,11 @@ class AdcsController:
     def calibrate_orientation_system(self):
         imu_status = self.imu.get_status()
         if imu_status["status"] == "ACTIVE" and self.reaction_wheel is not None:
-            print("IMU initialized successfully.")
             self.log("IMU initialized successfully.")
             self.calibrating_orientation_system = True
             readings_queue = queue.Queue()
+
+            self.log("Starting orientation system calibration...")
 
             calibration_rotation_thread = threading.Thread(target=self.reaction_wheel.calibration_rotation)
             calibration_rotation_thread.start()
@@ -107,14 +111,13 @@ class AdcsController:
             if readings is not None and len(readings) > 0:
                 max_index = np.argmax(readings)
                 max_value = readings[max_index]
-                print(f"MAX YAW: {max_index}°, MAX VALUE: {max_value}")
-                print("CALIBRATION ORIENTATION SYSTEM COMPLETE\n\n")
+                self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {max_index}°")
                 self.imu.set_calibration_offset(max_index)
             else:
-                print("No readings available to determine max.")
+                self.log("No sun sensor readings available to determine offset.")
 
         else:
-            print(f"Orientation system calibration failed: Errors: {imu_status['errors']}")
+            self.log(f"Orientation system calibration failed: Errors: {imu_status['errors']}")
 
     def initialize_sun_sensors(self):
         # Initialize the four sun sensors
