@@ -8,7 +8,7 @@ while not ttc.get_connection():
 
 ttc.echo()
 
-def start(pipe):
+def start():
     pass
 
 def stop():
