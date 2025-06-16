@@ -2,7 +2,6 @@ from picamera2 import Picamera2
 from libcamera import controls
 import cv2
 
-
 class Camera:
     def __init__(self, camera_index=0, width=1920, height=1080, framerate=30):
         self.picam2 = Picamera2(camera_index)

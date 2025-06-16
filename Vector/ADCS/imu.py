@@ -62,12 +62,15 @@ class Imu:
             # Parse Gyroscope (if available)
             if len(parts) > 0 and ":" in parts[0]:
                 gyro_str = parts[0].split(":")[1].strip()
-                gyroscope = [float(x) for x in gyro_str.split()[:3]]  # Take first 3 values
+                gyroscope = [round(float(x), 2) for x in gyro_str.split()[:3]]  # Take first 3 values
             
             # Parse Orientation (if available)
             if len(parts) > 1 and ":" in parts[1]:
                 orient_str = parts[1].split(":")[1].strip()
-                orientation = [float(x) for x in orient_str.split()[:3]]  # Take first 3 values
+                orientation = []
+                for x in orient_str.split()[:3]:
+                    val = float(x) % 360  # Wrap value to [0, 360)
+                    orientation.append(round(val, 2))
             
             return gyroscope, orientation
         except (ValueError, IndexError, AttributeError) as e:

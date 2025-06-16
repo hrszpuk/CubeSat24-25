@@ -1,10 +1,10 @@
-from Vector.ADCS.imu import Imu
-from Vector.ADCS.reaction_wheel import ReactionWheel
-from Vector.ADCS.sun_sensor import SunSensor
+from ADCS.imu import Imu
+from ADCS.reaction_wheel import ReactionWheel
+from ADCS.sun_sensor import SunSensor
 import time
 import threading
 
-class Adcs:
+class AdcsController:
     def __init__(self):
         self.initialize_sun_sensors()
         self.initialize_orientation_system()
@@ -113,7 +113,7 @@ class Adcs:
             health_check_text += "ERROR: No sun sensors found!\n"
         else:
             for sensor in sun_sensors_status:
-                health_check_text += f"Mock Sun Sensor {sensor['id']}: {sensor['status']}\n"
+                health_check_text += f"Sun Sensor {sensor['id']}: {sensor['status']}\n"
                 errors += sensor["errors"] if "errors" in sensor else []
                 
         if errors == []:
@@ -125,3 +125,16 @@ class Adcs:
         # Get the status of the reaction wheel
         health_check_text = f"Reaction Wheel RPM: {self.reaction_wheel.get_current_speed():.2f}\n"
         return health_check_text
+
+    def get_sun_sensor_calibration_measurement(self):
+        try:
+            data = self.get_data()
+            if data is None:
+                return "Calibration failed, sensor not found."
+            
+            readings = dict()
+            #TODO: while
+            readings[self.imu.get_current_yaw()] = data
+
+        except Exception as e:
+            return f"Calibration measurement failed. Error: {str(e)}"

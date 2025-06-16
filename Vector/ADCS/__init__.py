@@ -1,13 +1,13 @@
-from Vector.ADCS.adcs import Adcs
+from ADCS.adcs_controller import AdcsController
 
 def start(pipe):
-    theGhostOfTheGoon = Adcs()
-
+    adcs_controller = AdcsController()
+    
     running = True
     while running:
         line = pipe.recv()
         if line == "health_check":
-            variable = theGhostOfTheGoon.health_check()
+            variable = adcs_controller.health_check()
             pipe.send(variable)
         elif line == "stop":
             running = False
