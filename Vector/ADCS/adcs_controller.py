@@ -4,7 +4,7 @@ from Vector.ADCS.sun_sensor import SunSensor
 import time
 import threading
 
-class Adcs:
+class AdcsController:
     def __init__(self):
         self.initialize_sun_sensors()
         self.initialize_orientation_system()
