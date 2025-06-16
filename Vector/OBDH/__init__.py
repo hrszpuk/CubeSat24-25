@@ -1,51 +1,52 @@
-import ADCS as adcs
-import Payload as payload
-import multiprocessing as mp
+from process_manager import ProcessManager, Logger
+
 
 def start(manual=False):
-    pipeMain_adcs, pipeChild_adcs = mp.Pipe()
-    pipeMain_payload, pipeChild_payload = mp.Pipe()
+    logger = Logger(log_to_console=True).get_logger()
+    manager = ProcessManager(logger)
 
-    p_adcs = mp.Process(target=adcs.start, args=(pipeChild_adcs,))
-    p_payload = mp.Process(target=payload.start, args=(pipeChild_payload,))
+    manager.start("ADCS")
+    manager.start("Payload")
 
-    p_adcs.start()
-    p_payload.start()
+    # NOTE(remy): each subsystem needs to be asked if they are 'ready' before asking it to do stuff.
+    # Otherwise, stuff is still starting up while OBDH is asking it for health report data.
 
-    # TEST CODE
     if not manual:
-
         print("\n--- Vector CubeSat Health Check Report ---")
 
-        pipeMain_adcs.send("health_check")
-        response = pipeMain_adcs.recv()
+        manager.send("ADCS", "health_check")
+        response = manager.receive("ADCS")
         print("\n--- ADCS Subsystem ---")
         for line in response[:-1]:
             print(line)
-        pipeMain_adcs.send("stop")
+        manager.send("ADCS", "stop")
 
-        pipeMain_payload.send("health_check")
-        response = pipeMain_payload.recv()
+        manager.send("Payload", "health_check")
+        response = manager.receive("Payload")
         print("\n--- Payload Subsystem ---")
         for line in response[:-1]:
             print(line)
-        pipeMain_payload.send("stop")
+        manager.send("Payload", "stop")
+
     else:
+        # NOTE(remy): we might want to refactor OBDH to have a state machine for MANUAL, TEST, and PROD modes
+        # MANUAL = Running manual commands (useful for debugging and testing individual parts)
+        # TEST = Run test code (like the health check written above)
+        # PROD = Accept commands from TT&C (like we would during the competition)
+        # With this ^ we could make the code more organised and better than just a big if-else like it is now
+        # This is just an idea, I think it would clean up the code a lot, up to you.
         running = True
         while running:
-            userInput = input("-> ")
+            userInput = input("-> ").strip().lower()
             if userInput == "stop":
                 running = False
             elif userInput == "health_check":
-                pipeMain_adcs.send("health_check")
-                print("ADCS:", pipeMain_adcs.recv())
-                pipeMain_adcs.send("stop")
+                manager.send("ADCS", "health_check")
+                print("ADCS:", manager.receive("ADCS"))
+                manager.send("ADCS", "stop")
 
-                pipeMain_payload.send("health_check")
-                print("Payload:", pipeMain_payload.recv())
-                pipeMain_payload.send("stop")
+                manager.send("Payload", "health_check")
+                print("Payload:", manager.receive("Payload"))
+                manager.send("Payload", "stop")
 
-    p_adcs.join()
-    p_payload.join()
-    pipeMain_adcs.close()
-    pipeMain_payload.close()
+    manager.shutdown()
