@@ -1,35 +1,78 @@
 import multiprocessing as mp
-import Vector.ADCS as adcs
+from logger import Logger
+import importlib
 
-from types import ModuleType
-from typing import Tuple
 
-ADCS_PROCESS = 0
-TTC_PROCESS = 1
+class ProcessManager:
+    def __init__(self, logger):
+        self.logger = logger
+        self.processes = {}
+        self.pipes = {}
+        self.log_queue = mp.Queue()
+        self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue,))
+        self.log_listener.start()
 
-class ProcessManager():
-    def __init__(self):
-        self.process = [self.create_tuple(adcs.start)]
+    def log_listener_process(self, log_queue):
+        logger = Logger(log_to_console=True).get_logger()
+        while True:
+            name, msg = log_queue.get()
+            if msg == "STOP_LOG":
+                break
+            logger.info(f"[{name}] {msg}")
 
-    @staticmethod
-    def create_tuple(start_function) -> Tuple:
-        masterPipe, childPipe = mp.Pipe()
-        process = mp.Process(target=start_function, args=(childPipe,))
-        return (process, masterPipe, childPipe)
+    def _run_subsystem(self, module_name, pipe, log_queue):
+        try:
+            subsystem = importlib.import_module(module_name)
+            subsystem.start(pipe, log_queue)
+        except Exception as e:
+            log_queue.put((module_name.upper(), f"Error starting subsystem: {e}"))
 
-    def start_all(self):
-        for process in self.process:
-          process[0].start()
+    def start(self, name):
+        module_name = name
+        if name in self.processes:
+            self.logger.warning(f"{name} already running.")
+            return
+        parent_conn, child_conn = mp.Pipe()
+        proc = mp.Process(target=self._run_subsystem, args=(module_name, child_conn, self.log_queue), name=name)
+        proc.start()
+        self.processes[name] = proc
+        self.pipes[name] = parent_conn
+        self.logger.info(f"Started {name} subsystem.")
 
-    def join_all(self):
-        for process in self.process:
-            process[1].send("stop")
-            process[0].join()
-            process[1].close()
+    def stop(self, name):
+        if name not in self.processes:
+            self.logger.warning(f"{name} is not running.")
+            return
+        self.pipes[name].send("stop")
+        self.processes[name].join()
+        self.logger.info(f"Stopped {name} subsystem.")
+        del self.processes[name]
+        del self.pipes[name]
 
-    def send(self, id, message):
-        if 0 <= id < len(self.process):
-            self.process[id][1].send(message)
+    def send(self, name, msg):
+        if name not in self.pipes:
+            self.logger.warning(f"{name} is not running.")
+            return
+        self.pipes[name].send(f"MSG:{msg}")
+        self.logger.info(f"Sent message to {name}: {msg}")
+
+    def receive(self, name, timeout=None):
+        if name not in self.pipes:
+            self.logger.warning(f"{name} is not running.")
+            return None
+        conn = self.pipes[name]
+        if timeout:
+            if conn.poll(timeout):
+                return conn.recv()
+            else:
+                self.logger.warning(f"Timeout waiting for response from {name}.")
+                return None
         else:
-            raise IndexError(f"No process with ID {id}")
+            return conn.recv()
 
+    def shutdown(self):
+        for name in list(self.processes.keys()):
+            self.stop(name)
+        self.log_queue.put(("ProcessManager", "STOP_LOG"))
+        self.log_listener.join()
+        self.logger.info("Shutdown complete.")
