@@ -1,10 +1,28 @@
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
+from TTC.main import TTC
+
+import threading
+import time
+
+ttc = TTC()
+HeartInterval = 5
+
+def heartbeat(ttc, logger):
+    while True:
+        ok = ttc.get_connection() is not None
+        if ok:
+            logger.debug("TT&C heartbeat: OK")
+        else:
+            logger.warning("TT&C heartbeat: FAILED")
+        time.sleep(HeartInterval)
 
 def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
-    manager = ProcessManager(logger)
 
+    threading.Thread(target=heartbeat, args=(ttc, logger), daemon=True).start()
+
+    manager = ProcessManager(logger)
     manager.start("ADCS")
     manager.start("Payload")
 
@@ -19,7 +37,14 @@ def start(manual=False):
     
     if not manual:
 
-        run_health_checks(manager)
+        report = run_health_checks(manager)
+        try:
+            ttc.start()
+            ttc.connect()
+            ttc.send_file(report, 4, 1024, "utf-8")
+            logger.info("Health check report sent")
+        except Exception as e:
+            logger.warning(f"Health check report failed: {e}")
 
         manager.send("ADCS", "stop")
         manager.send("Payload", "stop")
