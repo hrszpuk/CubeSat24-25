@@ -12,7 +12,7 @@ def start(pipe, log_queue):
             variable = payload_controller.health_check()
             pipe.send(variable)
         elif line == "is_ready":
-            variable = adcs_controller.get_state() == "READY"
+            variable = payload_controller.get_state() == "READY"
             pipe.send(variable)
         elif line == "stop":
             running = False

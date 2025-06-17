@@ -1,5 +1,6 @@
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
+from OBDH.telemetry import Telemetry
 from TTC.main import TTC
 
 import threading
@@ -28,20 +29,25 @@ def start(manual=False):
 
     # NOTE(remy): each subsystem needs to be asked if they are 'ready' before asking it to do stuff.
     # Otherwise, stuff is still starting up while OBDH is asking it for health report data.
-    
-    while True:
-        manager.send("ADCS", "is_ready", log=False)
-        is_ready = manager.receive("ADCS")
-        if is_ready == True:
-            break
+
+    subsystems = ["ADCS", "Payload"]  # obviously add the rest once there ready
+    for name in subsystems:
+        while True:
+            manager.send(name, "is_ready", log=False)
+            if manager.receive(name):
+                break
     
     if not manual:
 
-        report = run_health_checks(manager)
+        run_health_checks(manager)
         try:
             ttc.start()
             ttc.connect()
-            ttc.send_file(report, 4, 1024, "utf-8")
+
+            telemetry = Telemetry(manager, ttc, interval=5)
+            telemetry.start()
+
+            ttc.send_file("health.txt", 4, 1024, "utf-8")
             logger.info("Health check report sent")
         except Exception as e:
             logger.warning(f"Health check report failed: {e}")
