@@ -69,7 +69,7 @@ class ReactionWheel:
         return self.motor.get_current_speed()
 
     def pid_controller(self, setpoint, kp, ki, kd, previous_error=0, integral=0, dt=0.1):
-        error = setpoint - self.get_current_yaw() # This is PV
+        error = setpoint - self.imu.get_current_yaw() # This is PV
         integral += error * dt
         derivative = (error - previous_error) / dt
         control = kp * error + ki * integral + kd * derivative
@@ -148,11 +148,11 @@ class ReactionWheel:
     def calibration_rotation(self):
         """Perform a calibration rotation."""
         # Test motor from 50% to 100% throttle
-        for percent in range(0, 41, 10):
+        for percent in range(20, 61, 10):
             self.motor.set_speed(percent)
             time.sleep(2)
 
-        self.motor.set_speed(0)  # Stop the motor
+        self.motor.stop()  # Stop the motor
 
         #print("Calibration rotation complete. Motor stopped.")
 
