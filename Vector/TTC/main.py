@@ -1,8 +1,6 @@
 import os
 import socket
-import http.server
-# import paramiko
-from TTC.utils import read_in_chunks
+from TTC.utils import read_in_chunks, get_wifi_info
 
 class TTC:
     '''
@@ -37,20 +35,35 @@ class TTC:
         return self.connection
 
     def get_status(self):
+        wifi_info = get_wifi_info()
+        print(wifi_info)
         # downlink frequency
         # uplink frequency
         # signal strength
         # data transmission rate
         pass
 
-    def echo(self):
+    def await_message(self):
         while True:
             message = self.connection.recv(self.BUFFER_SIZE)
 
             if not message: 
                 break
 
+            print(f"CubeSat received: {message}")
             self.connection.sendall(message)
+            self.process_message(message)
+
+    def process_message(self, message):
+        tokens = message.split(" ")
+        command = tokens[0]
+        arguments = tokens[1:]
+
+        match command:
+            case "":
+                pass
+            case "shutdown":
+                pass
 
     def send_file(self, file_path, byteorder_length, size, format):
         retries = 0
@@ -59,7 +72,7 @@ class TTC:
             try:
                 # Check if the file path exists
                 if not os.path.exists(file_path):
-                    print("Error: File path does not exist.")
+                    print("Error: Path does not exist.")
                     break
 
                 # Check if the file path points to a directory

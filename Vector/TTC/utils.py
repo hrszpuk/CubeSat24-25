@@ -1,3 +1,6 @@
+import re
+import subprocess
+
 def read_in_chunks(file_object, chunk_size = 1024):
     while True:
         data = file_object.read(chunk_size)
@@ -6,3 +9,48 @@ def read_in_chunks(file_object, chunk_size = 1024):
             break
 
         yield data
+
+import subprocess
+
+def get_wifi_info(interface="wlan0"):
+    try:
+        result = subprocess.run(["iwconfig", interface], capture_output=True, text=True, check=True)
+        output = result.stdout
+
+        wifi_info = {
+            "interface": interface,
+            "frequency": None,
+            "bit_rate": None,
+            "signal_level": None
+        }
+
+        freq_match = re.search(r"Frequency:([\d.]+) GHz", output)
+
+        if freq_match:
+            wifi_info["frequency"] = float(freq_match.group(1))
+
+        bitrate_match = re.search(r"Bit Rate=(\d+\.?\d*)\s+Mb/s", output)
+
+        if bitrate_match:
+            wifi_info["bit_rate"] = float(bitrate_match.group(1))
+
+        signal_level_match = re.search(r"Signal level=(-\d+)\s+dBm", output)
+
+        if signal_level_match:
+            wifi_info["signal_level"] = int(signal_level_match.group(1))
+
+        return wifi_info
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing iwconfig for interface {interface}: {e}")
+        print(f"Stderr: {e.stderr}")
+        return None
+    
+    except FileNotFoundError:
+        print(f"Error: 'iwconfig' command not found. Make sure wireless-tools is installed.")
+        print(f"Install with: sudo apt install wireless-tools")
+        return None
+    
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
