@@ -1,5 +1,6 @@
 import time
 from ADCS.brushless_motor import BrushlessMotor
+from ADCS.brushed_motor import BrushedMotor
 from ADCS.imu import Imu
 import numpy as np
 
@@ -38,8 +39,10 @@ class ReactionWheel:
         omega_wheel (float): Angular velocity of the reaction wheel in rad/s.
         I_wheel (float): Moment of inertia of the reaction wheel.
         Imu (Imu): Instance of the IMU class for orientation data.
+        motor_type (str): Type of motor used ("brushless" or "brushed").
+        motor (BrushlessMotor or BrushedMotor): Instance of the motor class.
     """
-    def __init__(self, imu):
+    def __init__(self, imu, motor_type="brushless"):
         # Satellite Parameters
         self.sat_mass = SAT_MASS
         self.sat_side1 = SAT_SIDE1
@@ -56,9 +59,14 @@ class ReactionWheel:
         self.omega_wheel = 0.0
         self.I_wheel = self.calculate_moment_of_inertia(self.wheel_mass, self.wheel_radius, I_type="wheel")
 
-        # IMU and Brushless Initialization
+        # IMU and Motor Initialization
         self.imu = imu
-        self.motor = BrushlessMotor()
+        self.motor_type = motor_type
+        if self.motor_type == "brushless":
+            # Initialize Brushless Motor
+            self.motor = BrushlessMotor()
+        else:
+            self.motor = BrushedMotor()
 
     def get_current_speed(self):
         """
