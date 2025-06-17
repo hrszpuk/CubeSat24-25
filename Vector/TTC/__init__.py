@@ -10,5 +10,7 @@ def start():
 
     ttc.await_message()
 
-def stop():
-    pass
+def start(log_queue):
+    log_queue.put(("TTC", "Starting Subsystem"))
+
+    return

@@ -1,8 +1,9 @@
 from Payload.payload_controller import PayloadController
 
 
-def start(pipe):
-    payload_controller = PayloadController()
+def start(pipe, log_queue):
+    log_queue.put(("Payload", "Starting Subsystem"))
+    payload_controller = PayloadController(log_queue)
 
     running = True
     while running:
@@ -10,9 +11,8 @@ def start(pipe):
         if line == "health_check":
             variable = payload_controller.health_check()
             pipe.send(variable)
+        elif line == "is_ready":
+            variable = adcs_controller.get_state() == "READY"
+            pipe.send(variable)
         elif line == "stop":
             running = False
-
-
-def stop():
-    pass

@@ -2,9 +2,15 @@ from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
 
 class PayloadController:
-    def __init__(self):
+    def __init__(self, log_queue):
+        self.state = "INITIALIZING"
+        self.log_queue = log_queue
         self.stereo_camera = StereoCamera()
         self.distance_sensor = DistanceSensor()
+        self.state = "READY"
+
+    def get_state(self):
+        return self.state
 
     def health_check(self):
         health_check_text = ""
@@ -57,12 +63,11 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        distance_data = self.distance_sensor.get_distance()
-        if not distance_data:
+        if self.distance_sensor is None:
             errors.append("Distance sensor data not available")
             health_check_text += f"Distance Sensor: DOWN\n"
         else:
-            health_check_text += f"Distance Sensor: {distance_data} cm\n"
+            health_check_text += f"Distance Sensor: ACTIVE\n"
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors

@@ -1,51 +1,73 @@
-import ADCS as adcs
-import Payload as payload
-import multiprocessing as mp
+from OBDH.process_manager import ProcessManager, Logger
+from OBDH.health_check import run_health_checks
+from TTC.main import TTC
+
+import threading
+import time
+
+ttc = TTC()
+HeartInterval = 5
+
+def heartbeat(ttc, logger):
+    while True:
+        ok = ttc.get_connection() is not None
+        if ok:
+            logger.debug("TT&C heartbeat: OK")
+        else:
+            logger.warning("TT&C heartbeat: FAILED")
+        time.sleep(HeartInterval)
 
 def start(manual=False):
-    pipeMain_adcs, pipeChild_adcs = mp.Pipe()
-    pipeMain_payload, pipeChild_payload = mp.Pipe()
+    logger = Logger(log_to_console=True).get_logger()
 
-    p_adcs = mp.Process(target=adcs.start, args=(pipeChild_adcs,))
-    p_payload = mp.Process(target=payload.start, args=(pipeChild_payload,))
+    threading.Thread(target=heartbeat, args=(ttc, logger), daemon=True).start()
 
-    p_adcs.start()
-    p_payload.start()
+    manager = ProcessManager(logger)
+    manager.start("ADCS")
+    manager.start("Payload")
 
-    # TEST CODE
+    # NOTE(remy): each subsystem needs to be asked if they are 'ready' before asking it to do stuff.
+    # Otherwise, stuff is still starting up while OBDH is asking it for health report data.
+    
+    while True:
+        manager.send("ADCS", "is_ready", log=False)
+        is_ready = manager.receive("ADCS")
+        if is_ready == True:
+            break
+    
     if not manual:
 
-        print("\n--- Vector CubeSat Health Check Report ---")
+        report = run_health_checks(manager)
+        try:
+            ttc.start()
+            ttc.connect()
+            ttc.send_file(report, 4, 1024, "utf-8")
+            logger.info("Health check report sent")
+        except Exception as e:
+            logger.warning(f"Health check report failed: {e}")
 
-        pipeMain_adcs.send("health_check")
-        response = pipeMain_adcs.recv()
-        print("\n--- ADCS Subsystem ---")
-        for line in response[:-1]:
-            print(line)
-        pipeMain_adcs.send("stop")
+        manager.send("ADCS", "stop")
+        manager.send("Payload", "stop")
 
-        pipeMain_payload.send("health_check")
-        response = pipeMain_payload.recv()
-        print("\n--- Payload Subsystem ---")
-        for line in response[:-1]:
-            print(line)
-        pipeMain_payload.send("stop")
     else:
+        # NOTE(remy): we might want to refactor OBDH to have a state machine for MANUAL, TEST, and PROD modes
+        # MANUAL = Running manual commands (useful for debugging and testing individual parts)
+        # TEST = Run test code (like the health check written above)
+        # PROD = Accept commands from TT&C (like we would during the competition)
+        # With this ^ we could make the code more organised and better than just a big if-else like it is now
+        # This is just an idea, I think it would clean up the code a lot, up to you.
         running = True
         while running:
-            userInput = input("-> ")
+            userInput = input("-> ").strip().lower()
             if userInput == "stop":
                 running = False
             elif userInput == "health_check":
-                pipeMain_adcs.send("health_check")
-                print("ADCS:", pipeMain_adcs.recv())
-                pipeMain_adcs.send("stop")
+                manager.send("ADCS", "health_check")
+                print("ADCS:", manager.receive("ADCS"))
+                manager.send("ADCS", "stop")
 
-                pipeMain_payload.send("health_check")
-                print("Payload:", pipeMain_payload.recv())
-                pipeMain_payload.send("stop")
+                manager.send("Payload", "health_check")
+                print("Payload:", manager.receive("Payload"))
+                manager.send("Payload", "stop")
 
-    p_adcs.join()
-    p_payload.join()
-    pipeMain_adcs.close()
-    pipeMain_payload.close()
+    manager.shutdown()
