@@ -26,11 +26,17 @@ def start_phase2(manager, logger):
     rotating = True
     while rotating:
         message = manager.receive("ADCS")
-        if message == "ping":
-            logger.info("ODBH received ping from ADCS")
-            manager.send("Payload", "acknowledge_ping")
-            acknowledged = manager.receive("Payload")
-            logger.info(f"Payload: responded {acknowledged}")
+        if message == "take_photo":
+            logger.info("ODBH received \"take_photo\" from ADCS")
+
+            manager.send("Payload", "take_photo")
+            logger.info("ODBH sent \"take_photo\" to Payload")
+
+            photo_path = manager.receive("Payload")
+            logger.info("ODBH received photo (stored: \"{photo}\" from Payload")
+
+            manager.send("ADCS", f"photo:{photo_path}")  # This is kinda dumb we should use an enum or smth for commands
+
         elif message == "done":
             logger.info("ADCS rotation complete")
             rotating = False
