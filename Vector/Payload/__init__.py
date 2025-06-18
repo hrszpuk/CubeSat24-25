@@ -14,8 +14,8 @@ def start(pipe, log_queue):
         elif line == "is_ready":
             variable = payload_controller.get_state() == "READY"
             pipe.send(variable)
-        elif line == "acknowledge_ping":
+        elif line == "take_photo":
             variable = "Photo Taken :)"
-            pipe.send(variable)
+            pipe.send(variable)  # PATH TO PHOTO
         elif line == "stop":
             running = False
