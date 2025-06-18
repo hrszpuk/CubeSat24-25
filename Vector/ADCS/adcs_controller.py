@@ -23,7 +23,10 @@ class AdcsController:
 
     def initialize_orientation_system(self):
         self.imu = Imu()
-        self.reaction_wheel = ReactionWheel(self.imu)
+        self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
+        self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
+        #self.current_reaction_wheel = self.main_reaction_wheel
+        self.current_reaction_wheel = self.backup_reaction_wheel
         self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
@@ -88,21 +91,21 @@ class AdcsController:
 
     def calibrate_orientation_system(self):
         imu_status = self.imu.get_status()
-        if imu_status["status"] == "ACTIVE" and self.reaction_wheel is not None:
+        if imu_status["status"] == "ACTIVE" and self.current_reaction_wheel is not None:
             self.log("IMU initialized successfully.")
             self.calibrating_orientation_system = True
             readings_queue = queue.Queue()
 
             self.log("Starting orientation system calibration...")
 
-            calibration_rotation_thread = threading.Thread(target=self.reaction_wheel.calibration_rotation)
+            calibration_rotation_thread = threading.Thread(target=self.current_reaction_wheel.calibration_rotation)
             calibration_rotation_thread.start()
             self.imu.calibrate()
             calibration_rotation_thread.join()
 
             sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
             sun_sensor_measurement_thread.start()
-            self.reaction_wheel.calibration_rotation()
+            self.current_reaction_wheel.calibration_rotation()
             self.calibrating_orientation_system = False
             sun_sensor_measurement_thread.join()
             
@@ -156,7 +159,8 @@ class AdcsController:
     
     def get_reaction_wheel_health_check(self):
         # Get the status of the reaction wheel
-        health_check_text = f"Reaction Wheel RPM: {self.reaction_wheel.get_current_speed():.2f}\n"
+        health_check_text = f"Main Reaction Wheel RPM: {self.main_reaction_wheel.get_current_speed():.2f}\n"
+        health_check_text += f"Backup Reaction Wheel RPM: {self.backup_reaction_wheel.get_current_speed():.2f}\n"
         return health_check_text
 
     def sun_sensor_calibration_measurement(self, readings_queue):
@@ -168,6 +172,8 @@ class AdcsController:
 
         while self.calibrating_orientation_system:
             for sensor in self.sun_sensors:
+                if not sensor.get_status()["status"] == "ACTIVE":
+                    continue
                 data = sensor.get_data()
                 if data is None:
                     return "Calibration failed, sensor not found."

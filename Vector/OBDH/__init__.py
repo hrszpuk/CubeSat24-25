@@ -6,7 +6,7 @@ from TTC.main import TTC
 import threading
 import time
 
-ttc = TTC()
+#ttc = TTC()
 HeartInterval = 5
 
 def heartbeat(ttc, logger):
@@ -21,7 +21,7 @@ def heartbeat(ttc, logger):
 def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
 
-    threading.Thread(target=heartbeat, args=(ttc, logger), daemon=True).start()
+    #threading.Thread(target=heartbeat, args=(ttc, logger), daemon=True).start()
 
     manager = ProcessManager(logger)
     manager.start("ADCS")
