@@ -5,11 +5,6 @@ in3 = 17  # GPIO17 - Connect to L298N IN3
 in4 = 27  # GPIO27 - Connect to L298N IN4
 en_b = 23 # GPIO23 - Connect to L298N ENB
 
-# Motor B (Corresponds to IN3, IN4, ENB on L298N) - Your "Right Motor"
-in3 = 17  # GPIO17 - Connect to L298N IN3
-in4 = 27  # GPIO27 - Connect to L298N IN4
-en_b = 23 # GPIO23 - Connect to L298N ENB (MUST remove jumper from ENB on L298N)
-
 MAX_RPM = 250
 
 class BrushedMotor:
