@@ -1,63 +1,94 @@
 import os
 import socket
-from TTC.utils import read_in_chunks, get_wifi_info
+from datetime import datetime
+from TTC.utils import read_in_chunks, get_connection_info
 
 class TTC:
     '''
     Telemetry, Tracking & Command module
     '''
-    def __init__(self, max_retries=3):
+    def __init__(self, log_queue, ip="0.0.0.0", port=65432, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+        log_queue.put(("TT&C", "Initializing..."))
+
         # module configuration
-        self.BUFFER_SIZE = 1024
+        self.log_queue = log_queue
+        self.BUFFER_SIZE = buffer_size
+        self.FORMAT = format
+        self.BYTEORDER_LENGTH = byteorder_length
         self.MAX_RETRIES = max_retries
 
         # connection configuration
         self.host_name = socket.gethostname()
-        self.port = 65432
-        self.ip = "0.0.0.0"
+        self.ip = ip
+        self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connection = None
-        self.addr = None
+        self.connection_addr = None
+        self.last_command_received = None
 
-        print("TT&C module initialized")
+        log_queue.put(("TT&C", "Initialized"))
+
+    def log(self, msg):
+        self.log_queue.put(("TT&C", msg))
 
     def start(self):
-        print("Starting TT&C...")
+        self.log("Starting subsystem...")
         self.socket.bind((self.ip, self.port))
         self.socket.listen()
-        print(f"Listening for connections on {self.host_name} ({self.ip})")
+        self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
 
     def connect(self):
-        self.connection, self.addr = self.socket.accept()
-        print(f"Connection established with {self.addr}")
+        self.connection, self.connection_addr = self.socket.accept()
+        self.log(f"Connection established with {self.connection_addr}")
 
     def get_connection(self):
         return self.connection
 
     def get_status(self):
-        wifi_info = get_wifi_info()
-        print(wifi_info)
-        # downlink frequency
-        # uplink frequency
-        # signal strength
-        # data transmission rate
-        pass
+        self.log("Getting subsystem status...")
+        status = {}
+        connection_info = get_connection_info()
+
+        for metric, value in connection_info:
+            if value is not None:
+                item_str = f"{value}"
+
+                if "Frequency" in metric:
+                    item_str += " GHz"
+                elif metric == "Signal Strength":
+                    item_str += " dBm"
+                elif metric == "Data Transmission Rate":
+                    item_str += " Mb/s"
+            else:
+                item_str = None
+            
+            status[metric] = item_str
+
+        status["Last Command Received"] = self.last_command_received
+        self.log(f"Subsystem status: {status}")
+        return status
 
     def await_message(self):
         while True:
-            message = self.connection.recv(self.BUFFER_SIZE)
+            msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
 
-            if not message: 
+            if not msg:
+                self.log(f"Connection with {self.connection_addr} dropped")
+                self.connection = None
+                self.connection_addr = None
                 break
 
-            print(f"CubeSat received: {message}")
-            self.connection.sendall(message)
-            self.process_message(message)
+            self.last_command_received = datetime.now()
+            self.log(f"[{self.last_command_received}] CubeSat received: {msg}")
+            self.connection.sendall(msg)
+            self.process_command(msg)
 
-    def process_message(self, message):
-        tokens = message.split(" ")
+    def process_command(self, msg):
+        tokens = msg.split(" ")
         command = tokens[0]
+        self.log(f"Command: {command}")
         arguments = tokens[1:]
+        self.log(f"Arguments: {arguments}")
 
         match command:
             case "":
@@ -65,45 +96,41 @@ class TTC:
             case "shutdown":
                 pass
 
-    def send_file(self, file_path, byteorder_length, size, format):
+    def send_file(self, file_path):
         retries = 0
         
         while retries < self.MAX_RETRIES:
+            self.log("Attempting to ")
             try:
-                # Check if the file path exists
                 if not os.path.exists(file_path):
-                    print("Error: Path does not exist.")
+                    self.log("Error: Path does not exist.")
                     break
 
-                # Check if the file path points to a directory
                 if not os.path.isdir(file_path):
-                    print("Error: Path does not point to a directory.")
+                    self.log("Error: Path does not point to a directory.")
                     break
 
-                file_base_name = os.path.basename(file_path)                
+                file_base_name = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
-                print("File size is:", file_size, "bytes")
-                file_size_in_bytes = file_size.to_bytes(byteorder_length, "big")
+                self.log("File size is:", file_size, "bytes")
+                file_size_in_bytes = file_size.to_bytes(self.BYTEORDER_LENGTH, "big")
 
-                # Sending file size to ground station
                 print("Sending the file size")
                 self.connection.sendall(file_size_in_bytes)
-                msg = self.connection.recv(size).decode(format)
-                print("Server:", msg)
+                msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
+                print("Ground:", msg)
 
-                # Send filename of file to ground station
-                self.connection.sendall(file_base_name.encode(format))
+                self.connection.sendall(file_base_name.encode(self.FORMAT))
                 print("File name sent")
-                msg = self.connection.recv(size).decode(format)
-                print("Server:", msg)
+                msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
+                print("Ground:", msg)
 
-                # Send file data
                 with open(file_path, "rb") as f:
                     for data in read_in_chunks(f, self.BUFFER_SIZE):
                         self.connection.send(data)
                         
-                msg = self.connection.recv(size).decode(format)
-                print("Server:", msg)
+                msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
+                print("Ground:", msg)
                 break
                 
             except OSError as err:
