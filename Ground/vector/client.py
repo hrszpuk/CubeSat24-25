@@ -27,4 +27,4 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.sendall(message.encode(FORMAT))
         response = sock.recv(BUFFER_SIZE).decode(FORMAT)
 
-print("CubeSat:", repr(response))
+print("Ground received:", repr(response))

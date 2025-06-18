@@ -4,9 +4,6 @@ from datetime import datetime
 from TTC.utils import read_in_chunks, get_connection_info
 
 class TTC:
-    '''
-    Telemetry, Tracking & Command module
-    '''
     def __init__(self, log_queue, ip="0.0.0.0", port=65432, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
         log_queue.put(("TT&C", "Initializing..."))
 
@@ -84,6 +81,7 @@ class TTC:
             self.process_command(msg)
 
     def process_command(self, msg):
+        self.log("Processing command...")
         tokens = msg.split(" ")
         command = tokens[0]
         self.log(f"Command: {command}")
@@ -91,46 +89,41 @@ class TTC:
         self.log(f"Arguments: {arguments}")
 
         match command:
-            case "":
+            case "start_phase":
                 pass
             case "shutdown":
                 pass
+            case _:
+                self.log(f"[ERROR] Invalid command: {command}")
+                self.connection.sendall(f"[ERROR] {command} is not a valid command!".encode(self.FORMAT))
+
 
     def send_file(self, file_path):
         retries = 0
         
         while retries < self.MAX_RETRIES:
-            self.log("Attempting to ")
+            self.log(f"Attempt {retries} to send file {file_path}...")
             try:
                 if not os.path.exists(file_path):
-                    self.log("Error: Path does not exist.")
+                    self.log(f"[ERROR] {file_path} does not exist!")
                     break
 
                 if not os.path.isdir(file_path):
-                    self.log("Error: Path does not point to a directory.")
+                    self.log(f"[ERROR] {file_path} does not point to a directory!")
                     break
 
                 file_base_name = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
-                self.log("File size is:", file_size, "bytes")
                 file_size_in_bytes = file_size.to_bytes(self.BYTEORDER_LENGTH, "big")
-
-                print("Sending the file size")
                 self.connection.sendall(file_size_in_bytes)
-                msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
-                print("Ground:", msg)
-
+                self.log("Sent file size")
                 self.connection.sendall(file_base_name.encode(self.FORMAT))
-                print("File name sent")
-                msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
-                print("Ground:", msg)
+                self.log("Sent file name")
 
                 with open(file_path, "rb") as f:
                     for data in read_in_chunks(f, self.BUFFER_SIZE):
                         self.connection.send(data)
-                        
-                msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
-                print("Ground:", msg)
+
                 break
                 
             except OSError as err:
@@ -152,4 +145,4 @@ class TTC:
             retries += 1
 
         if retries >= self.MAX_RETRIES:
-            print("Failed to send file ({}) after {} retries".format(file_path, self.MAX_RETRIES))        
+            self.log(f"[ERROR] Failed to send file {file_path} after {self.MAX_RETRIES} retries!")        
