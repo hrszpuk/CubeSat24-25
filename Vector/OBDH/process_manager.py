@@ -1,6 +1,7 @@
 import multiprocessing as mp
 from OBDH.logger import Logger
 import importlib
+import datetime
 
 
 class ProcessManager:
@@ -11,6 +12,7 @@ class ProcessManager:
         self.log_queue = mp.Queue()
         self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue,))
         self.log_listener.start()
+        self.last_command_time = None
 
     def log_listener_process(self, log_queue):
         logger = Logger(log_to_console=True).get_logger()
@@ -57,6 +59,7 @@ class ProcessManager:
             self.logger.warning(f"{name} is not running.")
             return
         self.pipes[name].send(msg)
+        self.last_command_time = datetime.datetime.utcnow()
         if log:
             self.logger.info(f"Sent message to {name}: {msg}")
 
@@ -84,3 +87,8 @@ class ProcessManager:
         self.log_queue.put(("ProcessManager", "STOP_LOG"))
         self.log_listener.join()
         self.logger.info("Shutdown complete.")
+
+    def get_last_command_time(self):
+        if self.last_command_time:
+            return self.last_command_time.strftime("%d-%m-%Y %H:%M:%S GMT")
+        return "No command sent"

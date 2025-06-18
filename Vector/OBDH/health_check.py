@@ -3,6 +3,17 @@ from gpiozero import CPUTemperature
 import psutil
 import time
 
+def read_all_errors(log_path="vector.log"):
+    try:
+        with open(log_path, "r") as f:
+            lines = f.readlines()
+
+        error_lines = [line for line in lines if "ERROR" in line]
+
+        return error_lines if error_lines else ["No errors detected.\n"]
+    except FileNotFoundError:
+        return ["Log file not found.\n"]
+
 def run_health_checks(manager):
     manager.send("ADCS", "health_check")
     adcs_response = manager.receive("ADCS")
@@ -67,9 +78,11 @@ def run_health_checks(manager):
 
     total_seconds = int(uptime_delta.total_seconds())
     minutes = total_seconds // 60
-    
+
+    last_command_time = manager.get_last_command_time()
+
     health_check_text += f"Memory Usage: {memory.percent}%\n"
-    health_check_text += f"Last Command Received: \n"
+    health_check_text += f"Last Command Received: {last_command_time}\n"
     health_check_text += f"Uptime: {minutes} minutes\n"
 
     # for line in obdh_response[:-1]:
@@ -78,23 +91,35 @@ def run_health_checks(manager):
 
     # Error Log
     health_check_text += ("\n--- Error Log ---\n")
-    errors = []
-    # for line in obdh_response[:-1]:
-    #     health_check_text += line
-    health_check_text += "\n"
+    errors = read_all_errors()
+    health_check_text += "".join(errors) + "\n"
 
     # Overall Status
     health_check_text += ("\n--- Overall Status ---\n")
-    if errors:
+
+    adcs_status = "STATUS: OK" in adcs_response[-1]
+    payload_status = "STATUS: OK" in payload_response[-1] # other subsystems go below
+
+    affected = []
+
+    if not adcs_status:
+        affected.append("ADCS")
+    if not payload_status:
+        affected.append("Payload")
+
+    if errors and "No errors detected." not in errors[0]:
         health_check_text += "CRITICAL - Errors Detected\n"
-        health_check_text += "Recommended actions: Check logs for details.\n"
+        recommendation = "Check logs for details and reinitialise affected subsystem(s)."
+    elif affected:
+        affected_list = ", ".join(affected)
+        health_check_text += f"WARNING - Subsystems affected: {affected_list}\n"
+        recommendation = f"Reset and reinitialise {affected_list}; check connections."
     else:
         health_check_text += "NOMINAL - All systems operational\n"
-        health_check_text += "Recommended actions: Continue standard operations.\n"
-    health_check_text += "\n"
-    health_check_text += "--- End of Report ---\n"
+        recommendation = "Continue standard operations."
 
+    health_check_text += f"Recommended actions: {recommendation}\n\n"
+    health_check_text += "--- End of Report ---\n"
 
     with open("health.txt", "w") as f:
         f.write(health_check_text)
-

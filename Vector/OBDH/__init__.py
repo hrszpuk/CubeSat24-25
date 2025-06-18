@@ -5,6 +5,7 @@ from TTC.main import TTC
 
 import threading
 import time
+import os
 
 #ttc = TTC()
 HeartInterval = 5
@@ -40,17 +41,21 @@ def start(manual=False):
     if not manual:
 
         run_health_checks(manager)
-        try:
-            ttc.start()
-            ttc.connect()
 
-            telemetry = Telemetry(manager, ttc, interval=5)
-            telemetry.start()
+        if os.path.exists("health.txt"):
+            try:
+                ttc.start()
+                ttc.connect()
 
-            ttc.send_file("health.txt", 4, 1024, "utf-8")
-            logger.info("Health check report sent")
-        except Exception as e:
-            logger.warning(f"Health check report failed: {e}")
+                telemetry = Telemetry(manager, ttc, interval=5)
+                telemetry.start()
+
+                ttc.send_file("health.txt", 4, 1024, "utf-8")
+                logger.info("Health check report sent")
+            except Exception as e:
+                logger.warning(f"Health check report failed: {e}")
+        else:
+            logger.error("health.txt not found.")
 
         manager.send("ADCS", "stop")
         manager.send("Payload", "stop")
