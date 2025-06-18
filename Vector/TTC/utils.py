@@ -12,34 +12,33 @@ def read_in_chunks(file_object, chunk_size = 1024):
 
 import subprocess
 
-def get_wifi_info(interface="wlan0"):
+def get_connection_info(interface="wlan0"):
     try:
         result = subprocess.run(["iwconfig", interface], capture_output=True, text=True, check=True)
         output = result.stdout
-
-        wifi_info = {
-            "interface": interface,
-            "frequency": None,
-            "bit_rate": None,
-            "signal_level": None
+        connection_info = {
+            "Downlink Frequency": None,
+            "Uplink Frequency": None,
+            "Signal Strength": None,
+            "Data Transmission Rate": None
         }
-
         freq_match = re.search(r"Frequency:([\d.]+) GHz", output)
 
         if freq_match:
-            wifi_info["frequency"] = float(freq_match.group(1))
-
-        bitrate_match = re.search(r"Bit Rate=(\d+\.?\d*)\s+Mb/s", output)
-
-        if bitrate_match:
-            wifi_info["bit_rate"] = float(bitrate_match.group(1))
+            connection_info["Downlink Frequency"] = float(freq_match.group(1))
+            connection_info["Uplink Frequency"] = float(freq_match.group(1))
 
         signal_level_match = re.search(r"Signal level=(-\d+)\s+dBm", output)
 
         if signal_level_match:
-            wifi_info["signal_level"] = int(signal_level_match.group(1))
+            connection_info["Signal Strength"] = int(signal_level_match.group(1))
 
-        return wifi_info
+        bitrate_match = re.search(r"Bit Rate=(\d+\.?\d*)\s+Mb/s", output)
+
+        if bitrate_match:
+            connection_info["Data Transmission Rate"] = float(bitrate_match.group(1))
+
+        return connection_info
 
     except subprocess.CalledProcessError as e:
         print(f"Error executing iwconfig for interface {interface}: {e}")

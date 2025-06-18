@@ -1,6 +1,7 @@
 from TTC.main import TTC
 
-def start():
+def start(log_queue):
+    log_queue.put(("TTC", "Starting Subsystem"))
     ttc = TTC()
     ttc.start()
     ttc.get_status()
@@ -9,8 +10,3 @@ def start():
         ttc.connect()
 
     ttc.await_message()
-
-def start(log_queue):
-    log_queue.put(("TTC", "Starting Subsystem"))
-
-    return
