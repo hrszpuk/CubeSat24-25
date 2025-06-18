@@ -19,6 +19,22 @@ def heartbeat(ttc, logger):
             logger.warning("TT&C heartbeat: FAILED")
         time.sleep(HeartInterval)
 
+def start_phase2(manager, logger):
+    logger.info("Starting Phase 2")
+    manager.send("ADCS", "phase2_rotate")
+
+    rotating = True
+    while rotating:
+        message = manager.receive("ADCS")
+        if message == "ping":
+            logger.info("ODBH received ping from ADCS")
+            manager.send("Payload", "acknowledge_ping")
+            acknowledged = manager.receive("Payload")
+            logger.info(f"Payload: responded {acknowledged}")
+        elif message == "done":
+            logger.info("ADCS rotation complete")
+            rotating = False
+
 def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
 
@@ -80,5 +96,7 @@ def start(manual=False):
                 manager.send("Payload", "health_check")
                 print("Payload:", manager.receive("Payload"))
                 manager.send("Payload", "stop")
+            elif userInput == "phase 2":
+                start_phase2(manager, logger)
 
     manager.shutdown()
