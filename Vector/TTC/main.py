@@ -7,8 +7,11 @@ class TTC:
     '''
     Telemetry, Tracking & Command module
     '''
-    def __init__(self, ip="0.0.0.0", port=65432, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+    def __init__(self, log_queue, ip="0.0.0.0", port=65432, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+        log_queue.put(("TT&C", "Initializing..."))
+
         # module configuration
+        self.log_queue = log_queue
         self.BUFFER_SIZE = buffer_size
         self.FORMAT = format
         self.BYTEORDER_LENGTH = byteorder_length
@@ -23,25 +26,28 @@ class TTC:
         self.connection_addr = None
         self.last_command_received = None
 
-        print("TT&C module initialized")
+        log_queue.put(("TT&C", "Initialized"))
+
+    def log(self, msg):
+        self.log_queue.put(("TT&C", msg))
 
     def start(self):
-        print("Starting TT&C...")
+        self.log("Starting subsystem...")
         self.socket.bind((self.ip, self.port))
         self.socket.listen()
-        print(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
+        self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
 
     def connect(self):
         self.connection, self.connection_addr = self.socket.accept()
-        print(f"Connection established with {self.connection_addr}")
+        self.log(f"Connection established with {self.connection_addr}")
 
     def get_connection(self):
         return self.connection
 
-    def get_info(self):
-        info = {}
+    def get_status(self):
+        self.log("Getting subsystem status...")
+        status = {}
         connection_info = get_connection_info()
-        print(connection_info)
 
         for metric, value in connection_info:
             if value is not None:
@@ -56,32 +62,33 @@ class TTC:
             else:
                 item_str = None
             
-            info[metric] = item_str
+            status[metric] = item_str
 
-        info["Last Command Received"] = self.last_command_received
-        return info
+        status["Last Command Received"] = self.last_command_received
+        self.log(f"Subsystem status: {status}")
+        return status
 
     def await_message(self):
         while True:
             msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
 
             if not msg:
-                print(f"Connection with {self.connection_addr} dropped")
+                self.log(f"Connection with {self.connection_addr} dropped")
                 self.connection = None
                 self.connection_addr = None
                 break
 
             self.last_command_received = datetime.now()
-            print(f"[{self.last_command_received}] CubeSat received: {msg}")
+            self.log(f"[{self.last_command_received}] CubeSat received: {msg}")
             self.connection.sendall(msg)
             self.process_command(msg)
 
     def process_command(self, msg):
         tokens = msg.split(" ")
         command = tokens[0]
-        print(f"Command: {command}")
+        self.log(f"Command: {command}")
         arguments = tokens[1:]
-        print(f"Arguments: {arguments}")
+        self.log(f"Arguments: {arguments}")
 
         match command:
             case "":
@@ -93,18 +100,19 @@ class TTC:
         retries = 0
         
         while retries < self.MAX_RETRIES:
+            self.log("Attempting to ")
             try:
                 if not os.path.exists(file_path):
-                    print("Error: Path does not exist.")
+                    self.log("Error: Path does not exist.")
                     break
 
                 if not os.path.isdir(file_path):
-                    print("Error: Path does not point to a directory.")
+                    self.log("Error: Path does not point to a directory.")
                     break
 
                 file_base_name = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
-                print("File size is:", file_size, "bytes")
+                self.log("File size is:", file_size, "bytes")
                 file_size_in_bytes = file_size.to_bytes(self.BYTEORDER_LENGTH, "big")
 
                 print("Sending the file size")

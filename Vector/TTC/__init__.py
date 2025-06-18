@@ -1,10 +1,9 @@
 from TTC.main import TTC
 
-def start(log_queue):
-    log_queue.put(("TTC", "Starting Subsystem"))
-    ttc = TTC()
+def start(pipe, log_queue):    
+    ttc = TTC(log_queue)
     ttc.start()
-    ttc.get_status()
+    ttc.get_info()
 
     while not ttc.get_connection():
         ttc.connect()
