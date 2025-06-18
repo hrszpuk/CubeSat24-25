@@ -3,7 +3,8 @@ from ADCS.adcs_controller import AdcsController
 import time, random
 
 def start(pipe, log_queue):
-    log_queue.put(("ADCS", "Starting Subsystem"))
+    log = lambda msg: log_queue.put(("ADCS", msg))
+    log("Starting Subsystem")
     adcs_controller = AdcsController(log_queue)
     
     running = True
@@ -20,8 +21,11 @@ def start(pipe, log_queue):
             duration = 10
             interval_range = (1, 2)
             while time.time() - start_time < duration:
-                time.sleep(random.uniform(*interval_range))
-                pipe.send("ping")
+                time.sleep(random.uniform(*interval_range))  # TODO: REPLACE THIS WITH SENSOR-DATA LATER
+                pipe.send("take_photo")
             pipe.send("done")
+        elif "photo" in line:
+            path = line.split(":")[1]
+            log("Received path: {}".format(path))
         elif line == "stop":
             running = False
