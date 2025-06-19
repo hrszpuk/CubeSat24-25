@@ -8,7 +8,7 @@ def start(pipe, log_queue):
     
     running = True
     while running:
-        line = pipe.recv()
+        line, args = pipe.recv()
         if line == "health_check":
             variable = adcs_controller.health_check()
             pipe.send(variable)
@@ -17,11 +17,14 @@ def start(pipe, log_queue):
             pipe.send(variable)
         elif line == "phase2_rotate":
             start_time = time.time()
-            duration = 10
+            duration = 2
             interval_range = (1, 2)
             while time.time() - start_time < duration:
                 time.sleep(random.uniform(*interval_range))
-                pipe.send("ping")
-            pipe.send("done")
+                pipe.send(("take_picture", {"current_yaw": adcs_controller.get_current_yaw()}))
+            pipe.send("rotation_complete")
+        elif line == "phase2_sequence":
+            sequence = args.get("sequence", [])
+            adcs_controller.phase2_sequence(sequence)
         elif line == "stop":
             running = False

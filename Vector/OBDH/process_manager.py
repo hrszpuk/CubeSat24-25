@@ -54,14 +54,18 @@ class ProcessManager:
         del self.processes[name]
         del self.pipes[name]
 
-    def send(self, name, msg, log=True):
+    def send(self, name, msg, args={}, log=True):
         if name not in self.pipes:
             self.logger.warning(f"{name} is not running.")
             return
-        self.pipes[name].send(msg)
+        self.pipes[name].send((msg, args))
         self.last_command_time = datetime.datetime.utcnow()
         if log:
-            self.logger.info(f"Sent message to {name}: {msg}")
+            if args:
+                self.logger.info(f"Sent message to {name}: {msg} with args {args}")
+            else:
+                self.logger.info(f"Sent message to {name}: {msg}")
+
 
     def receive(self, name, timeout=None):
         if name not in self.pipes:
@@ -71,15 +75,25 @@ class ProcessManager:
         try:
             if timeout:
                 if conn.poll(timeout):
-                    return conn.recv()
+                    result = conn.recv()
+                    if isinstance(result, tuple) and len(result) == 2:
+                        msg, args = result
+                        return msg, args
+                    else:
+                        return result, {}
                 else:
                     self.logger.warning(f"Timeout waiting for response from {name}.")
-                    return None
+                    return None, {}
             else:
-                return conn.recv()
+                result = conn.recv()
+                if isinstance(result, tuple) and len(result) == 2:
+                    msg, args = result
+                    return msg, args
+                else:
+                    return result, {}
         except (EOFError, OSError) as e:
             self.logger.error(f"Error receiving from {name}: {e}")
-            return None
+            return None, {}
 
     def shutdown(self):
         for name in list(self.processes.keys()):

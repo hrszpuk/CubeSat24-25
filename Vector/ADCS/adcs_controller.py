@@ -156,6 +156,10 @@ class AdcsController:
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
+
+    def get_current_yaw(self):
+        # Get the current yaw from the IMU
+        return self.imu.get_current_yaw()
     
     def get_reaction_wheel_health_check(self):
         # Get the status of the reaction wheel

@@ -2,6 +2,7 @@ import argparse
 import cv2
 import pytesseract
 import numpy as np
+import glob
 
 def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -145,21 +146,24 @@ def clean_numbers_orientations(numbers_orientations):
     # Return sorted by degree
     return dict(sorted(final_orientations.items()))
 
-def find_number_orientation(image_path, numbers, width_in_pixels):
+def identify_numbers_from_files(image_paths):
     FOV = 75
 
     numbers_orientations = {}  # Store orientations
 
-    for number in numbers:
-        x, y, w, h, cX, cY, labels = number[1]
-        ground_truth = int(image_path.split('images/numbers/')[1].split('.')[0])
-        digits = int(number[0])
-        offset = cX - (width_in_pixels / 2)
-        degrees_per_pixel = FOV / width_in_pixels
-        angular_offset = offset * degrees_per_pixel
-        degree = (ground_truth + angular_offset) % 360  # Normalize to [0, 360)
-        numbers_orientations[(round(degree))] = (digits, offset)
+    for image_path in image_paths:
+        numbers, width_in_pixels = (get_numbers(image_path))
 
-    cleaned_numbers_orientations = clean_numbers_orientations(numbers_orientations) # Format: {degree: digits}
+        for number in numbers:
+            x, y, w, h, cX, cY, labels = number[1]
+            ground_truth = int(image_path.split('images/numbers/')[1].split('.')[0])
+            digits = int(number[0])
+            offset = cX - (width_in_pixels / 2)
+            degrees_per_pixel = FOV / width_in_pixels
+            angular_offset = offset * degrees_per_pixel
+            degree = (ground_truth + angular_offset) % 360  # Normalize to [0, 360)
+            numbers_orientations[(round(degree))] = (digits, offset)
+
+    cleaned_numbers_orientations = clean_numbers_orientations(numbers_orientations)
 
     return cleaned_numbers_orientations

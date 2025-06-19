@@ -21,19 +21,37 @@ def heartbeat(ttc, logger):
 
 def start_phase2(manager, logger):
     logger.info("Starting Phase 2")
+    
+    # NOTE(Tomas): we should send numbers for confirmation and do fine tuning when facing the object but short for now
+    
+    # 1- Start ADCS rotation
     manager.send("ADCS", "phase2_rotate")
+    logger.info("ADCS rotation started")
 
+    # 2- Wait for instruction from ADCS to take picture
     rotating = True
     while rotating:
-        message = manager.receive("ADCS")
-        if message == "ping":
-            logger.info("ODBH received ping from ADCS")
-            manager.send("Payload", "acknowledge_ping")
-            acknowledged = manager.receive("Payload")
-            logger.info(f"Payload: responded {acknowledged}")
-        elif message == "done":
-            logger.info("ADCS rotation complete")
+        message, args = manager.receive("ADCS")
+        if message == "take_picture":
+            logger.info("ADCS instructed to take picture")
+            manager.send("Payload", "take_picture", args={"current_yaw": args["current_yaw"]})
+            is_picture_taken, _ = manager.receive("Payload")
+            logger.info(f"Payload: Picture taken: {is_picture_taken}")
+        elif message == "rotation_complete":
+            logger.info("ADCS rotation complete, proceeding to image processing")
             rotating = False
+
+    # 3- Process images
+    manager.send("Payload", "get_numbers")
+    numbers, _ = manager.receive(name="Payload")
+    logger.info(f"Payload numbers: {numbers}")
+
+    # 4- send the numbers to TT&C
+    # 5- wait for sequence number from TT&C
+
+    # 6- send the sequence number to ADCS
+    example_sequence = [14, 15, 16]  # Example sequence numbers
+    manager.send("ADCS", "phase2_sequence", example_sequence)
 
 def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
@@ -51,12 +69,17 @@ def start(manual=False):
     for name in subsystems:
         while True:
             manager.send(name, "is_ready", log=False)
-            if manager.receive(name):
+            is_ready, _ = manager.receive(name)
+            if is_ready:
                 break
+
+    logger.info("All subsystems are ready")
     
     if not manual:
 
         run_health_checks(manager)
+
+        start_phase2(manager, logger)
 
         if os.path.exists("health.txt"):
             try:
@@ -90,11 +113,13 @@ def start(manual=False):
                 running = False
             elif userInput == "health_check":
                 manager.send("ADCS", "health_check")
-                print("ADCS:", manager.receive("ADCS"))
+                msg, args = manager.receive("ADCS")
+                print("ADCS:", msg, " - args:", args)
                 manager.send("ADCS", "stop")
 
                 manager.send("Payload", "health_check")
-                print("Payload:", manager.receive("Payload"))
+                msg, args = manager.receive("Payload")
+                print("Payload:", msg, " - args:", args)
                 manager.send("Payload", "stop")
             elif userInput == "phase 2":
                 start_phase2(manager, logger)
