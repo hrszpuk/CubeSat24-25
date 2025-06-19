@@ -1,5 +1,7 @@
+import glob
 from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
+from Payload.number_identifier import get_numbers, find_number_orientation
 
 class PayloadController:
     def __init__(self, log_queue):
@@ -71,3 +73,9 @@ class PayloadController:
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
+
+    def identify_numbers_from_files(self):
+        image_paths = glob.glob("images/numbers/*.jpeg")  # Adjust the number of images as needed
+        for image_path in sorted(image_paths):
+            numbers = (get_numbers(image_path))
+            find_number_orientation(image_path, numbers)
