@@ -1,11 +1,15 @@
 import os
 import socket
+import asyncio
+import websockets
 from datetime import datetime
+from http import HTTPStatus
 from TTC.utils import read_in_chunks, get_connection_info
 
 class TTC:
-    def __init__(self, log_queue, ip="0.0.0.0", port=65432, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
-        log_queue.put(("TT&C", "Initializing..."))
+    def __init__(self, log_queue, port=80, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 0))
 
         # module configuration
         self.log_queue = log_queue
@@ -16,27 +20,45 @@ class TTC:
 
         # connection configuration
         self.host_name = socket.gethostname()
-        self.ip = ip
+        self.ip = s.getsockname()[0]
         self.port = port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connection = None
-        self.connection_addr = None
         self.last_command_received = None
 
         log_queue.put(("TT&C", "Initialized"))
 
     def log(self, msg):
+        print(msg)
         self.log_queue.put(("TT&C", msg))
+
+    async def handle_message(self):
+        message = await self.connection.recv(decode=False)
+        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
+        self.log(f"({self.last_command_received}) CubeSat received: {message.decode(self.FORMAT)}")
+        await self.connection.send(message)
+        self.process_command(message.decode(self.FORMAT))
+
+    async def handle_connection(self, connection):
+        self.connection = connection
+        self.log(f"Connection established with {self.connection.local_address[0]}:{self.connection.local_address[1]}")
+
+        while True:
+            try:            
+                await self.handle_message()
+            except websockets.exceptions.ConnectionClosed:
+                self.log(f"Connection with {self.connection.local_address[0]}:{self.connection.local_address[1]} dropped")
+                self.connection = None
+                break
+
+    async def start_server(self):
+        self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
+        await websockets.serve(self.handle_connection, self.ip, self.port)
 
     def start(self):
         self.log("Starting subsystem...")
-        self.socket.bind((self.ip, self.port))
-        self.socket.listen()
-        self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
-
-    def connect(self):
-        self.connection, self.connection_addr = self.socket.accept()
-        self.log(f"Connection established with {self.connection_addr}")
+        event_loop = asyncio.get_event_loop()
+        event_loop.run_until_complete(self.start_server())
+        event_loop.run_forever()
 
     def get_connection(self):
         return self.connection
@@ -65,21 +87,6 @@ class TTC:
         self.log(f"Subsystem status: {status}")
         return status
 
-    def await_message(self):
-        while True:
-            msg = self.connection.recv(self.BUFFER_SIZE).decode(self.FORMAT)
-
-            if not msg:
-                self.log(f"Connection with {self.connection_addr} dropped")
-                self.connection = None
-                self.connection_addr = None
-                break
-
-            self.last_command_received = datetime.now()
-            self.log(f"[{self.last_command_received}] CubeSat received: {msg}")
-            self.connection.sendall(msg)
-            self.process_command(msg)
-
     def process_command(self, msg):
         self.log("Processing command...")
         tokens = msg.split(" ")
@@ -95,8 +102,7 @@ class TTC:
                 pass
             case _:
                 self.log(f"[ERROR] Invalid command: {command}")
-                self.connection.sendall(f"[ERROR] {command} is not a valid command!".encode(self.FORMAT))
-
+                self.connection.response(HTTPStatus.BAD_REQUEST, f"[ERROR] {command} is not a valid command!")
 
     def send_file(self, file_path):
         retries = 0
@@ -115,9 +121,9 @@ class TTC:
                 file_base_name = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
                 file_size_in_bytes = file_size.to_bytes(self.BYTEORDER_LENGTH, "big")
-                self.connection.sendall(file_size_in_bytes)
+                self.connection.send(file_size_in_bytes)
                 self.log("Sent file size")
-                self.connection.sendall(file_base_name.encode(self.FORMAT))
+                self.connection.send(file_base_name)
                 self.log("Sent file name")
 
                 with open(file_path, "rb") as f:
@@ -135,9 +141,6 @@ class TTC:
             except TimeoutError as err:
                 # Handle timeout-related error
                 print("Timeout error:", err, "retrying...")
-            except socket.error as err:
-                # Handle other socket-related errors
-                print("Socket error:", err, "retrying...")
             except Exception as err:
                 # Handle other general errors
                 print("Error occurred:", err, "retrying...")
@@ -145,4 +148,4 @@ class TTC:
             retries += 1
 
         if retries >= self.MAX_RETRIES:
-            self.log(f"[ERROR] Failed to send file {file_path} after {self.MAX_RETRIES} retries!")        
+            self.log(f"[ERROR] Failed to send file {file_path} after {self.MAX_RETRIES} retries!")
