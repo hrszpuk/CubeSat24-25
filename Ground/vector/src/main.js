@@ -1,13 +1,13 @@
-import { createApp } from 'vue'
+import { createApp } from 'vue';
 import router from './router';
-import PrimeVue from 'primevue/config'
-import Aura from '@primeuix/themes/aura'
-import { definePreset } from '@primeuix/themes'
-import ConfirmationService from 'primevue/confirmationservice'
-import DialogService from 'primevue/dialogservice'
-import ToastService from 'primevue/toastservice'
-import App from './Main.vue'
-import '@/assets/styles.scss'
+import PrimeVue from 'primevue/config';
+import Aura from '@primeuix/themes/aura';
+import { definePreset } from '@primeuix/themes';
+import ConfirmationService from 'primevue/confirmationservice';
+import DialogService from 'primevue/dialogservice';
+import ToastService from 'primevue/toastservice';
+import App from './Main.vue';
+import '@/assets/styles.scss';
 
 const Noir = definePreset(Aura, {
     semantic: {
@@ -101,4 +101,4 @@ createApp(App)
     .use(ConfirmationService)
     .use(DialogService)
     .use(ToastService)
-    .mount('#app')
+    .mount('#app');

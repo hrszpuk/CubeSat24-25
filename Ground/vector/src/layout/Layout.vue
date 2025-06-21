@@ -18,7 +18,7 @@
             <section class="p-dialog-content px-6 py-0 mb-6">
                 <p class="p-confirmdialog-message w-full m-0 text-sm text-center">{{ message.message }}</p>
             </section>
-            <section v-focustrap class="p-dialog-footer">
+            <section class="p-dialog-footer">
                 <Button class="p-confirmdialog-reject-button grow" :label="message.rejectLabel" :icon="message.rejectIcon" severity="secondary" @click="rejectCallback"></Button>
                 <Button class="p-confirmdialog-accept-button grow" :label="message.acceptLabel" :icon="message.acceptIcon" :severity="message.severity" autofocus @click="acceptCallback"></Button>
             </section>
