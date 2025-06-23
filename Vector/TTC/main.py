@@ -44,12 +44,14 @@ class TTC:
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
         while True:
-            try:            
+            try:
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
                 self.connection = None
                 break
+            except Exception as e:
+                print(e)
 
     async def start_server(self):
         self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
