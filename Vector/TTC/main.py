@@ -33,7 +33,7 @@ class TTC:
         self.log_queue.put(("TT&C", msg))
 
     async def handle_message(self):
-        message = await self.connection.recv(decode=False)
+        message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
         await self.connection.send(json.dumps({"type": "message", "data": message}))
@@ -41,13 +41,13 @@ class TTC:
 
     async def handle_connection(self, connection):
         self.connection = connection
-        self.log(f"Connection established with {self.connection.local_address[0]}:{self.connection.local_address[1]}")
+        self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
         while True:
             try:            
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
-                self.log(f"Connection with {self.connection.local_address[0]}:{self.connection.local_address[1]} dropped")
+                self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
                 self.connection = None
                 break
 
