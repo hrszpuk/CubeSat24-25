@@ -16,9 +16,9 @@ def read_all_errors(log_path="vector.log"):
 
 def run_health_checks(manager):
     manager.send("ADCS", "health_check")
-    adcs_response, _ = manager.receive("ADCS")
+    adcs_response = manager.receive("ADCS")["response"]
     manager.send("Payload", "health_check")
-    payload_response, _ = manager.receive("Payload")
+    payload_response = manager.receive("Payload")["response"]
 
     health_check_text = "--- Vector CubeSat Health Check Report ---\n"
     health_check_text += "Date: " + time.strftime("%d-%m-%Y") + "\n"

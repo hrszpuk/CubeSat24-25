@@ -10,7 +10,7 @@ class Telemetry:
 
     def collect_telemetry(self):
         self.manager.send("ADCS", "health_check")
-        health_check_text, _ = self.manager.receive("ADCS")
+        health_check_text = self.manager.receive("ADCS")["response"]
 
         telemetry = ""
         for line in health_check_text.splitlines():

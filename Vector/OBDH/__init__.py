@@ -1,23 +1,7 @@
+import os
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
 from OBDH.telemetry import Telemetry
-from TTC.main import TTC
-
-import threading
-import time
-import os
-
-#ttc = TTC()
-HeartInterval = 5
-
-def heartbeat(ttc, logger):
-    while True:
-        ok = ttc.get_connection() is not None
-        if ok:
-            logger.debug("TT&C heartbeat: OK")
-        else:
-            logger.warning("TT&C heartbeat: FAILED")
-        time.sleep(HeartInterval)
 
 def start_phase2(manager, logger):
     logger.info("Starting Phase 2")
@@ -30,20 +14,24 @@ def start_phase2(manager, logger):
 
     # 2- Wait for instruction from ADCS to take picture
     rotating = True
+
     while rotating:
-        message, args = manager.receive("ADCS")
-        if message == "take_picture":
+        adcs_response = manager.receive("ADCS")
+        cmd = adcs_response["command"]
+        args = adcs_response["arguments"]
+
+        if cmd == "take_picture":
             logger.info("ADCS instructed to take picture")
             manager.send("Payload", "take_picture", args={"current_yaw": args["current_yaw"]})
-            is_picture_taken, _ = manager.receive("Payload")
+            is_picture_taken = manager.receive("Payload")["response"]
             logger.info(f"Payload: Picture taken: {is_picture_taken}")
-        elif message == "rotation_complete":
+        elif cmd == "rotation_complete":
             logger.info("ADCS rotation complete, proceeding to image processing")
             rotating = False
 
     # 3- Process images
     manager.send("Payload", "get_numbers")
-    numbers, _ = manager.receive(name="Payload")
+    numbers = manager.receive(name="Payload")["response"]
     logger.info(f"Payload numbers: {numbers}")
 
     # 4- send the numbers to TT&C
@@ -55,23 +43,19 @@ def start_phase2(manager, logger):
 
 def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
-
-    #threading.Thread(target=heartbeat, args=(ttc, logger), daemon=True).start()
-
     manager = ProcessManager(logger)
-    manager.start("ADCS")
-    manager.start("Payload")
 
     # NOTE(remy): each subsystem needs to be asked if they are 'ready' before asking it to do stuff.
     # Otherwise, stuff is still starting up while OBDH is asking it for health report data.
 
-    subsystems = ["ADCS", "Payload"]  # obviously add the rest once there ready
+    subsystems = ["TTC", "ADCS", "Payload"]  # obviously add the rest once there ready
+
     for name in subsystems:
-        while True:
-            manager.send(name, "is_ready", log=False)
-            is_ready, _ = manager.receive(name)
-            if is_ready:
-                break
+        manager.start(name)
+        is_ready = False
+
+        while not is_ready:
+            is_ready = manager.receive(name)["response"]
 
     logger.info("All subsystems are ready")
     
@@ -107,19 +91,25 @@ def start(manual=False):
         # With this ^ we could make the code more organised and better than just a big if-else like it is now
         # This is just an idea, I think it would clean up the code a lot, up to you.
         running = True
+
         while running:
             userInput = input("-> ").strip().lower()
+
             if userInput == "stop":
                 running = False
             elif userInput == "health_check":
                 manager.send("ADCS", "health_check")
-                msg, args = manager.receive("ADCS")
-                print("ADCS:", msg, " - args:", args)
+                response = manager.receive("ADCS")
+                cmd = response["command"]
+                args = response["arguments"]
+                print("ADCS:", cmd, " - args:", args)
                 manager.send("ADCS", "stop")
 
                 manager.send("Payload", "health_check")
-                msg, args = manager.receive("Payload")
-                print("Payload:", msg, " - args:", args)
+                response = manager.receive("Payload")
+                cmd = response["command"]
+                args = response["arguments"]
+                print("Payload:", cmd, " - args:", args)
                 manager.send("Payload", "stop")
             elif userInput == "phase 2":
                 start_phase2(manager, logger)

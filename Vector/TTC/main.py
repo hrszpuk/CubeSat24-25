@@ -25,6 +25,7 @@ class TTC:
         self.port = port
         self.connection = None
         self.last_command_received = None
+        self.online = False
 
         log_queue.put(("TT&C", "Initialized"))
 
@@ -43,7 +44,7 @@ class TTC:
         self.connection = connection
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
-        while True:
+        while self.online:
             try:
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
@@ -51,11 +52,18 @@ class TTC:
                 self.connection = None
                 break
             except Exception as e:
-                print(e)
+                self.log(f"[ERROR] Connection handler failed: {e}")
 
     async def start_server(self):
-        self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
-        await websockets.serve(self.handle_connection, self.ip, self.port)
+        try:
+            await websockets.serve(self.handle_connection, self.ip, self.port)
+            self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
+            self.online = True
+        except Exception as e:
+            self.log(f"[ERROR] Could not start websocket server: {e}")
+    
+    def get_status(self):
+        return self.online
 
     def start(self):
         self.log("Starting subsystem...")
@@ -66,7 +74,7 @@ class TTC:
     def get_connection(self):
         return self.connection
 
-    def get_status(self):
+    def health_check(self):
         self.log("Getting subsystem status...")
         status = {}
         connection_info = get_connection_info()
