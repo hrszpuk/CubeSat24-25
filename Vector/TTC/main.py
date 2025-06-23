@@ -2,12 +2,13 @@ import os
 import socket
 import asyncio
 import websockets
+import json
 from datetime import datetime
-from http import HTTPStatus
 from TTC.utils import read_in_chunks, get_connection_info
 
 class TTC:
     def __init__(self, log_queue, port=80, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+        log_queue.put(("TT&C", "Initializing..."))
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))
 
@@ -34,9 +35,9 @@ class TTC:
     async def handle_message(self):
         message = await self.connection.recv(decode=False)
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
-        self.log(f"({self.last_command_received}) CubeSat received: {message.decode(self.FORMAT)}")
-        await self.connection.send(message)
-        self.process_command(message.decode(self.FORMAT))
+        self.log(f"({self.last_command_received}) CubeSat received: {message}")
+        await self.connection.send(json.dumps({"type": "message", "data": message}))
+        await self.process_command(message)
 
     async def handle_connection(self, connection):
         self.connection = connection
@@ -87,7 +88,7 @@ class TTC:
         self.log(f"Subsystem status: {status}")
         return status
 
-    def process_command(self, msg):
+    async def process_command(self, msg):
         self.log("Processing command...")
         tokens = msg.split(" ")
         command = tokens[0]
@@ -97,12 +98,18 @@ class TTC:
 
         match command:
             case "start_phase":
-                pass
+                phase = int(arguments[0])
+                
+                match phase:
+                    case 1:
+                        await self.connection.send(json.dumps({"type": "message", "data": "text"}))
+                    case _:
+                        await self.connection.send(json.dumps({"type": "message", "data": f"{phase} is not a valid phase!"}))
             case "shutdown":
                 pass
             case _:
                 self.log(f"[ERROR] Invalid command: {command}")
-                self.connection.response(HTTPStatus.BAD_REQUEST, f"[ERROR] {command} is not a valid command!")
+                await self.connection.send(json.dumps({"type": "message", "data":f"{command} is not a valid command!"}))
 
     def send_file(self, file_path):
         retries = 0
