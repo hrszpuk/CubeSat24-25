@@ -1,13 +1,25 @@
 <script setup>
     import { onMounted, onBeforeUnmount } from 'vue';
+    import { useSocket } from '@/layout/composables/socket.js';
     import Button from 'primevue/button';
     import Card from 'primevue/card';
-    import ScrollPanel from 'primevue/scrollpanel';
+    import ScrollPanel from 'primevue/scrollpanel';    
     import Terminal from 'primevue/terminal';
     import TerminalService from 'primevue/terminalservice';
     import Toolbar from 'primevue/toolbar';
+    
+    const { establishConnection, sendMessage, dropConnection } = useSocket();
 
-    let socket = null;
+    const handleSocketMessages = (event) => {
+        let res = JSON.parse(event.data);
+
+        switch(res.type) {
+            case "message":
+                alert(`CubeSat: ${res.data}`)
+                TerminalService.emit("response", res.data)
+                break;
+        }
+    }
 
     function handleCommand(message) {
         let response;
@@ -17,33 +29,26 @@
         switch(command) {
             case "connect":
                 let ip = message.substring(argsIndex + 1)
-
-                try {
-                    socket = new WebSocket(`ws://${ip}:80`)
-                    response = `Attempting to connect to CubeSat at ${ip}:80...`;
-                    socket.onopen = function() {
-                        TerminalService.emit("response", `Successfully connected to CubeSat at ${ip}:80`);
-                        console.log(`socket opened and connected to ${ip}`);
-                    }
-                    socket.onmessage = function(event) {
-                        TerminalService.emit("response", `CubeSat: ${event.data}`);
-                    }
-                    socket.onclose = function () {
-                        console.log("socket closed");
-                        TerminalService.emit("response", `Disconnected from CubeSat`);
-                        socket = null;
-                    }
-                } catch(err) {
-                    response = `Failed to connect to CubeSat: ${err}`;
-                }
+                response = establishConnection(ip, handleSocketMessages);
 
                 break;
-            default:
-                try {
-                    socket.send(message)
-                } catch (err) {
-                    response = err
+            case "start_phase":
+                let phase = parseInt(message.substring(argsIndex + 1))
+
+                switch(phase) {
+                    case 1:
+                        socket.send("start_phase 1");
+                        break;
+                    default:
+                        response = `${phase} is not a valid phase!`;
                 }
+                break;
+            case "disconnect":
+                response = dropConnection();
+                
+                break;
+            default:
+                sendMessage(message)
         }
 
         TerminalService.emit("response", response)
@@ -58,7 +63,8 @@
     })
 </script>
 
-<template>
+<template>    
+    <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>
     <Toolbar>
         <template #center>
             <Button label="Initiate Phase 1"></Button>
@@ -66,7 +72,6 @@
             <Button label="Initiate Phase 3"></Button>
         </template>
     </Toolbar>
-    <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>
     <Card>
         <template #title>Status</template>
         <template #content>
