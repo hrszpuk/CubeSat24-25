@@ -1,10 +1,13 @@
 import multiprocessing as mp
 
 class ProcessManager:
-    def __init__(self, logfn):
-        self.logfn = logfn
+    def __init__(self):
+        self.logfn = None
         self.processes = {}
         self.pipes = {}
+    
+    def set_logfn(self, logfn):
+        self.logfn = logfn
 
     def start(self, name, fn, ttc, obdh_conn):
         if name in self.processes:
