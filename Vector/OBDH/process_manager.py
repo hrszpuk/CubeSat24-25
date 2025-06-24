@@ -29,9 +29,11 @@ class ProcessManager:
 
     def start(self, name):
         module_name = name
+
         if name in self.processes:
             self.logger.warning(f"{name} already running.")
             return
+        
         parent_conn, child_conn = mp.Pipe()
         proc = mp.Process(target=self._run_subsystem, args=(module_name, child_conn, self.log_queue), name=name)
         proc.start()
@@ -70,6 +72,7 @@ class ProcessManager:
             if timeout:
                 if conn.poll(timeout):
                     result = conn.recv()
+
                     if isinstance(result, tuple) and len(result) == 2:
                         msg, args = result
                         return {"response": result, "command": msg, "arguments": args}
@@ -80,6 +83,7 @@ class ProcessManager:
                     return {"response": "Timed out waiting for response."}
             else:
                 result = conn.recv()
+                
                 if isinstance(result, tuple) and len(result) == 2:
                     msg, args = result
                     return {"response": result, "command": msg, "arguments": args}
@@ -92,6 +96,7 @@ class ProcessManager:
     def shutdown(self):
         for name in list(self.processes.keys()):
             self.stop(name)
+
         self.log_queue.put(("ProcessManager", "STOP_LOG"))
         self.log_listener.join()
         self.logger.info("Shutdown complete.")

@@ -1,17 +1,6 @@
 import re
 import subprocess
 
-def read_in_chunks(file_object, chunk_size = 1024):
-    while True:
-        data = file_object.read(chunk_size)
-
-        if not data:
-            break
-
-        yield data
-
-import subprocess
-
 def get_connection_info(interface="wlan0"):
     try:
         result = subprocess.run(["iwconfig", interface], capture_output=True, text=True, check=True)
