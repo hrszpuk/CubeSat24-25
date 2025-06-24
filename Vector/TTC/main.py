@@ -34,7 +34,7 @@ class TTC:
         log_queue.put(("TT&C", "Initialized"))
 
     def log(self, msg):
-        print(f"(TT&C) {msg}")
+        # print(f"(TT&C) {msg}")
         self.log_queue.put(("TT&C", msg))
 
     async def start_server(self):
@@ -162,9 +162,9 @@ class TTC:
         health_check = {}
         connection_info = get_connection_info()
 
-        for metric, value in connection_info:
+        for metric, value in connection_info.items():
             if value is not None:
-                item_str = f"{value}"
+                item_str = f"{abs(value)}"
 
                 if "Frequency" in metric:
                     item_str += " GHz"

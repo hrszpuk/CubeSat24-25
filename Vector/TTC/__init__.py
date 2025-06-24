@@ -2,6 +2,8 @@ import asyncio
 from TTC.main import TTC
 from TTC.process_manager import ProcessManager
 
+event_loop = asyncio.get_event_loop()
+
 def start(obdh_pipe, log_queue):
     ttc = TTC(obdh_pipe, log_queue)
     ttc.log("Starting subsystem...")
@@ -10,12 +12,14 @@ def start(obdh_pipe, log_queue):
     processes.start("obdh_communications", obdh_comms, ttc, obdh_pipe)
 
 def ground_comms(ttc, obdh_pipe):
-    event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(ttc.start_server())
     event_loop.run_forever()
 
 def obdh_comms(ttc, obdh_pipe):
-    while True:
+    running = True
+
+    while running:
+        print(obdh_pipe.recv())
         command, args = obdh_pipe.recv()
         ttc.log(f"Received command from OBDH: {command} with arguments {args}")
 
@@ -23,6 +27,7 @@ def obdh_comms(ttc, obdh_pipe):
             case "health_check":
                 try:
                     health_check = ttc.health_check()
+                    print(health_check)
                     obdh_pipe.send(health_check)
                 except Exception as err:
                     ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
@@ -40,5 +45,8 @@ def obdh_comms(ttc, obdh_pipe):
                     ttc.send_file(path)
                 except Exception as err:
                     ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
+            case "stop":
+                print("stop signal received")
+                pass
             case _:
                 ttc.log(f"Invalid command received from OBDH: {command}")
