@@ -19,7 +19,6 @@ def obdh_comms(ttc, obdh_pipe):
     running = True
 
     while running:
-        print(obdh_pipe.recv())
         command, args = obdh_pipe.recv()
         ttc.log(f"Received command from OBDH: {command} with arguments {args}")
 
