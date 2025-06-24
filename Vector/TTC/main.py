@@ -1,6 +1,5 @@
 import os
 import socket
-import asyncio
 import websockets
 import json
 from enum import Enum
@@ -35,14 +34,8 @@ class TTC:
         log_queue.put(("TT&C", "Initialized"))
 
     def log(self, msg):
-        print(msg)
+        print(f"(TT&C) {msg}")
         self.log_queue.put(("TT&C", msg))
-    
-    def start(self):
-        self.log("Starting subsystem...")
-        event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(self.start_server())
-        event_loop.run_forever()
 
     async def start_server(self):
         try:
@@ -55,7 +48,7 @@ class TTC:
 
     async def handle_connection(self, connection):
         self.connection = connection
-        self.state = State.CONNECTED
+        self.state = State.CONNECTED        
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
         while self.state == State.CONNECTED:

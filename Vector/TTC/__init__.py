@@ -1,13 +1,35 @@
+import asyncio
 from TTC.main import TTC
+from TTC.process_manager import ProcessManager
 
-def start(pipe, log_queue):
-    ttc = TTC(pipe, log_queue)
-    ttc.start()
+def start(obdh_pipe, log_queue):
+    ttc = TTC(obdh_pipe, log_queue)
+    ttc.log("Starting subsystem...")
+    processes = ProcessManager(ttc.log)
+    processes.start("ground_communications", ground_comms, [ttc])
+    processes.start("obdh_communications", obdh_comms, [ttc, obdh_pipe])
+
+def ground_comms(varg):
+    ttc = varg[0]
+    event_loop = asyncio.get_event_loop()
+    event_loop.run_until_complete(ttc.start_server())
+    event_loop.run_forever()
+
+def obdh_comms(varg):
+    ttc = varg[0]
+    obdh_pipe = varg[1]
 
     while True:
-        command, args = pipe.recv()
+        command, args = obdh_pipe.recv()
+        ttc.log(f"Received command from OBDH: {command} with arguments {args}")
 
         match command:
+            case "health_check":
+                try:
+                    health_check = ttc.health_check()
+                    obdh_pipe.send(health_check)
+                except Exception as err:
+                    ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
             case "send_message":
                 msg = args["message"]
                 
