@@ -48,7 +48,8 @@ class TTC:
 
     async def handle_connection(self, connection):
         self.connection = connection
-        self.state = State.CONNECTED        
+        self.state = State.CONNECTED
+        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
         while self.state == State.CONNECTED:

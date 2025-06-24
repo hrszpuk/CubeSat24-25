@@ -45,7 +45,8 @@ def obdh_comms(ttc, obdh_pipe):
                 except Exception as err:
                     ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
             case "stop":
-                print("stop signal received")
-                pass
+                ttc.log("Stopping subprocesses and shutting down...")
+                processes.shutdown()
+                running = False
             case _:
                 ttc.log(f"Invalid command received from OBDH: {command}")
