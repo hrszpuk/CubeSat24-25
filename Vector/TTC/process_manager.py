@@ -6,20 +6,20 @@ class ProcessManager:
         self.processes = {}
         self.pipes = {}
 
-    def start(self, name, fn, varg):
+    def start(self, name, fn, ttc, obdh_conn):
         if name in self.processes:
             self.logfn(f"[ERROR] {name} already running.")
             return
         
         try:
             parent_conn, child_conn = mp.Pipe()
-            proc = mp.Process(target=fn, args=(child_conn, self.log_queue, varg), name=name)
+            proc = mp.Process(target=fn, args=(ttc, obdh_conn), name=name)
             proc.start()
             self.processes[name] = proc
             self.pipes[name] = parent_conn
             self.logfn(f"Started process {name}")
         except Exception as err:
-            self.logfn(f"[ERROR] Failed to start process {name}")
+            self.logfn(f"[ERROR] Failed to start process {name}: {err}")
 
     def stop(self, name):
         if name not in self.processes:
