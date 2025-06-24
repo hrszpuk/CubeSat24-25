@@ -51,10 +51,13 @@ def start(manual=False):
     subsystems = ["TTC", "ADCS", "Payload"]  # obviously add the rest once there ready
 
     for name in subsystems:
-        manager.start(name)
         is_ready = False
+        manager.start(name)
 
         while not is_ready:
+            if name != "TTC":
+                manager.send(name, "is_ready")
+
             is_ready = manager.receive(name)["response"]
 
     logger.info("All subsystems are ready")
@@ -67,13 +70,7 @@ def start(manual=False):
 
         if os.path.exists("health.txt"):
             try:
-                ttc.start()
-                ttc.connect()
-
-                telemetry = Telemetry(manager, ttc, interval=5)
-                telemetry.start()
-
-                ttc.send_file("health.txt", 4, 1024, "utf-8")
+                manager.send("TTC", "send_file", {"path": "health.txt"})
                 logger.info("Health check report sent")
             except Exception as e:
                 logger.warning(f"Health check report failed: {e}")

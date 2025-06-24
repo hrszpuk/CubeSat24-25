@@ -2,9 +2,8 @@ import time
 from threading import Thread
 
 class Telemetry:
-    def __init__(self, manager, ttc, interval=5):
+    def __init__(self, manager, interval=5):
         self.manager = manager
-        self.ttc = ttc
         self.interval = interval
         self.running = False
 
@@ -22,12 +21,7 @@ class Telemetry:
     def broadcast(self):
         while self.running:
             telemetry = self.collect_telemetry()
-            conn = self.ttc.get_connection()
-            if conn:
-                try:
-                    conn.sendall(f"[TELEMETRY]\n{telemetry}\n".encode('utf-8'))
-                except Exception as e:
-                    print(f"Failed to send telemetry: {e}")
+            self.manager.send("TTC", "send_message", {"message": f"[TELEMETRY]\n{telemetry}\n".encode('utf-8')})
             time.sleep(self.interval)
 
     def start(self):
