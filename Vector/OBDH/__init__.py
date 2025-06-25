@@ -37,6 +37,9 @@ def start_phase2(manager, logger, sequence):
 
     # 4- send the sequence number to ADCS
     manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
+    # manager.send("ADCS", "get_state")
+    # state = manager.receive(name="ADCS")["response"]
+
     while state == "SEQUENCE_ROTATION":
         adcs_rcv = manager.receive(name="ADCS")
 

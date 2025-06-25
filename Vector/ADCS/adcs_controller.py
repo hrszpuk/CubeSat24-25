@@ -253,8 +253,20 @@ class AdcsController:
         return degree_distances
 
     
-    def phase3_search_target(self):
-        # Start rotating
+    def phase3_search_target(self, pipe):
+        # Start rotating at specific speed
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel) # CHANGE this when ready
+
+        rotating = True
+        timeout = 30  # seconds
+        start_time = time.time()
+        while rotating and (time.time() - start_time > timeout):
+            pipe.send(("detect_apriltag", {}))
+            line, args = pipe.recv()
+            if line == "apriltag_detected":
+                rotation_thread.join()
+                rotating = False
+
         # if apriltag is detected, stop rotating and record yaw of target
         # if not, continue rotating until a timeout is reached
         pass
