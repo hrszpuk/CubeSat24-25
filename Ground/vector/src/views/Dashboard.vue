@@ -71,8 +71,8 @@
 <template>    
     <Toolbar>
         <template #center>
-            <Button label="Initiate Phase 1"></Button>
-            <Button label="Initiate Phase 2"></Button>
+            <Button class="mr-2" label="Initiate Phase 1"></Button>
+            <Button class="mr-2" label="Initiate Phase 2"></Button>
             <Button label="Initiate Phase 3"></Button>
         </template>
     </Toolbar>

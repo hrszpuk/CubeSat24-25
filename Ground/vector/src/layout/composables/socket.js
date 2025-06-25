@@ -1,6 +1,8 @@
 import { computed, reactive } from 'vue';
 import { useWebSocket } from '@vueuse/core';
-import TerminalService from 'primevue/terminalservice';
+import { useToast } from './toast.js';
+
+const toast = useToast();
 
 const connection = reactive({
     ip: "127.0.0.1",
@@ -12,22 +14,22 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
     immediate: false,
     autoReconnect: {
         retries: 3, 
-        delay: 250, 
+        delay: 500, 
         onFailed() {
-            alert(`Failed to connect WebSocket on ${connection.ip}:${connection.port} after 3 retries`);
+            toast.add({severity: "error", summary: "WebSocket Error", detail: `Failed to connect WebSocket on ${connection.ip}:${connection.port} after 3 retries`, life: 3000});
         }
     },
     heartbeat: true,
     onConnected(ws) {
-        console.log(`Successfully conencted to CubeSat on ${connection.ip}:${connection.port}`);
+        toast.add({severity: "success", summary: "WebSocket Connected", detail: `Successfully conencted to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },        
     onDisconnected(ws, event) {
         if (event.wasClean) {
-            console.log("Successfully disconnected from CubeSat");
+            toast.add({severity: "success", summary: "WebSocket Disconnected", detail: "Successfully disconnected from CubeSat", life: 3000});
         }
     },
     onError(ws, event) {
-        console.log(`Error connecting to CubeSat on ${connection.ip}:80`)
+        toast.add({severity: "error", summary: "WebSocket Error", detail: `Error connecting to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },
     onMessage(ws, event) {
         console.log(`Message from CubeSat: ${event}`);
@@ -41,21 +43,21 @@ export function useSocket() {
         connection.ip = ip ? ip : connection.ip;
         connection.port = port ? port : connection.port;
         connection.url = `ws://${connection.ip}:${connection.port}`;
+        open();
 
         return `Connecting to CubeSat on ${connection.ip}:${connection.port}...`
     }
 
     const sendMessage = (msg) => {
         send(msg);
-        console.log(`Sent message ${msg} to CubeSat`)
+        toast.add({severity: "success", summary: "Message Sent", detail: `Sent message ${msg} to CubeSat`, life: 3000});
 
         return `CubeSat: ${data}`
     }
 
     const dropConnection = () => {
         close()
-        console.log("Successfully disconnected from CubeSat")
     }
 
-    return {connection, getStatus, open, establishConnection, sendMessage, data, dropConnection}
+    return {connection, getStatus, establishConnection, sendMessage, data, dropConnection}
 }
