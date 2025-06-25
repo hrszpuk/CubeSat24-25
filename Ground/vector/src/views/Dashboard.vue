@@ -1,5 +1,5 @@
 <script setup>
-    import { onMounted, onBeforeUnmount } from 'vue';
+    import { onMounted, onBeforeUnmount, computed, ref, watch } from 'vue';
     import { useSocket } from '@/layout/composables/socket.js';
     import Button from 'primevue/button';
     import Card from 'primevue/card';
@@ -8,18 +8,24 @@
     import TerminalService from 'primevue/terminalservice';
     import Toolbar from 'primevue/toolbar';
     
-    const { establishConnection, sendMessage, dropConnection } = useSocket();
+    const { establishConnection, sendMessage, data, dropConnection } = useSocket();
+    const messages = ref([]);
+    const getNow = computed(() => new Date());
 
-    const handleSocketMessages = (event) => {
-        let res = JSON.parse(event.data);
+    watch(
+        data,
+        message => {
+            obj = JSON.parse(message);
+            messages.value.push(obj);
 
-        switch(res.type) {
-            case "message":
+            switch(obj.type) {
+                case "message":
                 alert(`CubeSat: ${res.data}`)
                 TerminalService.emit("response", res.data)
                 break;
+            }
         }
-    }
+    );
 
     function handleCommand(message) {
         let response;
@@ -29,7 +35,7 @@
         switch(command) {
             case "connect":
                 let ip = message.substring(argsIndex + 1)
-                response = establishConnection(ip, handleSocketMessages);
+                response = establishConnection(ip);
 
                 break;
             case "start_phase":
@@ -64,7 +70,6 @@
 </script>
 
 <template>    
-    <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>
     <Toolbar>
         <template #center>
             <Button label="Initiate Phase 1"></Button>
@@ -72,20 +77,22 @@
             <Button label="Initiate Phase 3"></Button>
         </template>
     </Toolbar>
-    <Card>
-        <template #title>Status</template>
-        <template #content>
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Dolores cumque vel corrupti temporibus, quod iure quae laboriosam distinctio autem beatae magnam quisquam nesciunt! Nobis, laborum? Neque quibusdam eos ipsa quo.
-        </template>
-    </Card>
+    <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>
     <ScrollPanel>
         <Card>
-            <template #title>Log</template>
+            <template #title>Messages</template>
             <template #content>
-                <code>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Culpa recusandae aliquid consequatur cum, vitae iste sint quo expedita dicta quasi error? Dignissimos enim et, aliquid voluptate odit omnis quisquam tempora.</code>
+                <code>{{ messages }}</code>
             </template>
         </Card>
     </ScrollPanel>
+    <Card>
+        <template #title>Status</template>
+        <template #content>
+            Date: {{ getNow.toLocaleDateString() }}<br>
+            Time: {{ getNow.toLocaleTimeString() }}
+        </template>
+    </Card>
     <Card>
         <template #title>Live Feed</template>
         <template #content>

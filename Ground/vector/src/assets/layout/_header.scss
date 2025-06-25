@@ -33,28 +33,8 @@
         }
     }
 
-    .layout__header-nav {
+    .layout__header-toolbar {
         flex-grow: 1;
-
-        .p-menubar {
-            .p-menubar-link {
-                .p-submenu-icon.pi-angle-right {
-                    margin-left: auto;
-                }
-            }
-        }
-
-        .p-menubar-mobile {
-            .p-menubar-root-list {
-                width: fit-content;
-            }
-
-            .p-menuitem-link {
-                .p-submenu-icon {
-                    margin-left: 0.5rem;
-                }
-            }
-        }
     }
 
     .layout__header-buttons {

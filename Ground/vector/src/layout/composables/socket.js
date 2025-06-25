@@ -1,72 +1,61 @@
 import { computed, reactive } from 'vue';
+import { useWebSocket } from '@vueuse/core';
 import TerminalService from 'primevue/terminalservice';
 
 const connection = reactive({
-    ip: null,
-    socket: null,
-    connecting: false,
-    online: false
+    ip: "127.0.0.1",
+    port: 80,
+    url: "ws://127.0.0.1:80"
 });
 
-const errorSocket = (err) => {
-    connection.connecting = false;
-    connection.socket = null;
-    alert(`CubeSat connection error: ${err}`)
-}
-
-const openSocket = () => {
-    connection.connecting = false;
-    connection.online = true;
-    TerminalService.emit("response", `Successfully conencted to CubeSat at ${connection.ip}`)
-}
-
-const closeSocket = () => {
-    connection.ip = null;
-    connection.socket = null;
-    connection.online = false;
-}
-
 export function useSocket() {
-    const establishConnection = (ip, message_handler) => {        
-        connection.ip = ip;
-
-        try {
-            connection.socket = new WebSocket(`ws://${ip}:80`);
-            connection.socket.onerror = errorSocket;
-            connection.socket.onopen = openSocket;
-            connection.socket.onmessage = message_handler;
-            connection.socket.onclose = closeSocket;
-            connection.connecting = true;
-
-            return `Attempting to conenct to CubeSat at ${ip}:80...`
-        } catch(err) {
-            connection.connecting = false;
-
-            return `Failed to connect to CubeSat: ${err}`
+    const { ws, status, data, send, open, close } = useWebSocket(computed(() => connection.url), {
+        immediate: false,
+        autoReconnect: {
+            retries: 3, 
+            delay: 250, 
+            onFailed() {
+                alert(`Failed to connect WebSocket on ${connection.ip}:${connection.port} after 3 retries`);
+            }
+        },
+        heartbeat: true,
+        onConnected(ws) {
+            console.log(`Successfully conencted to CubeSat on ${connection.ip}:${connection.port}`);
+        },        
+        onDisconnected(ws, event) {
+            if (event.wasClean) {
+                console.log("Successfully disconnected from CubeSat");
+            }
+        },
+        onError(ws, event) {
+            console.log(`Error connecting to CubeSat on ${connection.ip}:80`)
+        },
+        onMessage(ws, event) {
+            console.log(`Message from CubeSat: ${event}`);
         }
+    });
+
+    const getStatus = () => status.value
+
+    const establishConnection = (ip, port) => {
+        connection.ip = ip ? ip : connection.ip;
+        connection.port = port ? port : connection.port;
+        connection.url = `ws://${connection.ip}:${connection.port}`;
+
+        return `Connecting to CubeSat on ${connection.ip}:${connection.port}...`
     }
 
-    const sendMessage = (message) => {
-        try {
-            connection.socket.send(message);
-        } catch(err) {
-            return `Failed to send ${message} to CubeSat: ${err}`
-        }
+    const sendMessage = (msg) => {
+        send(msg);
+        console.log(`Sent message ${msg} to CubeSat`)
+
+        return `CubeSat: ${data}`
     }
 
     const dropConnection = () => {
-        try {
-            connection.socket.close();
-            connection.online = false;
-
-            return "Successfully disconnected from CubeSat"
-        } catch(err) {
-            return `Failed to disconnect from CubeSat: ${err}`
-        }
+        close()
+        console.log("Successfully disconnected from CubeSat")
     }
 
-    const isConnecting = computed(() => connection.connecting);
-    const isOnline = computed(() => connection.online);
-
-    return {isConnecting, isOnline, establishConnection, sendMessage, dropConnection}
+    return {connection, getStatus, open, establishConnection, sendMessage, data, dropConnection}
 }
