@@ -25,6 +25,7 @@ class OBDH:
                 is_ready = self.manager.receive(name)["response"]
 
         self.logger.info("All subsystems are ready")
+
     
     def handle_input(self):
         while True:
@@ -41,7 +42,7 @@ class OBDH:
                     phase = args[0]
                     self.start_phase(phase)
     
-    def start_phase(self, phase):
+    def start_phase(self, phase, sequence):
         match phase:
             case '1':
                 run_health_checks()
@@ -77,7 +78,22 @@ class OBDH:
                 self.logger.info(f"Payload numbers: {numbers}")
 
                 # 4- send the numbers to TT&C
-                # 5- wait for sequence number from TT&C
+                self.state = "SEQUENCE_ROTATION"
+
+                # 4- send the sequence number to ADCS
+                self.manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
+                while state == "SEQUENCE_ROTATION":
+                    adcs_rcv = self.manager.receive(name="ADCS")
+
+                    if adcs_rcv["command"] == "take_distance":
+                        self.logger.info("ADCS instructed to take distance")
+                        self.manager.send("Payload", "take_distance")
+                    elif adcs_rcv["command"] == "SEQUENCE_ROTATION_COMPLETE":
+                        payload_rcv = self.manager.receive(name="Payload")
+                        self.logger.info("ADCS sequence rotation complete")
+                        state = "SEQUENCE_ROTATION_COMPLETE"
+                        degree_distances = adcs_rcv["response"]
+                        number_distances = payload_rcv["response"]
 
                 # 6- send the sequence number to ADCS
                 example_sequence = [14, 15, 16]  # Example sequence numbers
