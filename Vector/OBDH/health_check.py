@@ -19,6 +19,8 @@ def run_health_checks(manager):
     adcs_response = manager.receive("ADCS")["response"]
     manager.send("Payload", "health_check")
     payload_response = manager.receive("Payload")["response"]
+    manager.send("ADCS", "bms_health_check")
+    power_response = manager.receive("ADCS")["response"]
 
     health_check_text = "--- Vector CubeSat Health Check Report ---\n"
     health_check_text += "Date: " + time.strftime("%d-%m-%Y") + "\n"
@@ -29,8 +31,8 @@ def run_health_checks(manager):
     health_check_text += "Battery Voltage\n"
     health_check_text += "Battery Current\n"
     health_check_text += "Battery Temperature\n"
-    # for line in power_response[:-1]:
-    #     health_check_text += line
+    for line in power_response[:-1]:
+        health_check_text += line
     health_check_text += "\n"
 
     # Thermal Subsystem

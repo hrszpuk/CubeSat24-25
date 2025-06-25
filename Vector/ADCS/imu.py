@@ -2,11 +2,12 @@ import time
 import serial
 import logging
 from typing import Optional, Tuple, Dict, List
+import json
 
 # Set up logging
 #TODO
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 class Imu:
     def __init__(self, port: str = '/dev/serial0', baudrate: int = 9600, timeout: float = 1.0):
@@ -35,7 +36,7 @@ class Imu:
                 if line:  # Only return if data is valid
                     return line
             except (UnicodeDecodeError, serial.SerialException) as e:
-                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                #logger.warning(f"Attempt {attempt + 1} failed: {e}")
                 time.sleep(0.1)
         return None
 
@@ -48,38 +49,33 @@ class Imu:
             }
         except serial.SerialException as e:
             error = f"IMU connection error: {e}"
-            logger.error(error)
+            #logger.error(error)
             return {"status": "INACTIVE", "errors": [error]}
 
-    def parse_imu_data(self, line: str) -> Tuple[List[float], List[float]]:
+    def parse_imu_data(self, line: str, cap_rotations=True) -> Tuple[List[float], List[float]]:
         """
-        Parse IMU data with flexible formatting.
-        Example line: "Gyroscope: 0.1 0.2 0.3 | Orientation: 10.0 -5.0 20.0"
+        Parse IMU JSON data.
+        Example line: {"gyroscope":[0.04,0.03,0.06],"orientation":[-55.69,-7.44,-12.08],"bms_voltage":10,"bms_current":20.60902,"bms_temp":21.2178} -> Format: [x, y, z], [Yaw, Pitch, Roll]
         """
-        gyroscope, orientation = [], []
         try:
-            parts = [p.strip() for p in line.split('|') if p.strip()]
-            
-            # Parse Gyroscope (if available)
-            if len(parts) > 0 and ":" in parts[0]:
-                gyro_str = parts[0].split(":")[1].strip()
-                gyroscope = [round(float(x), 2) for x in gyro_str.split()[:3]]  # Take first 3 values
-            
-            # Parse Orientation (if available)
-            if len(parts) > 1 and ":" in parts[1]:
-                orient_str = parts[1].split(":")[1].strip()
-                orientation = []
-                for x in orient_str.split()[:3]:
-                    val = float(x) % 360  # Wrap value to [0, 360)
-                    val_w_offset = (val - self.calibration_offset) % 360
-                    orientation.append(round(val, 2))
-            
-            return gyroscope, orientation
-        except (ValueError, IndexError, AttributeError) as e:
-            logger.error(f"Failed to parse IMU data: {e}")
-            return [], []  # Return empty lists on failure
+            data = json.loads(line)
+        except json.JSONDecodeError as e:
+            #logger.error(f"JSON decode error: {e} for line: {line}")
+            return [], [], None, None, None
 
-    def get_imu_data(self, max_attempts: int = 3) -> Dict[str, Optional[List[float]] | List[str]]:
+        gyroscope = data.get("gyroscope", [])
+        orientation = data.get("orientation", [])
+        bms_voltage = data.get("bms_voltage", None)
+        bms_current = data.get("bms_current", None)
+        bms_temp = data.get("bms_temp", None)
+
+        if orientation:
+            orientation[0] = (orientation[0] + self.calibration_offset)
+            if cap_rotations:
+                orientation = [val % 360 for val in orientation ]
+        return gyroscope, orientation, bms_voltage, bms_current, bms_temp
+
+    def get_imu_data(self, cap_rotations = True, max_attempts: int = 3) -> Dict[str, Optional[List[float]] | List[str]]:
         """Fetch IMU data with error handling."""
         errors = []
         for attempt in range(max_attempts):
@@ -88,25 +84,30 @@ class Imu:
                 errors.append(f"Attempt {attempt + 1}: No data received")
                 continue
             
-            gyro, orient = self.parse_imu_data(line)
+            gyro, orient, bms_voltage, bms_current, bms_temp = self.parse_imu_data(line, cap_rotations)
             if gyro or orient:  # At least one dataset is valid
-                return {"gyroscope": gyro, "orientation": orient, "errors": errors}
+                return {"gyroscope": gyro, "orientation": orient, "bms_voltage": bms_voltage, "bms_current": bms_current, "bms_temp": bms_temp , "errors": errors}
             else:
                 errors.append(f"Attempt {attempt + 1}: Invalid data format")
         
         return {"gyroscope": None, "orientation": None, "errors": errors}
 
-    def get_orientation(self) -> List[float]:
+    def get_orientation(self, cap_rotations=True) -> List[float]:
         """Get orientation (convenience method)."""
-        imu_data = self.get_imu_data()
+        imu_data = self.get_imu_data(cap_rotations)
         if imu_data["orientation"] is None:
             raise ValueError(f"No orientation data. Errors: {imu_data['errors']}")
         return imu_data["orientation"]
 
     def get_current_yaw(self):
-        orientation_data= self.get_orientation()
+        orientation_data= self.get_orientation(cap_rotations=False)
         yaw = orientation_data[0]
         return yaw
+    
+    def get_bms_data(self):
+        """Get BMS data (voltage, current, temperature)."""
+        imu_data = self.get_imu_data()
+        return imu_data.get("bms_voltage"), imu_data.get("bms_current"), imu_data.get("bms_temp")
 
     def send_command(self, command: str) -> None:
         """Send a command (e.g., 'CALIBRATE')."""

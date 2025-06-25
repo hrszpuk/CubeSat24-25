@@ -89,6 +89,34 @@ class AdcsController:
 
         return health_check_text, is_component_ready, errors
 
+    def get_eps_health_check(self):
+        voltage, current, temp = self.imu.get_bms_data()
+        health_check_text = ""
+        if voltage is None:
+            health_check_text += f"Battery Voltage: NOT AVAILABLE\n"
+            self.log("Battery voltage not available.\n")
+        else:
+            health_check_text += f"Battery Voltage: {voltage} V\n"
+
+        if current is None:
+            health_check_text += f"Battery Current: NOT AVAILABLE\n"
+            self.log("Battery current not available.\n")
+        else:
+            health_check_text += f"Battery Current: {current} A\n"
+        
+        if temp is None:
+            health_check_text += f"Battery Temperature: NOT AVAILABLE\n"
+            self.log("Battery temperature not available.\n")
+        else:
+            if temp > 75:
+                health_check_text += f"Battery Temperature: {temp} ºC (CRITICAL)\n"
+                self.log("Battery temperature is critical!")
+            elif temp > 65:
+                health_check_text += f"Battery Temperature: {temp} ºC (WARNING)\n"
+                self.log("Battery temperature is high.")
+            else:
+                health_check_text += f"Battery Temperature: {temp} ºC (NOMINAL)\n"
+
     def calibrate_orientation_system(self):
         imu_status = self.imu.get_status()
         if imu_status["status"] == "ACTIVE" and self.current_reaction_wheel is not None:

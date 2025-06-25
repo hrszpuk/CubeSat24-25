@@ -12,6 +12,9 @@ def start(pipe, log_queue):
         if line == "health_check":
             variable = adcs_controller.health_check()
             pipe.send(variable)
+        elif line == "eps_health_check":
+            variable = adcs_controller.get_eps_health_check()
+            pipe.send(variable)
         elif line == "is_ready":
             variable = adcs_controller.get_state() == "READY"
             pipe.send(variable)
