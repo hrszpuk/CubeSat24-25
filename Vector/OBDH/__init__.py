@@ -1,7 +1,6 @@
 import os
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
-from OBDH.telemetry import Telemetry
 
 def start_phase2(manager, logger, sequence):
     logger.info("Starting Phase 2")
@@ -61,7 +60,7 @@ def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
     manager = ProcessManager(logger)
 
-    # NOTE(remy): each subsystem needs to be asked if they are 'ready' before asking it to do stuff.
+    # NOTE(remy): each subsystem needs to be as ked if they are 'ready' before asking it to do stuff.
     # Otherwise, stuff is still starting up while OBDH is asking it for health report data.
 
     subsystems = ["TTC", "ADCS", "Payload"]  # obviously add the rest once there ready

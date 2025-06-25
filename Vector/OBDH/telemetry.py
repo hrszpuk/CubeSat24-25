@@ -3,8 +3,8 @@ from threading import Thread
 
 class Telemetry:
     def __init__(self, manager, interval=5):
-        self.manager = manager
         self.interval = interval
+        self.manager = manager
         self.running = False
 
     def collect_telemetry(self):

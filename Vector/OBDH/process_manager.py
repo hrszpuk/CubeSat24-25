@@ -2,7 +2,6 @@ import multiprocessing as mp
 from OBDH.logger import Logger
 import importlib
 
-
 class ProcessManager:
     def __init__(self, logger):
         self.logger = logger
@@ -58,7 +57,9 @@ class ProcessManager:
         if name not in self.pipes:
             self.logger.warning(f"{name} is not running.")
             return
+        
         self.pipes[name].send((msg, args))
+
         if log:
             if args:
                 self.logger.info(f"Sent message to {name}: {msg} with args {args}")
@@ -92,6 +93,15 @@ class ProcessManager:
         except (EOFError, OSError) as e:
             self.logger.error(f"Error receiving from {name}: {e}")
             return {"response": "Error receiving"}
+        
+    def poll(self, name):
+        conn = self.pipes[name]
+
+        if conn.poll():
+            response = conn.recv()
+            cmd, args = response
+
+            return {"response": response, "command": cmd, "arguments": args}
 
     def shutdown(self):
         for name in list(self.processes.keys()):
