@@ -11,6 +11,7 @@ class PayloadController:
         self.stereo_camera = StereoCamera()
         self.distance_sensor = DistanceSensor()
         self.state = "READY"
+        self.numbers_indentified = []
 
     def get_state(self):
         return self.state
@@ -77,7 +78,8 @@ class PayloadController:
 
     def identify_numbers_from_files(self):
         image_paths = glob.glob("images/numbers/*.jpeg")[:5]
-        return identify_numbers_from_files(image_paths)
+        self.numbers_indentified = identify_numbers_from_files(image_paths)
+        return self.numbers_indentified
     
     def take_picture_phase_2(self, yaw):
         # Get the current working directory

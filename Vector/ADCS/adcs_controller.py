@@ -14,6 +14,7 @@ class AdcsController:
         self.initialize_orientation_system()
         self.calibrating_orientation_system = False
         self.state = "READY"
+        self.target_yaw = None
 
     def get_state(self):
         return self.state
@@ -231,3 +232,56 @@ class AdcsController:
             readings[int(yaw)] = avg_value  # Ensure yaw is an integer index
 
         readings_queue.put(readings)
+
+    def phase2_sequence_rotation(self, sequence, numbers):
+        numbers = {v: k for k, v in numbers.items()}
+        degree_distances = [abs(numbers[sequence[i]] - numbers[sequence[i-1]]) for i in range(1, len(sequence))]    
+
+        current_target = None
+        current_target_yaw = None
+        
+        for i in range(len(sequence)):
+            current_target = sequence[i]
+            current_target_yaw = numbers[current_target]
+            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(current_target_yaw))
+            rotation_thread.start()
+            time.sleep(10)
+            # send to Payload to measure distance
+            self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}. Waiting for distance measurement...")
+            rotation_thread.join()
+        
+        return degree_distances
+
+    
+    def phase3_search_target(self):
+        # Start rotating
+        # if apriltag is detected, stop rotating and record yaw of target
+        # if not, continue rotating until a timeout is reached
+        pass
+
+    def phase3_acquire_target(self):
+        # get current target yaw
+        # rotate until current yaw matches target yaw
+        while self.target_yaw is not None:
+            self.current_reaction_wheel.activate_wheel(self.target_yaw)
+            if current_yaw == self.target_yaw: # TODO: Add tolerance check
+                self.log("Target yaw reached.")
+                # check for apriltag\
+                apriltag_detected = True
+                if apriltag_detected:
+                    self.log("AprilTag detected. Initiating alignment.")
+                else:
+                    self.phase3_search_target()
+                    break
+        # check for apriltag
+        # if no apriltag is detected, log error and aquire target again
+
+        pass 
+
+    def phase3_align_target(self):
+        # Rotate according to april tag rotation until the satellite is aligned with the target
+        self.log("Aligning with target...")
+        # For now, just simulate alignment
+        time.sleep(2)
+        self.log("Alignment complete.")
+        

@@ -3,7 +3,7 @@ from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
 from OBDH.telemetry import Telemetry
 
-def start_phase2(manager, logger):
+def start_phase2(manager, logger, sequence):
     logger.info("Starting Phase 2")
     
     # NOTE(Tomas): we should send numbers for confirmation and do fine tuning when facing the object but short for now
@@ -34,12 +34,25 @@ def start_phase2(manager, logger):
     numbers = manager.receive(name="Payload")["response"]
     logger.info(f"Payload numbers: {numbers}")
 
-    # 4- send the numbers to TT&C
-    # 5- wait for sequence number from TT&C
+    state = "SEQUENCE_ROTATION"
 
-    # 6- send the sequence number to ADCS
-    example_sequence = [14, 15, 16]  # Example sequence numbers
-    manager.send("ADCS", "phase2_sequence", example_sequence)
+    # 4- send the sequence number to ADCS
+    manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
+    while state == "SEQUENCE_ROTATION":
+        adcs_rcv = manager.receive(name="ADCS")
+
+        if adcs_rcv["command"] == "take_distance":
+            logger.info("ADCS instructed to take distance")
+            manager.send("Payload", "take_distance")
+        elif adcs_rcv["command"] == "SEQUENCE_ROTATION_COMPLETE":
+            payload_rcv = manager.receive(name="Payload")
+            logger.info("ADCS sequence rotation complete")
+            state = "SEQUENCE_ROTATION_COMPLETE"
+            degree_distances = adcs_rcv["response"]
+            number_distances = payload_rcv["response"]
+
+    #5 - send the degree distances combined with the number distances to TT&C
+
 
 def start(manual=False):
     logger = Logger(log_to_console=True).get_logger()
