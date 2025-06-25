@@ -2,7 +2,9 @@ import glob
 from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
 from Payload.number_identifier import identify_numbers_from_files
+from Payload import tag_finder
 import os
+
 
 class PayloadController:
     def __init__(self, log_queue):
@@ -87,3 +89,13 @@ class PayloadController:
         directory = "images/phase2/"
         os.makedirs(directory, exist_ok=True)
         self.stereo_camera.save_images("images/phase2/", round(yaw))
+
+    def detect_apriltag():
+        tagfinder_obj = tag_finder.Detector(0.049)
+        tagfinder_obj.capture_Camera()
+        if not tagfinder_obj.getPose(): 
+            return None
+        
+        pose = tagfinder_obj.Poses[-1]
+        return pose
+
