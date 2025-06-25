@@ -93,6 +93,7 @@ class TTC:
                 
                 match phase:
                     case 1:
+                        self.pipe.send("start_phase 1")
                         await self.send_message("Starting phase 1...")
                     case _:
                         await self.send_message(f"{phase} is not a valid phase!")
