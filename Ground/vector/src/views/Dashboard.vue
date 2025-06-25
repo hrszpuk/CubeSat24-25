@@ -15,14 +15,13 @@
     watch(
         data,
         message => {
-            obj = JSON.parse(message);
+            let obj = JSON.parse(message);
             messages.value.push(obj);
 
             switch(obj.type) {
                 case "message":
-                alert(`CubeSat: ${res.data}`)
-                TerminalService.emit("response", res.data)
-                break;
+                    alert(`CubeSat: ${obj.data}`)
+                    break;
             }
         }
     );
