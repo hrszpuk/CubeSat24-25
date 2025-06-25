@@ -109,6 +109,10 @@ class ReactionWheel:
         integral = 0
         dt = 0.1  # Time step in seconds
         omega_wheel = 0  # Initialize angular velocity
+
+        initial_yaw = self.imu.get_current_yaw()
+        turns = initial_yaw // 360
+        setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
         
         while True:  # Replace with your termination condition
             # Get current yaw and compute PID control
@@ -144,6 +148,19 @@ class ReactionWheel:
             print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
             
             time.sleep(dt)
+
+    def activate_wheel_with_speed_desired(self, speed = 20):
+        """
+        Activate the reaction wheel to rotate the satellite at a specified speed.
+        Parameters:
+            - speed: Speed in deg/s
+        """
+        
+        initial_yaw = self.imu.get_current_yaw()
+        target_yaw = initial_yaw + 360
+
+        while self.imu.get_current_yaw() >= target_yaw:
+            pass
         
     def get_status(self):
         """

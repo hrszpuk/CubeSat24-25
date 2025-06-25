@@ -1,5 +1,8 @@
+import glob
 from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
+from Payload.number_identifier import identify_numbers_from_files
+import os
 
 class PayloadController:
     def __init__(self, log_queue):
@@ -8,6 +11,7 @@ class PayloadController:
         self.stereo_camera = StereoCamera()
         self.distance_sensor = DistanceSensor()
         self.state = "READY"
+        self.numbers_indentified = []
 
     def get_state(self):
         return self.state
@@ -71,3 +75,15 @@ class PayloadController:
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
+
+    def identify_numbers_from_files(self):
+        image_paths = glob.glob("images/numbers/*.jpeg")[:5]
+        self.numbers_indentified = identify_numbers_from_files(image_paths)
+        return self.numbers_indentified
+    
+    def take_picture_phase_2(self, yaw):
+        # Get the current working directory
+        current_path = os.getcwd()
+        directory = "images/phase2/"
+        os.makedirs(directory, exist_ok=True)
+        self.stereo_camera.save_images("images/phase2/", round(yaw))

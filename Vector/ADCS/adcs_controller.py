@@ -14,6 +14,7 @@ class AdcsController:
         self.initialize_orientation_system()
         self.calibrating_orientation_system = False
         self.state = "READY"
+        self.target_yaw = None
 
     def get_state(self):
         return self.state
@@ -89,6 +90,34 @@ class AdcsController:
 
         return health_check_text, is_component_ready, errors
 
+    def get_eps_health_check(self):
+        voltage, current, temp = self.imu.get_bms_data()
+        health_check_text = ""
+        if voltage is None:
+            health_check_text += f"Battery Voltage: NOT AVAILABLE\n"
+            self.log("Battery voltage not available.\n")
+        else:
+            health_check_text += f"Battery Voltage: {voltage} V\n"
+
+        if current is None:
+            health_check_text += f"Battery Current: NOT AVAILABLE\n"
+            self.log("Battery current not available.\n")
+        else:
+            health_check_text += f"Battery Current: {current} A\n"
+        
+        if temp is None:
+            health_check_text += f"Battery Temperature: NOT AVAILABLE\n"
+            self.log("Battery temperature not available.\n")
+        else:
+            if temp > 75:
+                health_check_text += f"Battery Temperature: {temp} ºC (CRITICAL)\n"
+                self.log("Battery temperature is critical!")
+            elif temp > 65:
+                health_check_text += f"Battery Temperature: {temp} ºC (WARNING)\n"
+                self.log("Battery temperature is high.")
+            else:
+                health_check_text += f"Battery Temperature: {temp} ºC (NOMINAL)\n"
+
     def calibrate_orientation_system(self):
         imu_status = self.imu.get_status()
         if imu_status["status"] == "ACTIVE" and self.current_reaction_wheel is not None:
@@ -156,6 +185,10 @@ class AdcsController:
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
+
+    def get_current_yaw(self):
+        # Get the current yaw from the IMU
+        return self.imu.get_current_yaw()
     
     def get_reaction_wheel_health_check(self):
         # Get the status of the reaction wheel
@@ -199,3 +232,56 @@ class AdcsController:
             readings[int(yaw)] = avg_value  # Ensure yaw is an integer index
 
         readings_queue.put(readings)
+
+    def phase2_sequence_rotation(self, sequence, numbers):
+        numbers = {v: k for k, v in numbers.items()}
+        degree_distances = [abs(numbers[sequence[i]] - numbers[sequence[i-1]]) for i in range(1, len(sequence))]    
+
+        current_target = None
+        current_target_yaw = None
+        
+        for i in range(len(sequence)):
+            current_target = sequence[i]
+            current_target_yaw = numbers[current_target]
+            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(current_target_yaw))
+            rotation_thread.start()
+            time.sleep(10)
+            # send to Payload to measure distance
+            self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}. Waiting for distance measurement...")
+            rotation_thread.join()
+        
+        return degree_distances
+
+    
+    def phase3_search_target(self):
+        # Start rotating
+        # if apriltag is detected, stop rotating and record yaw of target
+        # if not, continue rotating until a timeout is reached
+        pass
+
+    def phase3_acquire_target(self):
+        # get current target yaw
+        # rotate until current yaw matches target yaw
+        while self.target_yaw is not None:
+            self.current_reaction_wheel.activate_wheel(self.target_yaw)
+            if current_yaw == self.target_yaw: # TODO: Add tolerance check
+                self.log("Target yaw reached.")
+                # check for apriltag\
+                apriltag_detected = True
+                if apriltag_detected:
+                    self.log("AprilTag detected. Initiating alignment.")
+                else:
+                    self.phase3_search_target()
+                    break
+        # check for apriltag
+        # if no apriltag is detected, log error and aquire target again
+
+        pass 
+
+    def phase3_align_target(self):
+        # Rotate according to april tag rotation until the satellite is aligned with the target
+        self.log("Aligning with target...")
+        # For now, just simulate alignment
+        time.sleep(2)
+        self.log("Alignment complete.")
+        

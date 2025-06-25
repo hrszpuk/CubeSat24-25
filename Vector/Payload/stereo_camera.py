@@ -33,3 +33,11 @@ class StereoCamera:
         plt.show()
 
         return disparity
+
+    def save_images(self, path, file_name):
+        left_image = self.get_left_image()
+        right_image = self.get_right_image()
+
+        cv.imwrite(f"{path}{file_name}_left.jpeg", left_image)
+        cv.imwrite(f"{path}{file_name}_right.jpeg", right_image)
+        print(f"Images saved at {path}{file_name}_left.jpeg and {path}{file_name}_right.jpeg")

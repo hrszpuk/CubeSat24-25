@@ -15,10 +15,14 @@ def read_all_errors(log_path="vector.log"):
         return ["Log file not found.\n"]
 
 def run_health_checks(manager):
+    manager.send("TTC", "health_check")
+    ttc_response = manager.receive("TTC")["response"]
     manager.send("ADCS", "health_check")
-    adcs_response = manager.receive("ADCS")
+    adcs_response = manager.receive("ADCS")["response"]
     manager.send("Payload", "health_check")
-    payload_response = manager.receive("Payload")
+    payload_response = manager.receive("Payload")["response"]
+    manager.send("ADCS", "bms_health_check")
+    power_response = manager.receive("ADCS")["response"]
 
     health_check_text = "--- Vector CubeSat Health Check Report ---\n"
     health_check_text += "Date: " + time.strftime("%d-%m-%Y") + "\n"
@@ -29,8 +33,8 @@ def run_health_checks(manager):
     health_check_text += "Battery Voltage\n"
     health_check_text += "Battery Current\n"
     health_check_text += "Battery Temperature\n"
-    # for line in power_response[:-1]:
-    #     health_check_text += line
+    for line in power_response[:-1]:
+        health_check_text += line
     health_check_text += "\n"
 
     # Thermal Subsystem
@@ -50,9 +54,11 @@ def run_health_checks(manager):
 
     # Communication Subsystem
     health_check_text += ("\n--- Communication Subsystem ---\n")
-    # for line in communication_response[:-1]:
-    #     health_check_text += line
-    health_check_text += "\n"
+    health_check_text += f"Downlink Frequency: {ttc_response['Downlink Frequency']} (NOMINAL)\n"
+    health_check_text += f"Uplink Frequency: {ttc_response['Uplink Frequency']} (NOMINAL)\n"
+    health_check_text += f"Signal Strength: {ttc_response['Signal Strength']} (NOMINAL)\n"
+    health_check_text += f"Data Transmission Rate: {ttc_response['Data Transmission Rate']} (NOMINAL)\n"    
+    health_check_text += "Status: OK\n"
 
     # ADCS Subsystem
     health_check_text += ("\n--- ADCS Subsystem ---\n")
