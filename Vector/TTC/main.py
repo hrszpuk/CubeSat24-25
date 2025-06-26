@@ -43,6 +43,7 @@ class TTC:
             self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
             self.state = State.READY
             self.pipe.send(self.state == State.READY)
+            self.log(f"Ready")
         except Exception as e:
             self.log(f"[ERROR] Could not start websocket server: {e}")
 
@@ -67,7 +68,6 @@ class TTC:
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
-        await self.send_message(message)
         await self.process_command(message)
 
     async def send_message(self, message):
@@ -97,13 +97,13 @@ class TTC:
                         await self.send_message("Starting phase 1...")
                     case _:
                         await self.send_message(f"{phase} is not a valid phase!")
-            case "shutdown":
-                await self.send_message("Shutting down...")
-                self.pipe.send("Shutdown")
             case "ping":
                 await self.send_message("pong")
+            case "shutdown":
+                await self.send_message("Shutting down...")
+                self.pipe.send("shutdown")
             case _:
-                self.log(f"[ERROR] Invalid command: {command}")
+                self.log(f"[ERROR] Invalid command received: {command}")
                 await self.send_message(f"{command} is not a valid command!")
 
     async def send_file(self, file_path):

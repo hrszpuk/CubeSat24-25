@@ -48,5 +48,6 @@ def obdh_comms(ttc, obdh_pipe):
                 ttc.log("Stopping subprocesses and shutting down...")
                 processes.shutdown()
                 running = False
+                ttc.log("Successfully shut down")
             case _:
                 ttc.log(f"Invalid command received from OBDH: {command}")
