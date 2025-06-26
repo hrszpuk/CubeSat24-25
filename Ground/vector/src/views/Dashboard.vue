@@ -15,6 +15,7 @@
     const dateToday = useDateFormat(useNow(), "DD/MM/YYYY");
     const timeNow = useDateFormat(useNow(), "HH:mm:ss");
     const { isSupported, data, file, fileName, fileMIME, fileSize, fileLastModified, create, open, save, saveAs, updateData } = useFileSystemAccess()
+    const log = ref([]);
     const messages = ref([]);
     const filemetadata = reactive({
         size: null,
@@ -28,6 +29,9 @@
             messages.value.push(obj);
 
             switch(obj.type) {
+                case "log":
+                    log.value.push(obj.data)
+                    break;
                 case "message":
                     toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
                     break;
@@ -90,6 +94,15 @@
         </template>
     </Toolbar>
     <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>
+    <Card>
+        <template #title>Log</template>
+        <template #content>
+            <ScrollPanel>
+                <code v-if="!log.length" style="display: block">No log messages</code>
+                <code v-else v-for="message in log" style="display: block">{{ message }}</code>
+            </ScrollPanel>
+        </template>
+    </Card>
     <Card>
         <template #title>Messages</template>
         <template #content>
