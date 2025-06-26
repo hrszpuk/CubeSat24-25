@@ -40,18 +40,29 @@ def start_phase2(manager, logger, sequence):
     # manager.send("ADCS", "get_state")
     # state = manager.receive(name="ADCS")["response"]
 
+    distances = []
+
     while state == "SEQUENCE_ROTATION":
         adcs_rcv = manager.receive(name="ADCS")
 
         if adcs_rcv["command"] == "take_distance":
             logger.info("ADCS instructed to take distance")
             manager.send("Payload", "take_distance")
+            distance = manager.receive(name="Payload")["response"]
+            distances.append(distance)
         elif adcs_rcv["command"] == "SEQUENCE_ROTATION_COMPLETE":
-            payload_rcv = manager.receive(name="Payload")
             logger.info("ADCS sequence rotation complete")
             state = "SEQUENCE_ROTATION_COMPLETE"
             degree_distances = adcs_rcv["response"]
-            number_distances = payload_rcv["response"]
+        
+    phase2_data = []
+    
+    for i, distance in enumerate(distances):
+        phase2_data[sequence[i]] = {
+            "angle_degree": numbers[sequence[i] if i < len(numbers) else None],
+            "distance away in cm": distance,
+            "angle_variation": degree_distances[i] if i < len(degree_distances) else None
+        }
 
     #5 - send the degree distances combined with the number distances to TT&C
 

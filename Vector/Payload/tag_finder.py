@@ -9,9 +9,9 @@ from transforms3d.euler import mat2euler
 # Code adapted from: https://github.com/suriono/apriltag
 
 class Detector:
-   def __init__(self, tag_size):
+   def __init__(self, tag_size, camera_obj=StereoCamera()):
       self.tag_size = tag_size
-      self.camera_obj = StereoCamera()
+      self.camera_obj = camera_obj
       options = apriltag.DetectorOptions(families="tag25h9") 
       self.detector = apriltag.Detector(options)
       self.dt_detector = dt_april.Detector(searchpath=['apriltags'],

@@ -104,6 +104,13 @@ class Imu:
         yaw = orientation_data[0]
         return yaw
     
+    def get_current_angular_velocity(self):
+        """Get current angular velocity (gyroscope data)."""
+        imu_data = self.get_imu_data()
+        if imu_data["gyroscope"] is None:
+            raise ValueError(f"No gyroscope data. Errors: {imu_data['errors']}")
+        return imu_data["gyroscope"][2]  # Return only the Z-axis value
+
     def get_bms_data(self):
         """Get BMS data (voltage, current, temperature)."""
         imu_data = self.get_imu_data()

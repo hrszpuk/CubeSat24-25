@@ -16,11 +16,6 @@ KT = 0.00955  # Motor torque constant (N·m/A)
 KE = 0.00955  # Back-EMF constant (V·s/rad)
 R = 0.09  # Motor resistance (Ohms)
 
-# PID Variables
-KP = 2  # Proportional gain
-KI = 0.05  # Integral gain
-KD = 0.01  # Derivative gain
-
 class ReactionWheel:
     """
     A class to control a reaction wheel for attitude control in a satellite.
@@ -41,6 +36,7 @@ class ReactionWheel:
         Imu (Imu): Instance of the IMU class for orientation data.
         motor_type (str): Type of motor used ("brushless" or "brushed").
         motor (BrushlessMotor or BrushedMotor): Instance of the motor class.
+        desired_aligment (float): Desired aligment
     """
     def __init__(self, imu, motor_type="brushless"):
         # Satellite Parameters
@@ -58,6 +54,9 @@ class ReactionWheel:
         self.omega_sat = 0.0
         self.omega_wheel = 0.0
         self.I_wheel = self.calculate_moment_of_inertia(self.wheel_mass, self.wheel_radius, I_type="wheel")
+
+        # Only used for alignment with AprilTag
+        self.desired_aligment = 0
 
         # IMU and Motor Initialization
         self.imu = imu
@@ -113,12 +112,17 @@ class ReactionWheel:
         initial_yaw = self.imu.get_current_yaw()
         turns = initial_yaw // 360
         setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
+
+        # PID Parameters
+        kp = 2  # Proportional gain
+        ki = 0.05  # Integral gain
+        kd = 0.01  # Derivative gain
         
         while True:  # Replace with your termination condition
             # Get current yaw and compute PID control
             pv = self.imu.get_current_yaw()
             control, error, integral = self.pid_controller(
-                setpoint, KP, KI, KD, previous_error, integral, dt
+                setpoint, kp, ki, kd, previous_error, integral, dt
             )
 
             # Calculate new satellite and wheel angles
@@ -143,24 +147,97 @@ class ReactionWheel:
             
             # Update motor speed
             self.motor.set_speed(duty_cycle)
+
+            previous_error = error
             
             # Logging (optional)
             print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
             
             time.sleep(dt)
 
-    def activate_wheel_with_speed_desired(self, speed = 20):
+    def activate_wheel_with_speed_desired(self, setpoint = 20):
         """
         Activate the reaction wheel to rotate the satellite at a specified speed.
         Parameters:
             - speed: Speed in deg/s
         """
         
-        initial_yaw = self.imu.get_current_yaw()
-        target_yaw = initial_yaw + 360
+        # Initialize PID variables
+        previous_error = 0
+        integral = 0
+        dt = 0.1  # Time step in seconds
 
-        while self.imu.get_current_yaw() >= target_yaw:
-            pass
+        # PID Parameters
+        kp = 2  # Proportional gain
+        ki = 0.05  # Integral gain
+        kd = 0.01  # Derivative gain
+        
+        while True:  # Replace with your termination condition
+            # Get current yaw and compute PID control
+            pv = self.imu.get_current_angular_velocity()
+            control, error, integral = self.pid_controller(
+                setpoint, kp, ki, kd, previous_error, integral, dt
+            )
+
+            output = control * dt
+
+            output = min(output, 100)
+            output = max(output, 0)
+            
+            # Cap output to motor's operational range and convert to duty cycle (0-100%)
+            duty_cycle = (output / 100) * 100
+            
+            # Update motor speed
+            self.motor.set_speed(duty_cycle)
+            
+            # Logging (optional)
+            print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+            previous_error = error
+
+            time.sleep(dt)
+
+    def activate_wheel_to_align(self, last_speed):
+        """
+        Activate the reaction wheel to align the satellite with a target orientation.
+        Parameters:
+            - last_speed: Last known speed of the reaction wheel.
+        """
+
+        # Initialize PID variables
+        previous_error = 0
+        integral = 0
+        dt = 0.1  # Time step in seconds
+
+        # PID Parameters
+        kp = 2  # Proportional gain
+        ki = 0.05  # Integral gain
+        kd = 0.01  # Derivative gain
+        setpoint = last_speed + self.desired_aligment
+
+        while True:  # Replace with your termination condition
+            # Get current yaw and compute PID control
+            pv = self.get_current_speed()  # Get current speed from the motor
+            control, error, integral = self.pid_controller(
+                setpoint, kp, ki, kd, previous_error, integral, dt
+            )
+
+            output = control * dt
+
+            output = min(output, 100)
+            output = max(output, 0)
+            
+            # Cap output to motor's operational range and convert to duty cycle (0-100%)
+            duty_cycle = (output / 100) * 100
+            
+            # Update motor speed
+            self.motor.set_speed(duty_cycle)
+            
+            # Logging (optional)
+            print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+            previous_error = error
+
+            time.sleep(dt)
+
         
     def get_status(self):
         """

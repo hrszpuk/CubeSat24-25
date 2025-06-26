@@ -90,6 +90,9 @@ class PayloadController:
         os.makedirs(directory, exist_ok=True)
         self.stereo_camera.save_images("images/phase2/", round(yaw))
 
+    def take_distance(self):
+        return self.distance_sensor.get_distance()
+
     def detect_apriltag():
         tagfinder_obj = tag_finder.Detector(0.049)
         tagfinder_obj.capture_Camera()
