@@ -90,9 +90,6 @@ def run_health_checks(manager):
     health_check_text += f"Memory Usage: {memory.percent}%\n"
     health_check_text += f"Last Command Received: {last_command_time}\n"
     health_check_text += f"Uptime: {minutes} minutes\n"
-
-    # for line in obdh_response[:-1]:
-    #     health_check_text += line
     health_check_text += "\n"
 
     # Error Log
