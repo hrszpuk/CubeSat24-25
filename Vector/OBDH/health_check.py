@@ -129,3 +129,4 @@ def run_health_checks(manager):
 
     with open("health.txt", "w") as f:
         f.write(health_check_text)
+

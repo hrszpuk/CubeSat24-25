@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
@@ -5,7 +6,7 @@ from OBDH.health_check import run_health_checks
 Mode = Enum("Mode", [("TEST", 0), ("MANUAL", 1), ("AUTO", 2)])
 State = Enum("State", [("INITIALIZING", 0), ("IDLE", 1), ("BUSY", 2)])
 
-class OBDH:
+class Obdh:
     def __init__(self):
         self.State = State.INITIALIZING
         self.logger = Logger(log_to_console=True).get_logger()
@@ -41,11 +42,26 @@ class OBDH:
                 case "start_phase":
                     phase = args[0]
                     self.start_phase(phase)
+                case "shutdown":
+                    self.manager.shutdown()
+                case "ping":
+                    # NOTE(remy): put this here if you want to test comms without starting phase or shutting down
+                    self.manager.send("TTC", "pong")
+
+
     
     def start_phase(self, phase, sequence):
         match phase:
             case '1':
                 run_health_checks()
+                if os.path.exists("health.txt"):
+                try:
+                    self.manager.send("TTC", "send_file", {"path": "health.txt"})
+                    self.logger.info("Health check report sent")
+                except Exception as e:
+                    self.logger.warning(f"Health check report failed: {e}")
+                else:
+                    self.logger.error("health.txt not found.")
             case '2':
                 self.logger.info("Starting Phase 2")
     
@@ -79,7 +95,9 @@ class OBDH:
 
                 # 4- send the sequence number to ADCS
 
-                data = {"degree_distances": None, "number_distances": None}
+                data = []
+                number_distances = []
+                degree_distances = []
 
                 waiting_for_completion = True
                 self.manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
@@ -89,12 +107,19 @@ class OBDH:
                     if adcs_rcv["command"] == "take_distance":
                         self.logger.info("ADCS instructed to take distance")
                         self.manager.send("Payload", "take_distance")
-
+                        number_distance = self.manager.receive(name="Payload")["response"]
+                        degree_distances.append(number_distance)
                     elif adcs_rcv["command"] == "SEQUENCE_ROTATION_COMPLETE":
                         payload_rcv = self.manager.receive(name="Payload")
                         self.logger.info("ADCS sequence rotation complete")
-                        data["degree_distances"] = adcs_rcv["response"]
-                        data["number_distances"] = payload_rcv["response"]
+                        degree_distances = adcs_rcv["response"]
+
                         waiting_for_completion = False
 
+                for i, distance in enumerate(number_distances):
+                    data[sequence[i]] = {
+                        "angle_degree": numbers[sequence[i] if i < len(numbers) else None],
+                        "distance away in cm": distance,
+                        "angle_variation": degree_distances[i] if i < len(degree_distances) else None
+                    }
                 self.manager.send(name="TTC", msg="send_message", message={"data": data})
