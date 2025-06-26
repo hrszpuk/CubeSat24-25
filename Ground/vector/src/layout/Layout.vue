@@ -1,12 +1,11 @@
 <script setup>
-    import Button from 'primevue/button';
     import DynamicDialog from 'primevue/dynamicdialog';
     import Toast from 'primevue/toast';
     import Header from './Header.vue';
 </script>
 
 <template>
-    <Toast></Toast>
+    <Toast position="bottom-right"></Toast>
     <DynamicDialog></DynamicDialog>
     <Header></Header>
     <main class="layout__main">

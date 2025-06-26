@@ -1,6 +1,8 @@
 <script setup>
-    import { onMounted, onBeforeUnmount, computed, ref, watch } from 'vue';
+    import { onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
+    import { useDateFormat, useFileSystemAccess, useNow } from '@vueuse/core';
     import { useSocket } from '@/layout/composables/socket.js';
+    import { useToast } from '@/layout/composables/toast.js';
     import Button from 'primevue/button';
     import Card from 'primevue/card';
     import ScrollPanel from 'primevue/scrollpanel';    
@@ -8,19 +10,30 @@
     import TerminalService from 'primevue/terminalservice';
     import Toolbar from 'primevue/toolbar';
     
-    const { establishConnection, sendMessage, data, dropConnection } = useSocket();
+    const { establishConnection, sendMessage, message, dropConnection } = useSocket();
+    const toast = useToast();
+    const dateToday = useDateFormat(useNow(), "DD/MM/YYYY");
+    const timeNow = useDateFormat(useNow(), "HH:mm:ss");
+    const { isSupported, data, file, fileName, fileMIME, fileSize, fileLastModified, create, open, save, saveAs, updateData } = useFileSystemAccess()
     const messages = ref([]);
-    const getNow = computed(() => new Date());
-
+    const filemetadata = reactive({
+        size: null,
+        name: null,
+    });
+    
     watch(
-        data,
+        message,
         message => {
             let obj = JSON.parse(message);
             messages.value.push(obj);
 
             switch(obj.type) {
                 case "message":
-                    alert(`CubeSat: ${obj.data}`)
+                    toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
+                    break;
+                case "filemetadata":
+                    filemetadata.size = obj.size;
+                    filemetadata.name = obj.name;
                     break;
             }
         }
@@ -77,25 +90,20 @@
         </template>
     </Toolbar>
     <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>
-    <ScrollPanel>
-        <Card>
-            <template #title>Messages</template>
-            <template #content>
-                <code>{{ messages }}</code>
-            </template>
-        </Card>
-    </ScrollPanel>
     <Card>
-        <template #title>Status</template>
+        <template #title>Messages</template>
         <template #content>
-            Date: {{ getNow.toLocaleDateString() }}<br>
-            Time: {{ getNow.toLocaleTimeString() }}
+            <ScrollPanel>
+                <code v-if="!messages.length" style="display: block">No messages</code>
+                <code v-else v-for="message in messages" style="display: block">{{ message }}</code>
+            </ScrollPanel>
         </template>
     </Card>
     <Card>
-        <template #title>Live Feed</template>
+        <template #title>Status</template>
         <template #content>
-            <img src="https://picsum.photos/600/400">
+            Date: {{ dateToday }}<br>
+            Time: {{ timeNow }}
         </template>
     </Card>
 </template>
