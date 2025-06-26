@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "SSH FS - cubesat",
+			"uri": "ssh://cubesat/"
+		}
+	],
+	"settings": {}
+}

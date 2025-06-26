@@ -1,0 +1,7 @@
+.layout__main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: calc(100vh - 3.5rem);
+    padding: 6rem 2rem 1rem;
+}

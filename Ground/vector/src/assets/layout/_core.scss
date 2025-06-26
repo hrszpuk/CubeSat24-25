@@ -1,0 +1,27 @@
+html {
+    height: 100%;
+    font-size: 16px;
+    font-family: Verdana, Helvetica, Arial, sans-serif;
+    font-feature-settings: "cv02","cv03","cv04","cv11";
+}
+
+body {
+    color: var(--text-color);
+    background-color: var(--surface-ground);
+    min-height: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+    text-decoration: none;
+}
+
+table {
+    border-collapse: initial;
+}
+
+::selection {
+    background-color: var(--selection-background);
+    color: var(--selection-text-color);
+} 
