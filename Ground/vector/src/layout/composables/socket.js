@@ -12,6 +12,7 @@ const connection = reactive({
 
 const { ws, status, data, send, open, close } = useWebSocket(computed(() => connection.url), {
     immediate: false,
+    autoConnect: false,
     autoReconnect: {
         retries: 3, 
         delay: 500, 
@@ -59,5 +60,5 @@ export function useSocket() {
         close()
     }
 
-    return {connection, getStatus, establishConnection, sendMessage, data, dropConnection}
+    return {connection, getStatus, establishConnection, sendMessage, message: data, dropConnection}
 }

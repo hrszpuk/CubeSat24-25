@@ -19,15 +19,15 @@
 
 <template>
     <header class="layout__header">
-        <RouterLink to="/" class="layout__header-logo">
+        <div class="layout__header-logo">
             <img src="/logo.png" alt="Vector logo">
             <span>Vector</span>
-        </RouterLink>
+        </div>
         <Toolbar class="layout__header-toolbar">
             <template #center>
                 <span class="mr-2">IP: <InputText v-model="connection.ip" type="text"></InputText></span>
                 <span class="mr-2">Port: <InputNumber v-model="connection.port" :useGrouping="false"></InputNumber></span>
-                <Button :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="buttonClick"></Button>
+                <Button :severity="getStatus() === 'CONNECTING'  ? 'primary' : getStatus() === 'OPEN' ? 'danger' : 'success'" :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="buttonClick"></Button>
             </template>
         </Toolbar>
         Status: <Tag :severity="getStatus() === 'CONNECTING'  ? 'info' : getStatus() === 'OPEN' ? 'success' : 'danger'" :value="getStatus() === 'CONNECTING'  ? 'CONNECTING' : getStatus() === 'OPEN' ? 'ONLINE' : 'OFFLINE'"></Tag>
