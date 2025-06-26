@@ -133,11 +133,10 @@ class Imu:
             line = self.get_serial_text()
             if line:
                 if "complete" in line:
-                    break
-                    #print(line)
-            #else:
-                #print(".")
-        #print("IMU calibration completed successfully!")
+                    return True
+            else:
+                break
+        return False
 
     def set_calibration_offset(self, offset: float) -> None:
         """Set calibration offset for orientation."""

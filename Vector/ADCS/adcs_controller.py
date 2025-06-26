@@ -129,25 +129,27 @@ class AdcsController:
 
             calibration_rotation_thread = threading.Thread(target=self.current_reaction_wheel.calibration_rotation)
             calibration_rotation_thread.start()
-            self.imu.calibrate()
+            result = self.imu.calibrate()
             calibration_rotation_thread.join()
 
-            sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
-            sun_sensor_measurement_thread.start()
-            self.current_reaction_wheel.calibration_rotation()
-            self.calibrating_orientation_system = False
-            sun_sensor_measurement_thread.join()
+            if result:
+                sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
+                sun_sensor_measurement_thread.start()
+                self.current_reaction_wheel.calibration_rotation()
+                self.calibrating_orientation_system = False
+                sun_sensor_measurement_thread.join()
             
-            readings = readings_queue.get()
+                readings = readings_queue.get()
 
-            if readings is not None and len(readings) > 0:
-                max_index = np.argmax(readings)
-                max_value = readings[max_index]
-                self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {max_index}°")
-                self.imu.set_calibration_offset(max_index)
+                if readings is not None and len(readings) > 0:
+                    max_index = np.argmax(readings)
+                    max_value = readings[max_index]
+                    self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {max_index}°")
+                    self.imu.set_calibration_offset(max_index)
+                else:
+                    self.log("No sun sensor readings available to determine offset.")
             else:
-                self.log("No sun sensor readings available to determine offset.")
-
+                self.log("Orientation system calibration failed: IMU did not respond.")
         else:
             self.log(f"Orientation system calibration failed: Errors: {imu_status['errors']}")
 

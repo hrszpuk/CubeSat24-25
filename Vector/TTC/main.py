@@ -10,7 +10,7 @@ State = Enum("State", [("INITIALIZING", 0), ("READY", 1), ("CONNECTED", 2)])
 MessageType = Enum("MessageType", [("MESSAGE", 0), ("FILEMETADATA", 1), ("FILEDATA", 2)])
 
 class TTC:
-    def __init__(self, pipe, log_queue, port=80, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+    def __init__(self, pipe, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
         log_queue.put(("TT&C", "Initializing..."))
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))
