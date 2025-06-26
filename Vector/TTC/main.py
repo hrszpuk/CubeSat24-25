@@ -99,6 +99,9 @@ class TTC:
                         await self.send_message(f"{phase} is not a valid phase!")
             case "shutdown":
                 await self.send_message("Shutting down...")
+                self.pipe.send("Shutdown")
+            case "ping":
+                await self.send_message("pong")
             case _:
                 self.log(f"[ERROR] Invalid command: {command}")
                 await self.send_message(f"{command} is not a valid command!")

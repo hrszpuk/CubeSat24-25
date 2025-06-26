@@ -44,9 +44,6 @@ class Obdh:
                     self.start_phase(phase)
                 case "shutdown":
                     self.manager.shutdown()
-                case "ping":
-                    # NOTE(remy): put this here if you want to test comms without starting phase or shutting down
-                    self.manager.send("TTC", "pong")
 
 
     
