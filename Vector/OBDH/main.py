@@ -55,13 +55,13 @@ class Obdh:
             case '1':
                 run_health_checks()
                 if os.path.exists("health.txt"):
-                try:
-                    self.manager.send("TTC", "send_file", {"path": "health.txt"})
-                    self.logger.info("Health check report sent")
-                except Exception as e:
-                    self.logger.warning(f"Health check report failed: {e}")
-                else:
-                    self.logger.error("health.txt not found.")
+                    try:
+                        self.manager.send("TTC", "send_file", {"path": "health.txt"})
+                        self.logger.info("Health check report sent")
+                    except Exception as e:
+                        self.logger.warning(f"Health check report failed: {e}")
+                    else:
+                        self.logger.error("health.txt not found.")
             case '2':
                 self.logger.info("Starting Phase 2")
     
