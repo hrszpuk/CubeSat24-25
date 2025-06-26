@@ -1,6 +1,4 @@
 import logging
-import pickle
-
 
 class TTCHandler(logging.Handler):
     def __init__(self, pipe_conn):
@@ -10,7 +8,7 @@ class TTCHandler(logging.Handler):
     def emit(self, record):
         try:
             s = self.format(record)
-            self.pipe_conn.send(("log", s))
+            self.pipe_conn.send(("log", {"message": s}))
         except Exception:
             self.handleError(record)
 

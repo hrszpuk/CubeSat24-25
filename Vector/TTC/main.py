@@ -7,7 +7,7 @@ from datetime import datetime
 from TTC.utils import get_connection_info
 
 State = Enum("State", [("INITIALIZING", 0), ("READY", 1), ("CONNECTED", 2)])
-MessageType = Enum("MessageType", [("MESSAGE", 0), ("FILEMETADATA", 1), ("FILEDATA", 2)])
+MessageType = Enum("MessageType", [("LOG", 0), ("MESSAGE", 1), ("FILEMETADATA", 2), ("FILEDATA", 3)])
 
 class TTC:
     def __init__(self, pipe, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -69,6 +69,14 @@ class TTC:
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
         await self.process_command(message)
+
+    async def send_log(self, message):
+        self.log(f"Sending \"{message}\" to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
