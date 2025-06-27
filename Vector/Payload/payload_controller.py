@@ -93,7 +93,7 @@ class PayloadController:
         directory = "images/phase2/"
         os.makedirs(directory, exist_ok=True)
         # NOTE(remy): added support for passing "yaw" as a string for manual mode
-        self.stereo_camera.save_images("images/phase2/", round(yaw) if isinstance(yaw, int) else yaw)
+        self.stereo_camera.save_images("images/phase2/", round(yaw))
         self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
 
     def take_picture_phase_3(self):
