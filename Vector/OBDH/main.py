@@ -116,7 +116,7 @@ class OBDH:
                     case 'c':
                         timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.c
-                        run_phase3c(self.manager, logger=self.logger)
+                        run_phase3c(self, self.manager, logger=self.logger)
                         self.reset_timer(timer)
                         self.reset_state()
                     case _:
