@@ -28,11 +28,6 @@ class ProcessManager:
         if name not in self.processes:
             self.logfn(f"[ERROR] {name} is not running.")
             return
-        
-        try:
-            self.pipes[name].send("stop")
-        except (BrokenPipeError, EOFError, OSError) as e:
-            self.logfn(f"[ERROR] Could not send stop to {name}: {e}")
 
         self.processes[name].join()
         self.logfn(f"Stopped {name} subsystem.")
@@ -43,4 +38,4 @@ class ProcessManager:
         for name in list(self.processes.keys()):
             self.stop(name)
 
-        self.logfn("Shutdown complete.")
+        self.logfn("Shutdown successfully.")

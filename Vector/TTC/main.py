@@ -7,7 +7,7 @@ from datetime import datetime
 from TTC.utils import get_connection_info
 
 State = Enum("State", [("INITIALIZING", 0), ("READY", 1), ("CONNECTED", 2)])
-MessageType = Enum("MessageType", [("MESSAGE", 0), ("FILEMETADATA", 1), ("FILEDATA", 2)])
+MessageType = Enum("MessageType", [("LOG", 0), ("MESSAGE", 1), ("FILEMETADATA", 2), ("FILEDATA", 3)])
 
 class TTC:
     def __init__(self, pipe, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -43,6 +43,7 @@ class TTC:
             self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
             self.state = State.READY
             self.pipe.send(self.state == State.READY)
+            self.log(f"Ready")
         except Exception as e:
             self.log(f"[ERROR] Could not start websocket server: {e}")
 
@@ -67,8 +68,15 @@ class TTC:
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
-        await self.send_message(message)
         await self.process_command(message)
+
+    async def send_log(self, message):
+        self.log(f"Sending \"{message}\" to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
@@ -97,13 +105,13 @@ class TTC:
                         await self.send_message("Starting phase 1...")
                     case _:
                         await self.send_message(f"{phase} is not a valid phase!")
-            case "shutdown":
-                await self.send_message("Shutting down...")
-                self.pipe.send("Shutdown")
             case "ping":
                 await self.send_message("pong")
+            case "shutdown":
+                await self.send_message("Shutting down...")
+                self.pipe.send("shutdown")
             case _:
-                self.log(f"[ERROR] Invalid command: {command}")
+                self.log(f"[ERROR] Invalid command received: {command}")
                 await self.send_message(f"{command} is not a valid command!")
 
     async def send_file(self, file_path):

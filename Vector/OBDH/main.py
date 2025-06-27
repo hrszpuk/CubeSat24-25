@@ -4,15 +4,13 @@ from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 
-Mode = Enum("Mode", [("TEST", 0), ("MANUAL", 1), ("AUTO", 2)])
 State = Enum("State", [("INITIALIZING", 0), ("IDLE", 1), ("BUSY", 2)])
 
-class Obdh:
+class OBDH:
     def __init__(self):
         self.State = State.INITIALIZING
         self.logger = Logger(log_to_console=True).get_logger()
         self.manager = ProcessManager(self.logger)
-        self.mode = None
         self.phase = None
         self.subsystems = ["TTC", "ADCS", "Payload"]
 
@@ -28,6 +26,8 @@ class Obdh:
 
         self.logger.info("All subsystems are ready")
 
+    def start_mission(self):
+        print("Automatic mode")
     
     def handle_input(self):
         while True:
@@ -45,8 +45,6 @@ class Obdh:
                     self.start_phase(phase)
                 case "shutdown":
                     self.manager.shutdown()
-
-
     
     def start_phase(self, phase, sequence):
         match phase:

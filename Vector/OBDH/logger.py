@@ -1,8 +1,9 @@
 import logging
 import sys
+from ttc_handler import TTCHandler
 
 class Logger:
-    def __init__(self, log_to_console=True, log_file="vector.log"):
+    def __init__(self, log_to_console=True, log_file="vector.log", ttc_pipe=None):
         self.logger = logging.getLogger("Vector")
         self.logger.setLevel(logging.DEBUG)
 
@@ -15,11 +16,17 @@ class Logger:
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)
 
+            ttc_handler = TTCHandler(ttc_pipe)
+            ttc_handler.setFormatter(formatter)
+            self.logger.addHandler(ttc_handler)
+
+
             # Console handler
             if log_to_console:
                 console_handler = logging.StreamHandler(sys.stdout)
                 console_handler.setFormatter(formatter)
                 self.logger.addHandler(console_handler)
+
 
     def get_logger(self):
         return self.logger
