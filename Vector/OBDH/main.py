@@ -59,15 +59,15 @@ class OBDH:
                     self.manager.send("Payload", "health_check")
                     result = self.manager.receive("Payload")
                     self.logger.info(f"Payload health check result: {result}")
-                case "payload_take_photo":
-                    path = "images/phase2/"
-                    self.manager.send("Payload", "take_picture", args={"current_yaw": "_manual/"})
-                    if os.path.exists(path+"_manual/_left.jpg") and os.path.exists(path+"_manual/_right.jpg"):
+                case "payload_take_picture":
+                    path = "images/manual/"
+                    self.manager.send("Payload", "take_picture_raw", args={"dir": path, "name": "manual"})
+                    if os.path.exists(path+"manual_left.jpg") and os.path.exists(path+"manual_right.jpg"):
                         self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
-                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_left.jpg"})
-                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_right.jpg"})
+                        self.manager.send("TTC", "send_file", args={"path": path+"manual_left.jpg.jpg"})
+                        self.manager.send("TTC", "send_file", args={"path": path+"manual_right.jpg"})
                     else:
-                        self.logger.error("(payload_take_photo) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
+                        self.logger.error("(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
                 case "payload_get_state":
                     self.manager.send("Payload", "get_state")
                     result = self.manager.receive("Payload")
