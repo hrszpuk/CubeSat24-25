@@ -44,7 +44,46 @@ class OBDH:
             match cmd:                
                 case "start_phase":
                     phase = args[0]
-                    self.start_phase(phase)
+                    self.start_phase(phase, args[1:])
+                case "payload_health_check":
+                    self.manager.send("Payload", "health_check")
+                    result = self.manager.receive("Payload")
+                    self.logger.info(f"Payload health check result: {result}")
+                case "payload_take_photo":
+                    path = "images/phase2/"
+                    self.manager.send("Payload", "take_picture", args={"current_yaw": "_manual/"})
+                    if os.path.exists(path+"_manual/_left.jpeg") and os.path.exists(path+"_manual/_right.jpeg"):
+                        self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
+                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_left.jpeg"})
+                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_right.jpeg"})
+                    else:
+                        self.logger.error("(payload_take_photo) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
+                case "payload_get_state":
+                    self.manager.send("Payload", "get_state")
+                    result = self.manager.receive("Payload")
+                    self.logger.info(f"(payload_get_state) state: {result}")
+                case "payload_is_ready":
+                    self.manager.send("Payload", "is_ready")
+                    result = self.manager.receive("Payload")
+                    self.logger.info(f"(payload_is_ready) {'READY' if result else 'NOT READY'}")
+                case "payload_get_numbers":
+                    self.manager.send("Payload", "get_numbers")
+                    result = self.manager.receive("Payload")
+                    self.logger.info("(payload_get_numbers) result: {}".format(result))
+                case "payload_take_distance":
+                    self.manager.send("Payload", "take_distance")
+                    result = self.manager.receive("Payload")
+                    self.logger.info("(payload_take_distance) result: {}".format(result))
+                case "payload_detect_apriltag":
+                    self.manager.send("Payload", "detect_apriltag")
+                    result = self.manager.receive("Payload")
+                    if result is None:
+                        self.logger.error("(payload_detect_apriltag) could not detect apriltag")
+                    else:
+                        self.logger.info("(payload_detect_apriltag) detected apriltag: {}".format(result))
+                case "payload_restart":
+                    self.manager.stop("Payload")
+                    self.manager.start("Payload")
                 case "shutdown":
                     self.manager.shutdown()
                 case _:
