@@ -62,10 +62,10 @@ class OBDH:
                 case "payload_take_photo":
                     path = "images/phase2/"
                     self.manager.send("Payload", "take_picture", args={"current_yaw": "_manual/"})
-                    if os.path.exists(path+"_manual/_left.jpeg") and os.path.exists(path+"_manual/_right.jpeg"):
+                    if os.path.exists(path+"_manual/_left.jpg") and os.path.exists(path+"_manual/_right.jpg"):
                         self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
-                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_left.jpeg"})
-                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_right.jpeg"})
+                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_left.jpg"})
+                        self.manager.send("TTC", "send_file", args={"path": path+"_manual_right.jpg"})
                     else:
                         self.logger.error("(payload_take_photo) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
                 case "payload_get_state":
@@ -95,6 +95,8 @@ class OBDH:
                     self.manager.stop("Payload")
                     self.manager.start("Payload")
 
+                #
+
                 case _:
                     self.logger.error(f"{cmd} couldn't be matched! It is likely invalid.")
 
@@ -123,7 +125,7 @@ class OBDH:
                 sequence = args["sequence"]
                 run_phase2(self, self.manager, logger=self.logger, sequence=sequence)
                 self.reset_state()
-            case '3a':
+            case '3':
                 self.state = OBDHState.BUSY
                 self.phase = Phase.THIRD
                 self.start_time = time.time()

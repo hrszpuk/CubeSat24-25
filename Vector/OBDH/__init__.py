@@ -1,6 +1,7 @@
 from Vector.enums import Mode
 from OBDH.main import OBDH
 
+
 def start(mode=Mode.MANUAL):
     obdh = OBDH()
 
