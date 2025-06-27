@@ -39,7 +39,7 @@ class OBDH:
             input = self.manager.receive("TTC")
             cmd = input.command
             args = input.arguments
-            self.logger.info(f"Received command {cmd} with arguments {args} from TT&C")
+            self.logger.info(f"Matching command: {cmd}")
 
             match cmd:                
                 case "start_phase":
@@ -47,6 +47,8 @@ class OBDH:
                     self.start_phase(phase)
                 case "shutdown":
                     self.manager.shutdown()
+                case _:
+                    self.logger.error(f"{cmd} couldn't be matched! It is likely invalid.")
     
     def start_phase(self, phase, args):
         match phase:
