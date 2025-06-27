@@ -38,6 +38,6 @@ class StereoCamera:
         left_image = self.get_left_image()
         right_image = self.get_right_image()
 
-        cv.imwrite(f"{path}{file_name}_left.jpeg", left_image)
-        cv.imwrite(f"{path}{file_name}_right.jpeg", right_image)
-        print(f"Images saved at {path}{file_name}_left.jpeg and {path}{file_name}_right.jpeg")
+        cv.imwrite(f"{path}{file_name}_left.jpg", left_image)
+        cv.imwrite(f"{path}{file_name}_right.jpg", right_image)
+        print(f"Images saved at {path}{file_name}_left.jpg and {path}{file_name}_right.jpg")

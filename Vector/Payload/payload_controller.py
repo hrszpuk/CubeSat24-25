@@ -92,6 +92,16 @@ class PayloadController:
         self.stereo_camera.save_images("images/phase2/", round(yaw) if isinstance(yaw, int) else yaw)
         self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
 
+    def take_picture_phase_3(self):
+        # Get the current working directory
+        current_path = os.getcwd()
+        directory = "images/phase3/"
+        os.makedirs(directory, exist_ok=True)
+        self.stereo_camera.save_images("images/phase3/", "damage_assessment")
+        self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
+
+        return 
+
     def take_distance(self):
         return self.distance_sensor.get_distance()
 

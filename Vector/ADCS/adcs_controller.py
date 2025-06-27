@@ -243,12 +243,12 @@ class AdcsController:
 
         initial_yaw = abs(self.get_current_yaw())
         last_yaw = initial_yaw
-        while abs(self.get_current_yaw()) < initial_yaw + 360:
+        while abs(self.get_current_yaw()) < initial_yaw + 360 and self.is_reaction_wheel_rotating():
             if abs(self.get_current_yaw()) > last_yaw + 10:
                 pipe.send(("take_picture", {"current_yaw": self.get_current_yaw()}))
                 last_yaw = abs(self.get_current_yaw())
 
-        self.current_reaction_wheel.set_state("STANDBY")
+        self.stop_reaction_wheel()
 
     def phase2_sequence_rotation(self, pipe, sequence, numbers):
         numbers = {v: k for k, v in numbers.items()}
@@ -283,16 +283,15 @@ class AdcsController:
         target_found = False
         timeout = 30  # seconds
         start_time = time.time()
-        while (time.time() - start_time < timeout):
+        while (time.time() - start_time < timeout) and self.is_reaction_wheel_rotating():
             pipe.send(("detect_apriltag", {}))
             line, args = pipe.recv()
             if line == "apriltag_detected":
-                self.log("AprilTag detected.")
                 last_speed = self.current_reaction_wheel.get_current_speed()
                 target_found = True
                 break
-
-        self.current_reaction_wheel.set_state("STANDBY")
+ 
+        self.stop_reaction_wheel()
         
         rotation_thread.join()
 
@@ -302,7 +301,6 @@ class AdcsController:
             self.log("Target not found within timeout period")
             pipe.send(("timeout", {}))
 
-    
 
     def phase3_reacquire_target(self, pipe):
         # get current target yaw
@@ -313,29 +311,31 @@ class AdcsController:
             rotation_thread.start()
         
             target_found = False
-            while not target_found:
+            time.sleep(5)  # wait for the wheel to start rotating
+            initial_time = time.time()
+            timeout = 10  # seconds
+            while not target_found and (time.time() - initial_time < timeout) and self.is_reaction_wheel_rotating():
                 pipe.send(("detect_apriltag", {}))
                 line, args = pipe.recv()
                 if line == "apriltag_detected":
                     last_speed = self.current_reaction_wheel.get_current_speed()
                     target_found = True
                     break
-            self.current_reaction_wheel.set_state("STANDBY")
+            self.stop_reaction_wheel()
 
             rotation_thread.join()
 
-            self.phase3_align_target(pipe, last_speed)
+            if target_found:
+                self.phase3_align_target(pipe, last_speed)
+            if not target_found:
+                self.log("Target not reacquired within timeout period. Initiating search.")
+                self.phase3_search_target()
 
         else:
             self.log("No target found yet. Initiating search.")
             self.phase3_search_target()
 
-        # check for apriltag
-        # if no apriltag is detected, log error and aquire target again
-
-        pass 
-
-    def phase3_align_target(self, pipe, last_speed=0):
+    def phase3_align_target(self, pipe, last_speed=0, break_on_target_aligned=True):
         # Rotate according to april tag rotation until the satellite is aligned with the target
         self.log("Aligning with target...")
         rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_to_align, args=(last_speed,))
@@ -345,7 +345,7 @@ class AdcsController:
         
         target_found = True
 
-        while target_found is True:
+        while target_found is True and self.is_reaction_wheel_rotating():
             pipe.send(("detect_apriltag", {}))
             line, args = pipe.recv()
             if line == "apriltag_detected":
@@ -356,14 +356,29 @@ class AdcsController:
                 x, y, z = target_pose['translation']
                 pitch,yaw,roll = target_pose['degree']
                 self.current_reaction_wheel.desired_aligment = yaw
-                if abs(yaw) < 5:  # Tolerance of 5 degrees
+                if abs(yaw) < 2:  # Tolerance of 2
+                    if self.target_yaw != self.get_current_yaw():
+                        self.log(f"Aligned with target at yaw: {self.target_yaw} degrees")
                     self.target_yaw = self.get_current_yaw()
+                    self.log(f"Aligned with target at yaw: {self.target_yaw} degrees")
+                    if break_on_target_aligned:
+                        self.log("Target aligned successfully. Stopping rotation.")
+                        pipe.send(("target_aligned", {"yaw": self.target_yaw}))
+                        break
 
         rotation_thread.join()
 
         self.log("Target lost during alignment")
         pipe.send(("target_lost", {}))
 
+    def phase3a_read_target(self, pipe):
+        pass
+
+    def stop_reaction_wheel(self):
+        self.current_reaction_wheel.set_state("STANDBY")
+
+    def is_reaction_wheel_rotating(self):
+        return self.current_reaction_wheel.get_state() == "ROTATING" or self.current_reaction_wheel.get_state() == "ALIGNING"
 
 
         

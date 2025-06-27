@@ -94,6 +94,8 @@ class TTC:
         self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
         self.pipe.send(msg)
 
+        # NOTE(remy): "cancel_phase" and other commands are all handled in OBDH/__init__.py :)
+
     async def send_file(self, file_path):
         retries = 0
         

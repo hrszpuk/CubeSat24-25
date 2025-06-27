@@ -30,5 +30,18 @@ def start(pipe, log_queue):
             pipe.send(("phase2_sequence_response", degree_distances))
         elif line == "phase3_search_target":
             adcs_controller.phase3_search_target(pipe)
+        elif line == "phase3a_read_target":
+            adcs_controller.phase3a_read_target(pipe)
+        elif line == "phase3a_complete":
+            current_wheel_velocity = adcs_controller.current_reaction_wheel.get_current_speed()
+            current_satellite_velocity = adcs_controller.imu.get_current_angular_velocity()
+            pipe.send(("readings_phase3a", {
+                "current_wheel_velocity": current_wheel_velocity,
+                "current_satellite_velocity": current_satellite_velocity
+            }))
+        elif line == "phase3b_reacquire_target":
+            adcs_controller.phase3b_reacquire_target(pipe)
+        elif line == "stop_reaction_wheel":
+            adcs_controller.stop_reaction_wheel()
         elif line == "stop":
             running = False
