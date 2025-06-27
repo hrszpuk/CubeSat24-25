@@ -16,14 +16,13 @@ def read_all_errors(log_path="vector.log"):
 
 def run_health_checks(manager):
     manager.send("TTC", "health_check")
-    ttc_response = manager.receive("TTC")["response"]
+    ttc_health_check = manager.receive("TTC")["response"]
     manager.send("ADCS", "health_check")
     adcs_response = manager.receive("ADCS")["response"]
     manager.send("Payload", "health_check")
     payload_response = manager.receive("Payload")["response"]
     manager.send("ADCS", "bms_health_check")
     power_response = manager.receive("ADCS")["response"]
-
     health_check_text = "--- Vector CubeSat Health Check Report ---\n"
     health_check_text += "Date: " + time.strftime("%d-%m-%Y") + "\n"
     health_check_text += "Time: " + time.strftime("%H:%M:%S", time.gmtime()) + " GMT\n"
@@ -33,14 +32,16 @@ def run_health_checks(manager):
     health_check_text += "Battery Voltage\n"
     health_check_text += "Battery Current\n"
     health_check_text += "Battery Temperature\n"
+
     for line in power_response[:-1]:
         health_check_text += line
+
     health_check_text += "\n"
 
     # Thermal Subsystem
     cpu = CPUTemperature()
-
     health_check_text += ("\n--- Thermal Subsystem ---\n")
+
     if cpu.temperature > 80:
         health_check_text += f"Internal Temperature: {cpu.temperature:.2f}°C (CRITICAL)\n"
         health_check_text += "Status: CRITICAL - OVERHEATING\n"
@@ -50,43 +51,43 @@ def run_health_checks(manager):
     else:
         health_check_text += f"Internal Temperature: {cpu.temperature:.2f}°C (NOMINAL)\n"
         health_check_text += "Status: OK\n"
+
     health_check_text += "\n"
 
     # Communication Subsystem
     health_check_text += ("\n--- Communication Subsystem ---\n")
-    health_check_text += f"Downlink Frequency: {ttc_response['Downlink Frequency']} (NOMINAL)\n"
-    health_check_text += f"Uplink Frequency: {ttc_response['Uplink Frequency']} (NOMINAL)\n"
-    health_check_text += f"Signal Strength: {ttc_response['Signal Strength']} (NOMINAL)\n"
-    health_check_text += f"Data Transmission Rate: {ttc_response['Data Transmission Rate']} (NOMINAL)\n"    
+    health_check_text += f"Downlink Frequency: {ttc_health_check['Downlink Frequency']} (NOMINAL)\n"
+    health_check_text += f"Uplink Frequency: {ttc_health_check['Uplink Frequency']} (NOMINAL)\n"
+    health_check_text += f"Signal Strength: {ttc_health_check['Signal Strength']} (NOMINAL)\n"
+    health_check_text += f"Data Transmission Rate: {ttc_health_check['Data Transmission Rate']} (NOMINAL)\n"    
     health_check_text += "Status: OK\n"
 
     # ADCS Subsystem
     health_check_text += ("\n--- ADCS Subsystem ---\n")
+
     for line in adcs_response[:-1]:
         health_check_text += line
+
     health_check_text += "\n"
 
     # Payload Subsystem
     health_check_text += ("\n--- Payload Subsystem ---\n")
+
     for line in payload_response[:-1]:
         health_check_text += line
+
     health_check_text += "\n"
 
     # Communication Subsystem
     health_check_text += ("\n--- Command and Data Handling Subsystem ---\n")
     memory = psutil.virtual_memory()
     boot_time_timestamp = psutil.boot_time()
-
     boot_time_datetime = datetime.datetime.fromtimestamp(boot_time_timestamp)
     current_time = datetime.datetime.now()
-
     uptime_delta = current_time - boot_time_datetime
-
     total_seconds = int(uptime_delta.total_seconds())
     minutes = total_seconds // 60
-
-    last_command_time = manager.get_last_command_time()
-
+    last_command_time = ttc_health_check["Last Command Received"]
     health_check_text += f"Memory Usage: {memory.percent}%\n"
     health_check_text += f"Last Command Received: {last_command_time}\n"
     health_check_text += f"Uptime: {minutes} minutes\n"
@@ -99,14 +100,13 @@ def run_health_checks(manager):
 
     # Overall Status
     health_check_text += ("\n--- Overall Status ---\n")
-
     adcs_status = "STATUS: OK" in adcs_response[-1]
     payload_status = "STATUS: OK" in payload_response[-1] # other subsystems go below
-
     affected = []
 
     if not adcs_status:
         affected.append("ADCS")
+
     if not payload_status:
         affected.append("Payload")
 

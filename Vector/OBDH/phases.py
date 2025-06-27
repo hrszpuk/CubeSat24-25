@@ -1,6 +1,5 @@
 from Vector.OBDH import logger
 
-
 def run_phase2(manager, logger, sequence):
     logger.info("Starting Phase 2")
 

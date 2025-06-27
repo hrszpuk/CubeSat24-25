@@ -1,7 +1,5 @@
-from enum import Enum
+from Vector.enums import Mode
 from OBDH.main import OBDH
-
-Mode = Enum("Mode", [("TEST", 0), ("MANUAL", 1), ("AUTO", 2)])
 
 def start(mode=Mode.MANUAL):
     obdh = OBDH()

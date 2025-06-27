@@ -21,7 +21,7 @@ class Telemetry:
     def broadcast(self):
         while self.running:
             telemetry = self.collect_telemetry()
-            self.manager.send("TTC", "send_message", {"message": f"[TELEMETRY]\n{telemetry}\n".encode('utf-8')})
+            self.manager.send("TTC", "send_message", {"message": f"[TELEMETRY]\n{telemetry}\n"})
             time.sleep(self.interval)
 
     def start(self):

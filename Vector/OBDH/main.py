@@ -1,17 +1,18 @@
 import os
-from enum import Enum
+import time
+from Vector.enums import OBDHState, Phase, SubPhase
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 
-State = Enum("State", [("INITIALIZING", 0), ("IDLE", 1), ("BUSY", 2)])
-
 class OBDH:
     def __init__(self):
-        self.State = State.INITIALIZING
-        self.logger = Logger(log_to_console=True).get_logger()
+        self.state = OBDHState.INITIALISING
+        self.logger = Logger().get_logger()
         self.manager = ProcessManager(self.logger)
-        self.phase = None
+        self.start_time = None
+        self.phase = Phase.INITIALISATION
+        self.subphase = None
         self.subsystems = ["TTC", "ADCS", "Payload"]
 
         for name in self.subsystems:
@@ -24,6 +25,7 @@ class OBDH:
 
                 is_ready = self.manager.receive(name)["response"]
 
+        self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")
 
     def start_mission(self):
@@ -46,10 +48,14 @@ class OBDH:
                 case "shutdown":
                     self.manager.shutdown()
     
-    def start_phase(self, phase, sequence):
+    def start_phase(self, phase, args):
         match phase:
             case '1':
+                self.state = OBDHState.BUSY
+                self.phase = Phase.FIRST
+                self.start_time = time.time()
                 run_health_checks()
+
                 if os.path.exists("health.txt"):
                     try:
                         self.manager.send("TTC", "send_file", {"path": "health.txt"})
@@ -59,10 +65,28 @@ class OBDH:
                     else:
                         self.logger.error("health.txt not found.")
             case '2':
+                self.state = OBDHState.BUSY
+                self.phase = Phase.SECOND
+                self.start_time = time.time()
+                sequence = args["sequence"]
                 run_phase2(self.manager, logger=self.logger, sequence=sequence)
             case '3a':
-                run_phase3a(self.manager, logger=self.logger)
-            case '3b':
-                run_phase3b(self.manager, logger=self.logger)
-            case '3c':
-                run_phase3c(self.manager, logger=self.logger)
+                self.state = OBDHState.BUSY
+                self.phase = Phase.THIRD
+                self.start_time = time.time()
+                subphase = args["subphase"]
+
+                match subphase:
+                    case 'a':
+                        self.subphase = SubPhase.a
+                        run_phase3a(self.manager, logger=self.logger)
+                    case 'b':
+                        self.subphase = SubPhase.b
+                        run_phase3b(self.manager, logger=self.logger)
+                    case 'c':
+                        self.subphase = SubPhase.c
+                        run_phase3c(self.manager, logger=self.logger)
+                    case _:
+                        self.logger.error("Invalid subphase")        
+            case _:
+                self.logger.error("Invalid phase")

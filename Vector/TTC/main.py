@@ -2,21 +2,18 @@ import os
 import socket
 import websockets
 import json
-from enum import Enum
+from Vector.enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
 
-State = Enum("State", [("INITIALIZING", 0), ("READY", 1), ("CONNECTED", 2)])
-MessageType = Enum("MessageType", [("LOG", 0), ("MESSAGE", 1), ("FILEMETADATA", 2), ("FILEDATA", 3)])
-
 class TTC:
     def __init__(self, pipe, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
-        log_queue.put(("TT&C", "Initializing..."))
+        log_queue.put(("TT&C", "Initialising..."))
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))
 
         # module configuration
-        self.state = State.INITIALIZING
+        self.state = TTCState.INITIALISING
         self.pipe = pipe
         self.log_queue = log_queue
         self.BUFFER_SIZE = buffer_size
@@ -31,7 +28,7 @@ class TTC:
         self.connection = None
         self.last_command_received = None
 
-        log_queue.put(("TT&C", "Initialized"))
+        log_queue.put(("TT&C", "Initialised"))
 
     def log(self, msg):
         # print(f"(TT&C) {msg}")
@@ -41,28 +38,28 @@ class TTC:
         try:
             await websockets.serve(self.handle_connection, self.ip, self.port)
             self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
-            self.state = State.READY
-            self.pipe.send(self.state == State.READY)
+            self.state = TTCState.READY
+            self.pipe.send(self.state == TTCState.READY)
             self.log(f"Ready")
         except Exception as e:
-            self.log(f"[ERROR] Could not start websocket server: {e}")
+            self.log(f"[ERROR] Could not start WebSocket server: {e}")
 
     async def handle_connection(self, connection):
         self.connection = connection
-        self.state = State.CONNECTED
+        self.state = TTCState.CONNECTED
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
-        while self.state == State.CONNECTED:
+        while self.state == TTCState.CONNECTED:
             try:
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
                 self.connection = None
-                self.state = State.READY
+                self.state = TTCState.READY
                 break
             except Exception as e:
-                self.log(f"[ERROR] Connection handler failed: {e}")
+                self.log(f"[ERROR] WebSocket connection handler failed: {e}")
 
     async def handle_message(self):
         message = await self.connection.recv()
@@ -144,8 +141,7 @@ class TTC:
 
                     self.log("Sent file data")
 
-                break
-                
+                break                
             except OSError as err:
                 # Handle operating system error
                 self.log(f"[ERROR] OS error: {err}, retrying...")
