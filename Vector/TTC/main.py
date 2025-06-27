@@ -91,28 +91,10 @@ class TTC:
         self.log(f"Command: {command}")
         arguments = tokens[1:]
         self.log(f"Arguments: {arguments}")
+        self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
+        self.pipe.send(msg)
 
-        match command:
-            case "start_phase":
-                phase = int(arguments[0])
-                
-                match phase:
-                    case 1:
-                        self.pipe.send("start_phase 1")
-                        await self.send_message("Starting phase 1...")
-                    case _:
-                        await self.send_message(f"{phase} is not a valid phase!")
-            case "cancel_phase":
-                self.pipe.send("cancel_phase")
-                await self.send_message("Cancelling current phase...")
-            case "ping":
-                await self.send_message("pong")
-            case "shutdown":
-                await self.send_message("Shutting down...")
-                self.pipe.send("shutdown")
-            case _:
-                self.log(f"[ERROR] Invalid command received: {command}")
-                await self.send_message(f"{command} is not a valid command!")
+        # NOTE(remy): "cancel_phase" and other commands are all handled in OBDH/__init__.py :)
 
     async def send_file(self, file_path):
         retries = 0

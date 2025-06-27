@@ -82,12 +82,17 @@ class PayloadController:
         image_paths = glob.glob("images/phase2/*.jpg")
         self.numbers_indentified = identify_numbers_from_files(image_paths)
         return self.numbers_indentified
+
+    def take_picture(self, directory, filename):
+        os.makedirs(directory, exist_ok=True)
+        self.stereo_camera.take_picture(directory, filename)
     
     def take_picture_phase_2(self, yaw):
         # Get the current working directory
         current_path = os.getcwd()
         directory = "images/phase2/"
         os.makedirs(directory, exist_ok=True)
+        # NOTE(remy): added support for passing "yaw" as a string for manual mode
         self.stereo_camera.save_images("images/phase2/", round(yaw))
         self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
 

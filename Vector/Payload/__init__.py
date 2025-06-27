@@ -17,6 +17,8 @@ def start(pipe, log_queue):
         elif line == "get_state":
             variable = payload_controller.get_state()
             pipe.send(variable)
+        elif line == "take_picture_raw":  # Used in payload_take_picture (OBDH, manual command)
+            payload_controller.take_picture(args["dir"], args["name"])
         elif line == "take_picture":
             payload_controller.take_picture_phase_2(args["current_yaw"])
         elif line == "get_numbers":
