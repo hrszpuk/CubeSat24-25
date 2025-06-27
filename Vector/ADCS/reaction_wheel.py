@@ -37,6 +37,7 @@ class ReactionWheel:
         motor_type (str): Type of motor used ("brushless" or "brushed").
         motor (BrushlessMotor or BrushedMotor): Instance of the motor class.
         desired_aligment (float): Desired aligment
+        state (str): Current state of the reaction wheel.
     """
     def __init__(self, imu, motor_type="brushless"):
         # Satellite Parameters
@@ -67,6 +68,24 @@ class ReactionWheel:
         else:
             self.motor = BrushedMotor()
 
+        self.state = "STANDBY" # Initial state of the reaction wheel
+        
+    def get_state(self):
+        """
+        Get the current state of the reaction wheel.
+        Returns:
+            str: Current state of the reaction wheel.
+        """
+        return self.state
+
+    def set_state(self, state):
+        """
+        Set the current state of the reaction wheel.
+        Parameters:
+            state (str): New state of the reaction wheel.
+        """
+        self.state = state    
+    
     def get_current_speed(self):
         """
         Get the current speed of the reaction wheel.
@@ -117,8 +136,10 @@ class ReactionWheel:
         kp = 2  # Proportional gain
         ki = 0.05  # Integral gain
         kd = 0.01  # Derivative gain
-        
-        while True:  # Replace with your termination condition
+
+        self.set_state("ROTATING")  # Set state to rotating
+
+        while self.get_state() == "ROTATING":
             # Get current yaw and compute PID control
             pv = self.imu.get_current_yaw()
             control, error, integral = self.pid_controller(
@@ -172,7 +193,9 @@ class ReactionWheel:
         ki = 0.05  # Integral gain
         kd = 0.01  # Derivative gain
         
-        while True:  # Replace with your termination condition
+        self.set_state("ROTATING")  # Set state to rotating
+
+        while self.get_state() == "ROTATING":
             # Get current yaw and compute PID control
             pv = self.imu.get_current_angular_velocity()
             control, error, integral = self.pid_controller(

@@ -235,9 +235,24 @@ class AdcsController:
 
         readings_queue.put(readings)
 
-    def phase2_sequence_rotation(self, sequence, numbers):
+    def phase2_rotate(self, pipe):
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(10,))
+        rotation_thread.start()
+        self.log("ADCS phase 2 rotation started")
+        self.current_reaction_wheel.set_state("ROTATING")        
+
+        initial_yaw = abs(self.get_current_yaw())
+        last_yaw = initial_yaw
+        while abs(self.get_current_yaw()) < initial_yaw + 360:
+            if abs(self.get_current_yaw()) > last_yaw + 10:
+                pipe.send(("take_picture", {"current_yaw": self.get_current_yaw()}))
+                last_yaw = abs(self.get_current_yaw())
+
+        self.current_reaction_wheel.set_state("STANDBY")
+
+    def phase2_sequence_rotation(self, pipe, sequence, numbers):
         numbers = {v: k for k, v in numbers.items()}
-        degree_distances = [abs(numbers[sequence[i]] - numbers[sequence[i-1]]) for i in range(1, len(sequence))]    
+        degree_distances = [abs(numbers[sequence[i]] - numbers[sequence[i-1]]) % 360 for i in range(1, len(sequence))]
 
         current_target = None
         current_target_yaw = None
@@ -247,11 +262,14 @@ class AdcsController:
             current_target_yaw = numbers[current_target]
             rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(current_target_yaw))
             rotation_thread.start()
-            time.sleep(10)
-            # send to Payload to measure distance
-            self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}. Waiting for distance measurement...")
+            time.sleep(10) # wait 10 seconds
+            self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
+            self.current_reaction_wheel.set_state("STANDBY")
+            pipe.send(("take_distance", {}))  # send to Payload to measure distance
             rotation_thread.join()
         
+        pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
+
         return degree_distances
 
     

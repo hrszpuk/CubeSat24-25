@@ -79,7 +79,7 @@ class PayloadController:
         return health_check_text, is_component_ready, errors
 
     def identify_numbers_from_files(self):
-        image_paths = glob.glob("images/numbers/*.jpeg")[:5]
+        image_paths = glob.glob("images/phase2/*.jpg")
         self.numbers_indentified = identify_numbers_from_files(image_paths)
         return self.numbers_indentified
     
@@ -89,11 +89,12 @@ class PayloadController:
         directory = "images/phase2/"
         os.makedirs(directory, exist_ok=True)
         self.stereo_camera.save_images("images/phase2/", round(yaw))
+        self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
 
     def take_distance(self):
         return self.distance_sensor.get_distance()
 
-    def detect_apriltag():
+    def detect_apriltag(self):
         tagfinder_obj = tag_finder.Detector(0.049)
         tagfinder_obj.capture_Camera()
         if not tagfinder_obj.getPose(): 

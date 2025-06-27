@@ -18,9 +18,7 @@ def start(pipe, log_queue):
             variable = payload_controller.get_state()
             pipe.send(variable)
         elif line == "take_picture":
-            variable = True
             payload_controller.take_picture_phase_2(args["current_yaw"])
-            pipe.send(variable)
         elif line == "get_numbers":
             variable = payload_controller.identify_numbers_from_files()
             pipe.send(variable)
