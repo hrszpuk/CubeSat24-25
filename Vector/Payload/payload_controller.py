@@ -82,6 +82,10 @@ class PayloadController:
         image_paths = glob.glob("images/phase2/*.jpg")
         self.numbers_indentified = identify_numbers_from_files(image_paths)
         return self.numbers_indentified
+
+    def take_picture(self, directory, filename):
+        os.makedirs(directory, exist_ok=True)
+        self.stereo_camera.take_picture(directory, filename)
     
     def take_picture_phase_2(self, yaw):
         # Get the current working directory
