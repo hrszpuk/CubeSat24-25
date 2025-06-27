@@ -88,7 +88,8 @@ class PayloadController:
         current_path = os.getcwd()
         directory = "images/phase2/"
         os.makedirs(directory, exist_ok=True)
-        self.stereo_camera.save_images("images/phase2/", round(yaw))
+        # NOTE(remy): added support for passing "yaw" as a string for manual mode
+        self.stereo_camera.save_images("images/phase2/", round(yaw) if isinstance(yaw, int) else yaw)
         self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
 
     def take_distance(self):
