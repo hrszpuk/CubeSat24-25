@@ -1,6 +1,9 @@
-from Vector.OBDH import logger
+from time import time
+from OBDH import logger
+from OBDH.main import OBDH
+from scipy import stats
 
-def run_phase2(manager, logger, sequence):
+def run_phase2(obdh, manager, logger, sequence):
     logger.info("Starting Phase 2")
 
     # 1- Start ADCS rotation
@@ -35,7 +38,7 @@ def run_phase2(manager, logger, sequence):
 
     waiting_for_completion = True
     manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
-    while waiting_for_completion:
+    while waiting_for_completion and obdh.phase == OBDH.Phase.SECOND:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
 
@@ -61,13 +64,17 @@ def run_phase2(manager, logger, sequence):
         }
     manager.send(name="TTC", msg="send_message", message={"data": data})
 
-def run_phase3a(manager, logger):
+def run_phase3a(obdh, manager, logger):
     # Search for target, if timeout occurs, return to OBDH
     logger.info("Starting Phase 3a: Search for target")
     manager.send("ADCS", "phase3_search_target")
 
-    #while self.get_state() == "IN_PHASE3A":
-    while True: # Change this to a proper state check
+    initial_time = None
+    distance_data = {}
+    distance_data_backup = {}
+    read_target = False 
+
+    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.A:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -77,30 +84,100 @@ def run_phase3a(manager, logger):
             pose = manager.receive("Payload")["response"]
             if pose is not None:
                 manager.send("ADCS", "apriltag_detected", {"pose": pose})
-        elif cmd == "apriltag_detected":
-            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"]})
-
-
+                if read_target:
+                    if initial_time is None:
+                        logger.info("Starting distance measurement")
+                        initial_time = time.time()
+                    current_time = time.time()
+                    elapsed_time = int(current_time - initial_time)
+                    if elapsed_time not in distance_data_backup.keys():
+                        distance_data_backup[elapsed_time] = pose["translation"][2] # Assuming Z-axis is distance
+        elif cmd == "target_found":
+            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"], "break_on_target_aligned": True})
+        elif cmd == "target_aligned":
+            read_target = True
         elif cmd == "timeout":
-            logger.warning("Target search timed out, returning to OBDH")
-            return
+            logger.warning("Target search timed out. Subphase terminated.")
+            obdh.subphase = None
+            return 
         
-        
-        
-    
-    # When target is found, align
-    # If target is lost, search again
-    # Measure distance to target
-    # Get current velocity, rpm, velocity of incoming target
-    # send data
-    pass
+        if read_target:
+            if initial_time is None:
+                logger.info("Starting distance measurement")
+                initial_time = time.time()
+                current_time = time.time()
+                elapsed_time = int(current_time - initial_time)
+                if elapsed_time not in distance_data.keys():
+                    manager.send("Payload", "take_distance")
+                    distance = manager.receive("Payload")["response"]
+                    distance_data[elapsed_time] = distance
 
-def run_phase3b(manager, logger):
+    manager.send("ADCS", "stop_reaction_wheel")
+    logger.info("Phase 3a completed, distance data collected")
+
+    x = list(distance_data.keys())
+    y = [val for val in distance_data.values() if isinstance(val, (int, float))]
+
+    if x and y:
+        slope, intercept, r, p, std_err = stats.linregress(x, y)
+    else:
+        slope, intercept, r, p, std_err = 0, 0, 0, 0, 0
+        
+    data = {
+        "average_velocity": slope + " cm/s",
+        "first_distance": y[0] if y else 0 + " cm",
+        "last_distance": y[-1] if y else 0 + " cm",
+        "raw_data": distance_data
+    }
+
+    x = list(distance_data_backup.keys())
+    y = [val for val in distance_data_backup.values() if isinstance(val, (int, float))]
+
+    if x and y:
+        slope, intercept, r, p, std_err = stats.linregress(x, y)
+    else:
+        slope, intercept, r, p, std_err = 0, 0, 0, 0, 0
+        
+    backup_data = {
+        "average_velocity": slope + " cm/s",
+        "first_distance": y[0] if y else 0 + " cm",
+        "last_distance": y[-1] if y else 0 + " cm",
+        "raw_data": distance_data_backup
+    }
+    return data, backup_data
+
+def run_phase3b(obdh, manager, logger):
     # reacquire target
     # If target is lost, search again
     # Assess target spin rate
     # take image of target
     # send image and spin rate
+
+    manager.send("ADCS", "phase3b_reacquire_target")
+
+    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.B:
+        adcs_response = manager.receive("ADCS")
+        cmd = adcs_response["command"]
+        args = adcs_response["arguments"]
+
+        if cmd == "detect_apriltag":
+            manager.send("Payload", "detect_apriltag")
+            pose = manager.receive("Payload")["response"]
+            if pose is not None:
+                manager.send("ADCS", "apriltag_detected", {"pose": pose})
+        elif cmd == "target_found":
+            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"], "break_on_target_aligned": False})
+        elif cmd == "reading_target":
+            manager.send("ADCS", "phase3_read_target")
+
+        elif cmd == "timeout":
+            logger.warning("Target search timed out. Subphase terminated.")
+            obdh.subphase = None
+            return 
+
+    # SEND PICTURE TO TTC
+    manager.send("Payload", "take_picture_phase_3")
+    path = manager.receive("Payload")["response"]
 
     pass
 

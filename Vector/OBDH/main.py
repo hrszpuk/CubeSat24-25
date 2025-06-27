@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 from Vector.enums import OBDHState, Phase, SubPhase
 from OBDH.process_manager import ProcessManager, Logger
@@ -45,6 +46,10 @@ class OBDH:
                 case "start_phase":
                     phase = args[0]
                     self.start_phase(phase)
+                case "cancel_phase":
+                    if self.state == OBDHState.BUSY:
+                        self.logger.info("Cancelling current phase")
+                        self.reset_state()
                 case "shutdown":
                     self.manager.shutdown()
     
@@ -64,12 +69,15 @@ class OBDH:
                         self.logger.warning(f"Health check report failed: {e}")
                     else:
                         self.logger.error("health.txt not found.")
+                self.reset_state()
+
             case '2':
                 self.state = OBDHState.BUSY
                 self.phase = Phase.SECOND
                 self.start_time = time.time()
                 sequence = args["sequence"]
-                run_phase2(self.manager, logger=self.logger, sequence=sequence)
+                run_phase2(self, self.manager, logger=self.logger, sequence=sequence)
+                self.reset_state()
             case '3a':
                 self.state = OBDHState.BUSY
                 self.phase = Phase.THIRD
@@ -78,15 +86,53 @@ class OBDH:
 
                 match subphase:
                     case 'a':
+                        timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.a
-                        run_phase3a(self.manager, logger=self.logger)
+                        distance_data, distance_data_backup = run_phase3a(self, self.manager, logger=self.logger)
+
+                        self.manager.send("ADCS", "phase3a_complete")
+                        adcs_rcv = self.manager.receive("ADCS")
+                        if adcs_rcv["command"] != "readings_phase3a":
+                            args = adcs_rcv["arguments"]
+
+                        # Send data to TTC
+                        self.manager.send("TTC", "send_message", {
+                            "current_wheel_velocity": args["current_wheel_velocity"] + " RPM" if "current_wheel_velocity" in args else None,
+                            "current_satellite_velocity": args["current_satellite_velocity"] + " º/s" if "current_satellite_velocity" in args else None,
+                            "distance_data": distance_data,
+                            "distance_data_backup": distance_data_backup
+                        })
+
+                        self.reset_timer(timer)
+                        self.reset_state()
+
                     case 'b':
+                        timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.b
-                        run_phase3b(self.manager, logger=self.logger)
+                        run_phase3b(self, self.manager, logger=self.logger)
+
+                        self.reset_timer(timer)
+                        self.reset_state()
                     case 'c':
+                        timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.c
                         run_phase3c(self.manager, logger=self.logger)
+                        self.reset_timer(timer)
+                        self.reset_state()
                     case _:
                         self.logger.error("Invalid subphase")        
             case _:
                 self.logger.error("Invalid phase")
+
+    def reset_state(self, timer=None):
+        # Reset the state to IDLE
+        if self.state != OBDHState.IDLE:
+            self.state = OBDHState.IDLE
+            self.phase = None
+            self.subphase = None
+            self.start_time = None
+            self.start_time = None
+
+    def reset_timer(self, timer):
+        if timer is not None and self.state == OBDHState.BUSY:
+            timer.cancel()

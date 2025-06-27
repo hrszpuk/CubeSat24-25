@@ -102,6 +102,9 @@ class TTC:
                         await self.send_message("Starting phase 1...")
                     case _:
                         await self.send_message(f"{phase} is not a valid phase!")
+            case "cancel_phase":
+                self.pipe.send("cancel_phase")
+                await self.send_message("Cancelling current phase...")
             case "ping":
                 await self.send_message("pong")
             case "shutdown":

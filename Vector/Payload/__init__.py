@@ -28,5 +28,8 @@ def start(pipe, log_queue):
         elif line == "detect_apriltag":
             variable = payload_controller.detect_apriltag()
             pipe.send(variable)
+        elif line == "phase3_take_picture":
+            path = payload_controller.stereo_camera.save_image()
+            pipe.send(path)
         elif line == "stop":
             running = False
