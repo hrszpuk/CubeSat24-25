@@ -1,5 +1,5 @@
 <script setup>
-    import { useSocket } from '@/layout/composables/socket.js';    
+    import { useSocket } from '@/layout/composables/socket.js';
     import Button from 'primevue/button';
     import InputText from 'primevue/inputtext';
     import InputNumber from 'primevue/inputnumber';
@@ -11,6 +11,7 @@
     const buttonClick = () => {
         if (getStatus() === "OPEN") {
             dropConnection();
+            disconnect_sfx.play();
         } else if (getStatus() === "CLOSED") {
             establishConnection();
         }
