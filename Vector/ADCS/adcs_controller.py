@@ -277,7 +277,7 @@ class AdcsController:
         # Start rotating at specific speed
         # if apriltag is detected, stop rotating and record pose of target
         # if not, continue rotating until a timeout is reached
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed, args=(10,))
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(10,))
         rotation_thread.start()
 
         target_found = False
@@ -287,32 +287,49 @@ class AdcsController:
             pipe.send(("detect_apriltag", {}))
             line, args = pipe.recv()
             if line == "apriltag_detected":
+                self.log("AprilTag detected.")
                 last_speed = self.current_reaction_wheel.get_current_speed()
                 target_found = True
                 break
+
+        self.current_reaction_wheel.set_state("STANDBY")
         
         rotation_thread.join()
 
         if target_found:
-            self.phase3_align_target(pipe, last_speed)
+            pipe.send(("target_found", {"last_speed": last_speed}))
         else:
             self.log("Target not found within timeout period")
+            pipe.send(("timeout", {}))
+
     
 
-    def phase3_acquire_target(self):
+    def phase3_reacquire_target(self, pipe):
         # get current target yaw
+        current_yaw = self.get_current_yaw()
         # rotate until current yaw matches target yaw
-        while self.target_yaw is not None:
-            self.current_reaction_wheel.activate_wheel(self.target_yaw)
-            if current_yaw == self.target_yaw: # TODO: Add tolerance check
-                self.log("Target yaw reached.")
-                # check for apriltag\
-                apriltag_detected = True
-                if apriltag_detected:
-                    self.log("AprilTag detected. Initiating alignment.")
-                else:
-                    self.phase3_search_target()
+        if self.target_yaw is not None:
+            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(self.target_yaw,))
+            rotation_thread.start()
+        
+            target_found = False
+            while not target_found:
+                pipe.send(("detect_apriltag", {}))
+                line, args = pipe.recv()
+                if line == "apriltag_detected":
+                    last_speed = self.current_reaction_wheel.get_current_speed()
+                    target_found = True
                     break
+            self.current_reaction_wheel.set_state("STANDBY")
+
+            rotation_thread.join()
+
+            self.phase3_align_target(pipe, last_speed)
+
+        else:
+            self.log("No target found yet. Initiating search.")
+            self.phase3_search_target()
+
         # check for apriltag
         # if no apriltag is detected, log error and aquire target again
 
@@ -343,6 +360,10 @@ class AdcsController:
                     self.target_yaw = self.get_current_yaw()
 
         rotation_thread.join()
+
+        self.log("Target lost during alignment")
+        pipe.send(("target_lost", {}))
+
 
 
         

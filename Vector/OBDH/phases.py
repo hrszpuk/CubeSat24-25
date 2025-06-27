@@ -63,11 +63,50 @@ def run_phase2(manager, logger, sequence):
     manager.send(name="TTC", msg="send_message", message={"data": data})
 
 def run_phase3a(manager, logger):
+    # Search for target, if timeout occurs, return to OBDH
+    logger.info("Starting Phase 3a: Search for target")
+    manager.send("ADCS", "phase3_search_target")
+
+    #while self.get_state() == "IN_PHASE3A":
+    while True: # Change this to a proper state check
+        adcs_response = manager.receive("ADCS")
+        cmd = adcs_response["command"]
+        args = adcs_response["arguments"]
+
+        if cmd == "detect_apriltag":
+            manager.send("Payload", "detect_apriltag")
+            pose = manager.receive("Payload")["response"]
+            if pose is not None:
+                manager.send("ADCS", "apriltag_detected", {"pose": pose})
+        elif cmd == "apriltag_detected":
+            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"]})
+
+
+        elif cmd == "timeout":
+            logger.warning("Target search timed out, returning to OBDH")
+            return
+        
+        
+        
     
+    # When target is found, align
+    # If target is lost, search again
+    # Measure distance to target
+    # Get current velocity, rpm, velocity of incoming target
+    # send data
     pass
 
 def run_phase3b(manager, logger):
+    # reacquire target
+    # If target is lost, search again
+    # Assess target spin rate
+    # take image of target
+    # send image and spin rate
+
     pass
 
 def run_phase3c(manager, logger):
+    #continuously align and measure distance to target
+    # if target is lost, search again
+    # send contact confirmation
     pass

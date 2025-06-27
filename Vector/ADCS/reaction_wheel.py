@@ -237,7 +237,9 @@ class ReactionWheel:
         kd = 0.01  # Derivative gain
         setpoint = last_speed + self.desired_aligment
 
-        while True:  # Replace with your termination condition
+        self.set_state("ALIGNING")  # Set state to aligning
+
+        while self.get_state() == "ALIGNING":
             # Get current yaw and compute PID control
             pv = self.get_current_speed()  # Get current speed from the motor
             control, error, integral = self.pid_controller(
