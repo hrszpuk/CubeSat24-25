@@ -2,6 +2,9 @@ import { computed, reactive } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import { useToast } from './toast.js';
 
+const connect_sfx = new Audio("/connect_sfx.mp3");
+const message_sfx = new Audio("/message_sfx.mp3")
+const disconnect_sfx = new Audio("/disconnect_sfx.mp3");
 const toast = useToast();
 
 const connection = reactive({
@@ -22,10 +25,12 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
     },
     heartbeat: true,
     onConnected(ws) {
+        connect_sfx.play();
         toast.add({severity: "success", summary: "WebSocket Connected", detail: `Successfully conencted to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },        
-    onDisconnected(ws, event) {
+    onDisconnected(ws, event) {        
         if (event.wasClean) {
+            disconnect_sfx.play();
             toast.add({severity: "success", summary: "WebSocket Disconnected", detail: "Successfully disconnected from CubeSat", life: 3000});
         }
     },
@@ -33,6 +38,7 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
         toast.add({severity: "error", summary: "WebSocket Error", detail: `Error connecting to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },
     onMessage(ws, event) {
+        message_sfx.play()
         console.log(`Message from CubeSat: ${event}`);
     }
 });
