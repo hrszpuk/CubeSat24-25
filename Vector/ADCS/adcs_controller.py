@@ -11,7 +11,7 @@ class AdcsController:
         self.state = "INITIALIZING"
         self.log_queue = log_queue
         self.initialize_sun_sensors()
-        #self.initialize_orientation_system()
+        self.initialize_orientation_system()
         self.calibrating_orientation_system = False
         self.state = "READY"
         self.target_yaw = None
@@ -28,7 +28,7 @@ class AdcsController:
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
         self.current_reaction_wheel = self.main_reaction_wheel
         #self.current_reaction_wheel = self.backup_reaction_wheel
-        self.calibrate_orientation_system()
+        #self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
         health_check_text = ""
@@ -117,6 +117,7 @@ class AdcsController:
                 self.log("Battery temperature is high.")
             else:
                 health_check_text += f"Battery Temperature: {temp} ºC (NOMINAL)\n"
+        return health_check_text
 
     def calibrate_orientation_system(self):
         imu_status = self.imu.get_status()

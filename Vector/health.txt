@@ -1,49 +1,160 @@
 --- Vector CubeSat Health Check Report ---
-Date: 19-06-2025
-Time: 18:45:15 GMT
+Date: 28-06-2025
+Time: 14:09:10 GMT
 
 --- Power Subsystem ---
-Battery Voltage
-Battery Current
-Battery Temperature
+Battery Voltage: 5.644894 V
+Battery Current: 9.206349 A
+Battery Temperature: 20.27673 ºC (NOMINAL)
 
 
 --- Thermal Subsystem ---
-Internal Temperature: 55.10°C (NOMINAL)
+Internal Temperature: 52.35°C (NOMINAL)
 Status: OK
 
 
 --- Communication Subsystem ---
-
+Downlink Frequency: 5.22 GHz (NOMINAL)
+Uplink Frequency: 5.22 GHz (NOMINAL)
+Signal Strength: 41 dBm (NOMINAL)
+Data Transmission Rate: 433.3 Mb/s (NOMINAL)
+Status: OK
 
 --- ADCS Subsystem ---
-Gyroscope: X: -0.01 º/s, Y: 0.01 º/s, Z: -0.0 º/s
-Orientation: X: 143.62 º, Y: 358.54 º, Z: 359.3 º
-Sun Sensor 0: ACTIVE
-Sun Sensor 1: ACTIVE
-Sun Sensor 2: ACTIVE
-Sun Sensor 3: ACTIVE
+Gyroscope: X: -0.03 º/s, Y: 0.02 º/s, Z: -0.04 º/s
+Orientation: X: 69.44000000000051 º, Y: 2.51 º, Z: 2.57 º
+Sun Sensor 0: INACTIVE
+Sun Sensor 1: INACTIVE
+Sun Sensor 2: INACTIVE
+Sun Sensor 3: INACTIVE
 Main Reaction Wheel RPM: 0.00
 Backup Reaction Wheel RPM: 0.00
-STATUS: O
+STATUS: DOWN - Error in one or more components
 
 --- Payload Subsystem ---
-Stereo Camera: ACTIVE
-Distance Sensor: ACTIVE
-STATUS: O
+
 
 --- Command and Data Handling Subsystem ---
-Memory Usage: 11.2%
-Last Command Received: 19-06-2025 18:45:15 GMT
-Uptime: 154 minutes
+Memory Usage: 8.5%
+Last Command Received: None
+Uptime: 28 minutes
 
 
 --- Error Log ---
-No errors detected.
+2025-06-28 03:46:50,832 - Process-1 - INFO - [TT&C] [ERROR] Error in handle_message: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:50,833 - Process-1 - INFO - [TT&C] [ERROR] WebSocket connection handler failed: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:50,840 - Process-1 - INFO - [TT&C] [ERROR] Full traceback: Traceback (most recent call last):
+2025-06-28 03:46:51,775 - Process-1 - INFO - [TT&C] [ERROR] Error in handle_message: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:51,775 - Process-1 - INFO - [TT&C] [ERROR] WebSocket connection handler failed: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:51,775 - Process-1 - INFO - [TT&C] [ERROR] Full traceback: Traceback (most recent call last):
+2025-06-28 03:46:52,387 - Process-1 - INFO - [TT&C] [ERROR] Error in handle_message: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:52,387 - Process-1 - INFO - [TT&C] [ERROR] WebSocket connection handler failed: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:52,388 - Process-1 - INFO - [TT&C] [ERROR] Full traceback: Traceback (most recent call last):
+2025-06-28 03:46:53,328 - Process-1 - INFO - [TT&C] [ERROR] Error in handle_message: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:53,328 - Process-1 - INFO - [TT&C] [ERROR] WebSocket connection handler failed: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:53,328 - Process-1 - INFO - [TT&C] [ERROR] Full traceback: Traceback (most recent call last):
+2025-06-28 03:46:53,941 - Process-1 - INFO - [TT&C] [ERROR] Error in handle_message: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:53,941 - Process-1 - INFO - [TT&C] [ERROR] WebSocket connection handler failed: cannot call recv while another coroutine is already waiting for the next message
+2025-06-28 03:46:53,941 - Process-1 - INFO - [TT&C] [ERROR] Full traceback: Traceback (most recent call last):
+2025-06-28 04:44:13,023 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 04:45:09,719 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 04:47:49,068 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 04:50:00,784 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 04:55:04,510 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 04:59:58,372 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:02:36,454 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:04:23,252 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:08:50,701 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:09:32,173 - MainProcess - ERROR - shutdown
+2025-06-28 05:11:47,966 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:13:19,868 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:14:32,263 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:16:47,407 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:18:10,830 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:19:58,071 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:22:00,783 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:23:54,247 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:24:08,619 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 98] error while attempting to bind on address ('172.20.10.9', 8000): address already in use
+2025-06-28 05:26:38,260 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 98] error while attempting to bind on address ('172.20.10.9', 8000): address already in use
+2025-06-28 05:29:01,743 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:34:08,473 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:34:39,549 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:35:20,281 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:35:51,465 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:41:40,550 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:43:07,750 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:43:25,249 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:47:02,820 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:47:30,409 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:48:25,671 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 05:48:34,933 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 12:44:20,373 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 98] error while attempting to bind on address ('172.20.10.9', 8000): address already in use
+2025-06-28 13:07:38,901 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:14:57,861 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:27:23,625 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:27:23,628 - MainProcess - ERROR - Error receiving from ADCS: 
+2025-06-28 13:27:23,629 - Process-1 - INFO - [TT&C] Received command from OBDH: log with arguments {'message': '2025-06-28 13:27:23,628 - MainProcess - ERROR - Error receiving from ADCS: '}
+2025-06-28 13:27:23,630 - MainProcess - ERROR - Error receiving from Payload: 
+2025-06-28 13:27:23,630 - Process-1 - INFO - [TT&C] Received command from OBDH: log with arguments {'message': '2025-06-28 13:27:23,630 - MainProcess - ERROR - Error receiving from Payload: '}
+2025-06-28 13:27:47,704 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:33:28,900 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:33:33,317 - MainProcess - ERROR - Error receiving from ADCS: 
+2025-06-28 13:33:33,318 - Process-1 - INFO - [TT&C] Received command from OBDH: log with arguments {'message': '2025-06-28 13:33:33,317 - MainProcess - ERROR - Error receiving from ADCS: '}
+2025-06-28 13:33:33,318 - Process-1 - INFO - [TT&C] 2025-06-28 13:33:33,317 - MainProcess - ERROR - Error receiving from ADCS: 
+2025-06-28 13:33:33,319 - MainProcess - ERROR - Error receiving from Payload: 
+2025-06-28 13:33:33,320 - Process-1 - INFO - [TT&C] Received command from OBDH: log with arguments {'message': '2025-06-28 13:33:33,319 - MainProcess - ERROR - Error receiving from Payload: '}
+2025-06-28 13:33:33,320 - Process-1 - INFO - [TT&C] 2025-06-28 13:33:33,319 - MainProcess - ERROR - Error receiving from Payload: 
+2025-06-28 13:34:04,483 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 13:34:04,488 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:34:34,165 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 13:34:50,135 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 13:36:19,971 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:36:54,626 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:36:54,679 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:36:57,252 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:36:57,296 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:37:02,900 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:37:02,944 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:37:38,568 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:37:38,611 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:37:49,151 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:37:49,195 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:40:55,914 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:40:55,971 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:41:00,526 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:41:00,582 - MainProcess - ERROR - Error receiving from TTC: 
+2025-06-28 13:43:44,147 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:44:03,942 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:45:57,930 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 13:47:15,974 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 14:03:52,032 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 14:06:19,563 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 14:07:18,994 - Process-1 - INFO - [TT&C] [ERROR] Failed to process command (health_check) from OBDH: 'NoneType' object has no attribute 'items'
+2025-06-28 14:08:47,293 - MainProcess - ERROR - Error receiving from ADCS: 
+2025-06-28 14:08:47,294 - Process-1 - INFO - [TT&C] Received command from OBDH: log with arguments {'message': '2025-06-28 14:08:47,293 - MainProcess - ERROR - Error receiving from ADCS: '}
+2025-06-28 14:08:47,294 - Process-1 - INFO - [TT&C] 2025-06-28 14:08:47,293 - MainProcess - ERROR - Error receiving from ADCS: 
+2025-06-28 14:09:21,088 - MainProcess - ERROR - Error receiving from ADCS: 
+2025-06-28 14:09:21,088 - Process-1 - INFO - [TT&C] Received command from OBDH: log with arguments {'message': '2025-06-28 14:09:21,088 - MainProcess - ERROR - Error receiving from ADCS: '}
+2025-06-28 14:09:21,088 - Process-1 - INFO - [TT&C] 2025-06-28 14:09:21,088 - MainProcess - ERROR - Error receiving from ADCS: 
+2025-06-28 14:14:55,281 - MainProcess - ERROR - stat_phase couldn't be matched! It is likely invalid.
+2025-06-28 14:14:55,282 - Process-1 - INFO - [TT&C] Received command from OBDH: log with arguments {'message': "2025-06-28 14:14:55,281 - MainProcess - ERROR - stat_phase couldn't be matched! It is likely invalid."}
+2025-06-28 14:14:55,282 - Process-1 - INFO - [TT&C] 2025-06-28 14:14:55,281 - MainProcess - ERROR - stat_phase couldn't be matched! It is likely invalid.
+2025-06-28 14:38:16,289 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 98] error while attempting to bind on address ('172.20.10.9', 8000): address already in use
+2025-06-28 14:38:32,790 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 13] error while attempting to bind on address ('172.20.10.9', 80): permission denied
+2025-06-28 14:38:43,359 - MainProcess - ERROR - Error receiving from ADCS: [Errno 104] Connection reset by peer
+2025-06-28 14:38:43,366 - MainProcess - ERROR - Error receiving from Payload: [Errno 104] Connection reset by peer
+2025-06-28 14:39:45,523 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 13] error while attempting to bind on address ('172.20.10.9', 80): permission denied
+2025-06-28 14:40:09,633 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 13] error while attempting to bind on address ('172.20.10.9', 80): permission denied
+2025-06-28 14:42:06,208 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 13] error while attempting to bind on address ('172.20.10.9', 80): permission denied
+2025-06-28 14:48:20,037 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 98] error while attempting to bind on address ('172.20.10.9', 8000): address already in use
+2025-06-28 14:48:35,357 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 98] error while attempting to bind on address ('172.20.10.9', 8000): address already in use
+2025-06-28 14:48:58,974 - Process-1 - INFO - [TT&C] [ERROR] Could not start WebSocket server: [Errno 98] error while attempting to bind on address ('172.20.10.9', 8000): address already in use
+2025-06-28 14:50:09,868 - Process-1 - INFO - [TT&C] [ERROR] Failed to send "2025-06-28 14:50:09,866 - MainProcess - INFO - All subsystems are ready": 'NoneType' object has no attribute 'send'
+2025-06-28 14:52:45,675 - Process-1 - INFO - [TT&C] [ERROR] Failed to send "2025-06-28 14:52:45,653 - MainProcess - INFO - All subsystems are ready": 'NoneType' object has no attribute 'send'
 
 
 --- Overall Status ---
-WARNING - Subsystems affected: ADCS, Payload
-Recommended actions: Reset and reinitialise ADCS, Payload; check connections.
+CRITICAL - Errors Detected
+Recommended actions: Check logs for details and reinitialise affected subsystem(s).
 
 --- End of Report ---

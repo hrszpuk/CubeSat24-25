@@ -9,7 +9,6 @@ def start(pipe, log_queue):
     running = True
     while running:
         line, args = pipe.recv()
-        log_queue.put(("ADCS", f"Received command: {line} with args: {args}"))
         if line == "health_check":
             variable = adcs_controller.health_check()
             pipe.send(variable)

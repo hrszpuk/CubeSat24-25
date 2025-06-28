@@ -21,12 +21,14 @@ def obdh_comms(ttc, obdh_pipe):
 
     while running:
         response = obdh_pipe.recv()
-        print("type ", type(response))
         command = response[0]
         args = response[1] if len(response) > 1 else {}
         ttc.log(f"Received command from OBDH: {command} with arguments {args}")
 
         match command:
+            case "log":
+                message = args.get("message", "")
+                ttc.log(message)
             case "health_check":
                 try:
                     health_check = ttc.health_check()

@@ -14,26 +14,23 @@ def read_all_errors(log_path="vector.log"):
     except FileNotFoundError:
         return ["Log file not found.\n"]
 
-def run_health_checks(manager):
+def run_health_checks(manager, logger):
     manager.send("TTC", "health_check")
     ttc_health_check = manager.receive("TTC")["response"]
     manager.send("ADCS", "health_check")
     adcs_response = manager.receive("ADCS")["response"]
     manager.send("Payload", "health_check")
     payload_response = manager.receive("Payload")["response"]
-    manager.send("ADCS", "bms_health_check")
+    manager.send("ADCS", "eps_health_check")
     power_response = manager.receive("ADCS")["response"]
+
     health_check_text = "--- Vector CubeSat Health Check Report ---\n"
     health_check_text += "Date: " + time.strftime("%d-%m-%Y") + "\n"
     health_check_text += "Time: " + time.strftime("%H:%M:%S", time.gmtime()) + " GMT\n"
 
     # Power Subsystem
     health_check_text += ("\n--- Power Subsystem ---\n")
-    health_check_text += "Battery Voltage\n"
-    health_check_text += "Battery Current\n"
-    health_check_text += "Battery Temperature\n"
-
-    for line in power_response[:-1]:
+    for line in power_response:
         health_check_text += line
 
     health_check_text += "\n"
@@ -126,4 +123,6 @@ def run_health_checks(manager):
 
     with open("health.txt", "w") as f:
         f.write(health_check_text)
+        return True
+    return False
 

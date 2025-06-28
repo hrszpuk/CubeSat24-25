@@ -39,6 +39,7 @@ class OBDH:
     def handle_input(self):
         while True:
             input = self.manager.receive("TTC")["response"]
+            self.logger.info(f"Received input: {input}")
             cmd = input["command"]
             args = input["arguments"]
 
@@ -109,16 +110,19 @@ class OBDH:
                 self.state = OBDHState.BUSY
                 self.phase = Phase.FIRST
                 self.start_time = time.time()
-                run_health_checks(self.manager)
 
-                if os.path.exists("health.txt"):
+                hc = run_health_checks(self.manager, self.logger)
+
+                if not hc:
+                    self.logger.error("Health check failed, health.txt not generated.")
+                if os.path.exists("health.txt") and hc:
                     try:
                         self.manager.send("TTC", "send_file", {"path": "health.txt"})
                         self.logger.info("Health check report sent")
                     except Exception as e:
                         self.logger.warning(f"Health check report failed: {e}")
-                    else:
-                        self.logger.error("health.txt not found.")
+                else:
+                    self.logger.error("health.txt not found.")
                 self.reset_state()
 
             case '2':

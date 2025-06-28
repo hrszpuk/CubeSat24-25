@@ -1,5 +1,5 @@
 import glob
-#from Payload.distance_sensor import DistanceSensor
+from Payload.distance_sensor import DistanceSensor
 # from Payload.stereo_camera import StereoCamera
 # from Payload.number_identifier import identify_numbers_from_files
 #from Payload import tag_finder
@@ -22,23 +22,23 @@ class PayloadController:
         health_check_text = ""
         errors = []
 
-        # get the status of the stereo camera
-        sc_health_check_text, sc_health_check, sc_errors = self.get_stereo_camera_health_check()
-        health_check_text += sc_health_check_text
-        errors.extend(sc_errors)
+        # # get the status of the stereo camera
+        # sc_health_check_text, sc_health_check, sc_errors = self.get_stereo_camera_health_check()
+        # health_check_text += sc_health_check_text
+        # errors.extend(sc_errors)
 
-        # get the status of the distance sensor
-        ds_health_check_text, ds_health_check, ds_errors = self.get_distance_sensor_health_check()
-        health_check_text += ds_health_check_text
-        errors.extend(ds_errors)
+        # # get the status of the distance sensor
+        # ds_health_check_text, ds_health_check, ds_errors = self.get_distance_sensor_health_check()
+        # health_check_text += ds_health_check_text
+        # errors.extend(ds_errors)
 
-        # check subsystem health
-        if sc_health_check and ds_health_check:
-            self.status = "OK"
-            health_check_text += "STATUS: OK"
-        else:
-            self.status = "DOWN"
-            health_check_text += "STATUS: DOWN - Error in one or more components"
+        # # check subsystem health
+        # if ds_health_check: # and sc_health_check:
+        #     self.status = "OK"
+        #     health_check_text += "STATUS: OK"
+        # else:
+        #     self.status = "DOWN"
+        #     health_check_text += "STATUS: DOWN - Error in one or more components"
 
         return health_check_text, errors
 
