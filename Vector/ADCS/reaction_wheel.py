@@ -5,13 +5,13 @@ from ADCS.imu import Imu
 import numpy as np
 
 # Satellite Variables
-SAT_MASS = 1.5  # kg
+SAT_MASS = 1.576  # kg
 SAT_SIDE1 = 0.1  # m
 SAT_SIDE2 = 0.1  # m
 
 # Actuator Variables
 WHEEL_MASS = 0.1  # kg
-WHEEL_RADIUS = 0.0375  # m
+WHEEL_RADIUS = 0.037605 # m
 KT = 0.00955  # Motor torque constant (N·m/A)
 KE = 0.00955  # Back-EMF constant (V·s/rad)
 R = 0.09  # Motor resistance (Ohms)
@@ -133,9 +133,9 @@ class ReactionWheel:
         setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
 
         # PID Parameters
-        kp = 2  # Proportional gain
+        kp = 2.5  # Proportional gain
         ki = 0.05  # Integral gain
-        kd = 0.01  # Derivative gain
+        kd = 0.03  # Derivative gain
 
         self.set_state("ROTATING")  # Set state to rotating
 
@@ -192,7 +192,7 @@ class ReactionWheel:
         kp = 2  # Proportional gain
         ki = 0.05  # Integral gain
         kd = 0.01  # Derivative gain
-        
+
         self.set_state("ROTATING")  # Set state to rotating
 
         while self.get_state() == "ROTATING":
