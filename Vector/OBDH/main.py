@@ -9,7 +9,7 @@ from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 class OBDH:
     def __init__(self):
         self.state = OBDHState.INITIALISING
-        self.logger = Logger().get_logger()
+        self.logger = Logger()
         self.manager = ProcessManager(self.logger)
         self.start_time = None
         self.phase = Phase.INITIALISATION
@@ -25,6 +25,8 @@ class OBDH:
                     self.manager.send(name, "is_ready")
 
                 is_ready = self.manager.receive(name)["response"]
+
+            self.logger.set_ttc_handler(self.manager.pipes["TTC"])
 
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")

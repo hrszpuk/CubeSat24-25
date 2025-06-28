@@ -1,6 +1,4 @@
 from time import time
-from OBDH import logger
-from OBDH.main import OBDH
 from scipy import stats
 
 def run_phase2(obdh, manager, logger, sequence):
