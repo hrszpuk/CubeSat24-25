@@ -57,17 +57,6 @@
                 response = establishConnection(ip);
 
                 break;
-            case "start_phase":
-                let phase = parseInt(args[0])
-
-                switch(phase) {
-                    case 1:
-                        socket.send("start_phase 1");
-                        break;
-                    default:
-                        response = `${phase} is not a valid phase!`;
-                }
-                break;
             case "disconnect":
                 response = dropConnection();
                 
