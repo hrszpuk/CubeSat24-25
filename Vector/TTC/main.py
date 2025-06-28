@@ -37,41 +37,35 @@ class TTC:
         self.log_queue.put(("TT&C", msg))
 
     def start_pipe_listener(self):
-        def pipe_loop():
-            self.log("Starting pipe listener thread...")
+        def loop_process():
+            self.log("Starting OBDH listener thread...")
 
             while True:
-                response = self.pipe.recv()
-                command = response[0]
-                args = response[1:]
-                self.log(f"Pipe listener got command: {command} with args: {args}")
+                if self.pipe.poll():
+                    instruction = self.pipe.recv()
+                    command = instruction[0]
+                    args = instruction[1]
+                    self.log(f"Received command: {command} with args: {args} from OBDH")
+                    pipe_loop = asyncio.get_event_loop()
 
-                if command == "stop":
-                    self.log("Pipe listener shutting down...")
-                    self.event_loop.call_soon_threadsafe(self.event_loop.stop)
-                    break
+                    match command:
+                        case "stop":
+                            self.log("OBDH listener shutting down...")
+                            self.event_loop.call_soon_threadsafe(self.event_loop.stop)
+                            break
+                        case "log":
+                            asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), pipe_loop)
+                        case "send_message":
+                            asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), pipe_loop)
+                        case "send_file":
+                            asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), pipe_loop)
+                        case "health_check":
+                            health = self.health_check()
+                            self.pipe.send(health)
+                        case _:
+                            self.log(f"Invalid instruction received from OBDH: {command}")
 
-                # push the work to the asyncio loop:
-                loop = asyncio.get_event_loop()
-                if command == "send_message":
-                    asyncio.run_coroutine_threadsafe(
-                        self.send_message(args["message"]), loop
-                    )
-                elif command == "send_file":
-                    asyncio.run_coroutine_threadsafe(
-                        self.send_file(args["path"]), loop
-                    )
-                elif command == "log":
-                    # plain sync log is fine
-                    self.log(args.get("message", ""))
-                elif command == "health_check":
-                    # handle sync
-                    health = self.health_check()
-                    self.pipe.send(health)
-                else:
-                    self.log(f"[Pipe listener] Unknown command: {command}")
-
-        t = threading.Thread(target=pipe_loop, daemon=True)
+        t = threading.Thread(target=loop_process, daemon=True)
         t.start()
 
     async def start_server(self):
@@ -133,6 +127,11 @@ class TTC:
         self.log(f"Arguments: {arguments}")
 
         match command:
+            case "ping":
+                pass
+            case "get_file":
+                path = arguments[0]
+                await self.send_file(path)
             case "start_phase":
                 phase = int(arguments[0])
                 
@@ -142,8 +141,6 @@ class TTC:
                         await self.send_message(f"Starting phase {phase}...")
                     case _:
                         await self.send_message(f"{phase} is not a valid phase!")
-            case "ping":
-                await self.send_message("pong")
             case "shutdown":
                 await self.send_message("Shutting down...")
                 self.pipe.send("shutdown")
