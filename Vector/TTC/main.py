@@ -174,7 +174,7 @@ class TTC:
                     self.log("Sending file data...")
 
                     while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(json.dumps({"type": MessageType.FILEDATA.name.lower(), "data": base64.b64encode(chunk)}))
+                        await self.connection.send(json.dumps({"type": MessageType.FILEDATA.name.lower(), "data": base64.b64encode(chunk).decode("ascii")}))
 
                     await self.send_message("File send complete")
                     self.log("Sent file data")
