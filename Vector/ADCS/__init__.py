@@ -9,11 +9,15 @@ def start(pipe, log_queue):
     running = True
     while running:
         line, args = pipe.recv()
+        log_queue.put(("ADCS", f"Received command: {line} with args: {args}"))
         if line == "health_check":
             variable = adcs_controller.health_check()
             pipe.send(variable)
         elif line == "eps_health_check":
             variable = adcs_controller.get_eps_health_check()
+            pipe.send(variable)
+        elif line == "is_ready":
+            variable = adcs_controller.get_state() == "READY"
             pipe.send(variable)
         elif line == "get_state":
             variable = adcs_controller.get_state()

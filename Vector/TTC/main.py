@@ -99,7 +99,7 @@ class TTC:
             self.log(f"Arguments: {arguments}")
             self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self.pipe.send, msg)
+            await loop.run_in_executor(None, self.pipe.send, {"response": msg, "command": command, "arguments": arguments})
 
         # NOTE(remy): "cancel_phase" and other commands are all handled in OBDH/__init__.py :)
 

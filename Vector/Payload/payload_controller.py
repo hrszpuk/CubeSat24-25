@@ -1,8 +1,8 @@
 import glob
-from Payload.distance_sensor import DistanceSensor
-from Payload.stereo_camera import StereoCamera
-from Payload.number_identifier import identify_numbers_from_files
-from Payload import tag_finder
+#from Payload.distance_sensor import DistanceSensor
+# from Payload.stereo_camera import StereoCamera
+# from Payload.number_identifier import identify_numbers_from_files
+#from Payload import tag_finder
 import os
 
 
@@ -10,8 +10,8 @@ class PayloadController:
     def __init__(self, log_queue):
         self.state = "INITIALIZING"
         self.log_queue = log_queue
-        self.stereo_camera = StereoCamera()
-        self.distance_sensor = DistanceSensor()
+        #self.stereo_camera = StereoCamera()
+        #self.distance_sensor = DistanceSensor()
         self.state = "READY"
         self.numbers_indentified = []
 

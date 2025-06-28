@@ -8,4 +8,5 @@ def start(mode=Mode.MANUAL):
     if mode == Mode.MANUAL:
         obdh.handle_input()
     else:
-        obdh.start_mission()
+        obdh.handle_input()
+        #obdh.start_mission()

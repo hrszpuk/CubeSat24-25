@@ -4,7 +4,7 @@ import importlib
 
 class ProcessManager:
     def __init__(self, logger):
-        self.logger = logger.get_logger()
+        self.logger = logger
         self.processes = {}
         self.pipes = {}
         self.log_queue = mp.Queue()
@@ -45,7 +45,8 @@ class ProcessManager:
             self.logger.warning(f"{name} is not running.")
             return
         try:
-            self.pipes[name].send("stop")
+            print("TEST", name)
+            self.pipes[name].send(("stop", {}))
         except (BrokenPipeError, EOFError, OSError) as e:
             self.logger.warning(f"Could not send stop to {name}: {e}")
         self.processes[name].join()
@@ -104,6 +105,7 @@ class ProcessManager:
             return {"response": response, "command": cmd, "arguments": args}
 
     def shutdown(self):
+        self.logger.info("Shutting down ProcessManager...")
         for name in list(self.processes.keys()):
             self.stop(name)
 

@@ -20,29 +20,37 @@ def obdh_comms(ttc, obdh_pipe):
     running = True
 
     while running:
-        command, args = obdh_pipe.recv()
+        response = obdh_pipe.recv()
+        print("type ", type(response))
+        command = response[0]
+        args = response[1] if len(response) > 1 else {}
         ttc.log(f"Received command from OBDH: {command} with arguments {args}")
 
-        try:
-            match command:
-                case "log":
-                    msg = args["message"]
-                    ttc.send_log(msg)                    
-                case "health_check":
+        match command:
+            case "health_check":
+                try:
                     health_check = ttc.health_check()
                     obdh_pipe.send(health_check)
-                case "send_message":
-                    msg = args["message"]
+                except Exception as err:
+                    ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
+            case "send_message":
+                msg = args["message"]
+                
+                try:
                     ttc.send_message(msg)
-                case "send_file":
-                    path = args["path"]
+                except Exception as err:
+                    ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
+            case "send_file":
+                path = args["path"]
+
+                try:
                     ttc.send_file(path)
-                case "stop":
-                    ttc.log("Stopping subprocesses and shutting down...")
-                    processes.shutdown()
-                    running = False
-                    ttc.log("Successfully shut down")
-                case _:
-                    ttc.log(f"Invalid command received from OBDH: {command}")
-        except Exception as err:
-            ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
+                except Exception as err:
+                    ttc.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
+            case "stop":
+                ttc.log("Stopping subprocesses and shutting down...")
+                processes.shutdown()
+                running = False
+                ttc.log("Successfully shut down")
+            case _:
+                ttc.log(f"Invalid command received from OBDH: {command}")

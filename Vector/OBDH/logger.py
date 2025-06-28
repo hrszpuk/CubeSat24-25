@@ -28,5 +28,5 @@ class Logger:
     
     def set_ttc_handler(self, ttc_pipe):
         ttc_handler = TTCHandler(ttc_pipe)
-        ttc_handler.setFormatter(self.ormatter)
+        ttc_handler.setFormatter(self.formatter)
         self.logger.addHandler(ttc_handler)

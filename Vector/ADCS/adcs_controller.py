@@ -11,7 +11,7 @@ class AdcsController:
         self.state = "INITIALIZING"
         self.log_queue = log_queue
         self.initialize_sun_sensors()
-        self.initialize_orientation_system()
+        #self.initialize_orientation_system()
         self.calibrating_orientation_system = False
         self.state = "READY"
         self.target_yaw = None

@@ -2,14 +2,16 @@ import os
 import threading
 import time
 from enums import OBDHState, Phase, SubPhase
-from OBDH.process_manager import ProcessManager, Logger
+from OBDH.process_manager import ProcessManager
+from OBDH.logger import Logger
 from OBDH.health_check import run_health_checks
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 
 class OBDH:
     def __init__(self):
         self.state = OBDHState.INITIALISING
-        self.logger = Logger()
+        self._logger = Logger()
+        self.logger = self._logger.get_logger()
         self.manager = ProcessManager(self.logger)
         self.start_time = None
         self.phase = Phase.INITIALISATION
@@ -26,7 +28,7 @@ class OBDH:
 
                 is_ready = self.manager.receive(name)["response"]
 
-        self.logger.set_ttc_handler(self.manager.pipes["TTC"])
+        self._logger.set_ttc_handler(self.manager.pipes["TTC"])
 
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")
@@ -36,13 +38,9 @@ class OBDH:
     
     def handle_input(self):
         while True:
-            if not self.manager.poll("TTC"):
-                time.sleep(0.1)
-                continue
-
-            input = self.manager.receive("TTC")
-            cmd = input.command
-            args = input.arguments
+            input = self.manager.receive("TTC")["response"]
+            cmd = input["command"]
+            args = input["arguments"]
             self.logger.info(f"Matching command: {cmd}")
 
             match cmd:
@@ -56,6 +54,7 @@ class OBDH:
                         self.reset_state()
                 case "shutdown":
                     self.manager.shutdown()
+                    self.logger.info(len(self.manager.processes))
 
                 # payload manual commands
                 case "payload_health_check":
@@ -109,7 +108,7 @@ class OBDH:
                 self.state = OBDHState.BUSY
                 self.phase = Phase.FIRST
                 self.start_time = time.time()
-                run_health_checks()
+                run_health_checks(self.manager)
 
                 if os.path.exists("health.txt"):
                     try:
