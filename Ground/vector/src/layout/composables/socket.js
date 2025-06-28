@@ -8,9 +8,9 @@ const disconnect_sfx = new Audio("/disconnect_sfx.mp3");
 const toast = useToast();
 
 const connection = reactive({
-    ip: "127.0.0.1",
+    ip: "172.20.10.9",
     port: 8000, 
-    url: "ws://127.0.0.1:8000"
+    url: "ws://172.20.10.9:8000"
 });
 
 const { ws, status, data, send, open, close } = useWebSocket(computed(() => connection.url), {

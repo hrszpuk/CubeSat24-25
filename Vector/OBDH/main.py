@@ -41,6 +41,7 @@ class OBDH:
             input = self.manager.receive("TTC")["response"]
             cmd = input["command"]
             args = input["arguments"]
+
             self.logger.info(f"Matching command: {cmd}")
 
             match cmd:
