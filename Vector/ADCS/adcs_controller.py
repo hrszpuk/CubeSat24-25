@@ -28,7 +28,7 @@ class AdcsController:
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
         self.current_reaction_wheel = self.main_reaction_wheel
         #self.current_reaction_wheel = self.backup_reaction_wheel
-        #self.calibrate_orientation_system()
+        self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
         health_check_text = ""
@@ -236,6 +236,15 @@ class AdcsController:
 
         readings_queue.put(readings)
 
+    def test_reaction_wheel(self):
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(120,))
+        rotation_thread.start()
+
+        time.sleep(10)
+        self.log("Testing reaction wheel rotation at 120 degrees")
+
+        rotation_thread.join()
+
     def phase2_rotate(self, pipe):
         rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(10,))
         rotation_thread.start()
@@ -250,6 +259,7 @@ class AdcsController:
                 last_yaw = abs(self.get_current_yaw())
 
         self.stop_reaction_wheel()
+        rotation_thread.join()
 
     def phase2_sequence_rotation(self, pipe, sequence, numbers):
         numbers = {v: k for k, v in numbers.items()}

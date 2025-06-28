@@ -50,10 +50,8 @@ class OBDH:
                 case "start_phase":
                     phase = args[0]
                     self.start_phase(phase, args[1:])
-                case "cancel_phase":
-                    if self.state == OBDHState.BUSY:
-                        self.logger.info("Cancelling current phase")
-                        self.reset_state()
+                case "test_wheel":
+                    self.manager.send("ADCS", "test_wheel")
                 case "shutdown":
                     self.manager.shutdown()
                     self.logger.info(len(self.manager.processes))
