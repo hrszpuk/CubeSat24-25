@@ -31,7 +31,10 @@ def run_health_checks(manager, logger):
     # Power Subsystem
     health_check_text += ("\n--- Power Subsystem ---\n")
     for line in power_response:
-        health_check_text += line
+        if isinstance(line, list):
+            health_check_text += "".join(str(item) for item in line)
+        else:
+            health_check_text += str(line)
 
     health_check_text += "\n"
 

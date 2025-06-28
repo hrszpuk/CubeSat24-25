@@ -237,11 +237,12 @@ class AdcsController:
         readings_queue.put(readings)
 
     def test_reaction_wheel(self):
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(120,))
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(30,))
+        #rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(30,))
         rotation_thread.start()
 
-        time.sleep(10)
-        self.log("Testing reaction wheel rotation at 120 degrees")
+        time.sleep(120)
+        self.stop_reaction_wheel()
 
         rotation_thread.join()
 

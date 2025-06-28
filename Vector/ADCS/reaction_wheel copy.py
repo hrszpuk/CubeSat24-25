@@ -101,7 +101,6 @@ class ReactionWheel:
         control = kp * error + ki * integral + kd * derivative
         return control, error, integral
 
-
     def calculate_moment_of_inertia(self, mass, side1=0.1, side2=0.1, I_type="sat"):
         if I_type == "sat":
             """
