@@ -6,6 +6,7 @@ from OBDH.process_manager import ProcessManager
 from OBDH.logger import Logger
 #from OBDH.health_check import run_health_checks
 #from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase
+
 class OBDH:
     def __init__(self):
         self.state = OBDHState.INITIALISING
@@ -15,7 +16,7 @@ class OBDH:
         self.start_time = None
         self.phase = Phase.INITIALISATION
         self.subphase = None
-        self.subsystems = ["TTC"] #, "ADCS", "Payload"]
+        self.subsystems = ["TTC", "Dummy"] #, "ADCS", "Payload"]
 
         for name in self.subsystems:
             is_ready = False
@@ -58,6 +59,8 @@ class OBDH:
                     self.manager.shutdown()
                     self.logger.info(len(self.manager.processes))
                     break
+                case "echo":
+                    self.manager.send("Dummy", "echo")
 
                 # payload manual commands
                 case "payload_health_check":
