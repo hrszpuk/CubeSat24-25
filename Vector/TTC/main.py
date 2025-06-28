@@ -64,7 +64,8 @@ class TTC:
     async def handle_message(self):
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
-        self.log(f"({self.last_command_received}) CubeSat received: {message}")
+        if message != "ping":
+            self.log(f"({self.last_command_received}) CubeSat received: {message}")
         await self.process_command(message)
 
     async def send_log(self, message):
@@ -92,7 +93,11 @@ class TTC:
         arguments = tokens[1:]
         self.log(f"Arguments: {arguments}")
         self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
-        self.pipe.send(msg)
+
+        if msg == "ping":
+            await self.connection.send(f"HEARTBEAT {datetime.now().time()}")
+        else:
+            self.pipe.send(msg)  # pass to OBDH for real processing
 
         # NOTE(remy): "cancel_phase" and other commands are all handled in OBDH/__init__.py :)
 
