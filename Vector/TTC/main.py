@@ -5,6 +5,7 @@ import json
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
+import asyncio
 
 class TTC:
     def __init__(self, pipe, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -97,7 +98,8 @@ class TTC:
         if msg == "ping":
             await self.connection.send(f"HEARTBEAT {datetime.now().time()}")
         else:
-            self.pipe.send(msg)  # pass to OBDH for real processing
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self.pipe.send, msg)
 
         # NOTE(remy): "cancel_phase" and other commands are all handled in OBDH/__init__.py :)
 
