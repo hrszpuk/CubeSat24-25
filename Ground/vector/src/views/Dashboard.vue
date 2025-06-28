@@ -47,6 +47,7 @@
 
     function handleCommand(message) {
         let response;
+        console.log(`Command received: ${message}`);
         let msg = message.split(" ");
         let cmd = msg[0];
         let args = msg.slice(1);
@@ -62,7 +63,7 @@
 
                 switch(phase) {
                     case 1:
-                        socket.send("start_phase 1");
+                        sendMessage("start_phase 1");
                         break;
                     default:
                         response = `${phase} is not a valid phase!`;
