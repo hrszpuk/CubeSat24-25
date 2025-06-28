@@ -4,7 +4,7 @@ import importlib
 
 class ProcessManager:
     def __init__(self, logger):
-        self.logger = logger
+        self.logger = logger.get_logger()
         self.processes = {}
         self.pipes = {}
         self.log_queue = mp.Queue()
