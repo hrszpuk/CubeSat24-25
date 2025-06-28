@@ -9,8 +9,8 @@ const toast = useToast();
 
 const connection = reactive({
     ip: "127.0.0.1",
-    port: 80,
-    url: "ws://127.0.0.1:80"
+    port: 8000, 
+    url: "ws://127.0.0.1:8000"
 });
 
 const { ws, status, data, send, open, close } = useWebSocket(computed(() => connection.url), {
@@ -38,7 +38,7 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
         toast.add({severity: "error", summary: "WebSocket Error", detail: `Error connecting to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },
     onMessage(ws, event) {
-        message_sfx.play()
+        //message_sfx.play()
         console.log(`Message from CubeSat: ${event}`);
     }
 });
