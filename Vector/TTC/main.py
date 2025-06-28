@@ -165,9 +165,8 @@ class TTC:
 
                 file_base_name = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
-                file_size_in_bytes = file_size.to_bytes(self.BYTEORDER_LENGTH, "big")
                 self.log("Sending file metadata...")
-                await self.connection.send(json.dumps({"type": MessageType.FILEMETADATA.name.lower(), "data": {"size": file_size_in_bytes, "name": file_base_name}}))
+                await self.connection.send(json.dumps({"type": MessageType.FILEMETADATA.name.lower(), "data": {"size": file_size, "name": file_base_name}}))
                 self.log("Sent file metadata")
 
                 with open(file_path, "rb") as f:
