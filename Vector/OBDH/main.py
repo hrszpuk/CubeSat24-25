@@ -37,7 +37,8 @@ class OBDH:
     def handle_input(self):
         while True:
             if not self.manager.poll("TTC"):
-                break
+                time.sleep(0.1)
+                continue
 
             input = self.manager.receive("TTC")
             cmd = input.command
