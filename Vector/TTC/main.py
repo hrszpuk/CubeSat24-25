@@ -1,3 +1,4 @@
+import asyncio
 import os
 import socket
 import websockets
@@ -5,7 +6,6 @@ import json
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
-import asyncio
 
 class TTC:
     def __init__(self, pipe, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -87,17 +87,17 @@ class TTC:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
     async def process_command(self, msg):
-        self.log("Processing command...")
-        tokens = msg.split(" ")
-        command = tokens[0]
-        self.log(f"Command: {command}")
-        arguments = tokens[1:]
-        self.log(f"Arguments: {arguments}")
-        self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
-
+    
         if msg == "ping":
             await self.connection.send(f"HEARTBEAT {datetime.now().time()}")
         else:
+            self.log("Processing command...")
+            tokens = msg.split(" ")
+            command = tokens[0]
+            self.log(f"Command: {command}")
+            arguments = tokens[1:]
+            self.log(f"Arguments: {arguments}")
+            self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self.pipe.send, msg)
 
