@@ -1,3 +1,4 @@
+import asyncio
 import os
 import socket
 import websockets
@@ -86,18 +87,19 @@ class TTC:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
     async def process_command(self, msg):
-        self.log("Processing command...")
-        tokens = msg.split(" ")
-        command = tokens[0]
-        self.log(f"Command: {command}")
-        arguments = tokens[1:]
-        self.log(f"Arguments: {arguments}")
-        self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
-
+    
         if msg == "ping":
             await self.connection.send(f"HEARTBEAT {datetime.now().time()}")
         else:
-            self.pipe.send(msg)  # pass to OBDH for real processing
+            self.log("Processing command...")
+            tokens = msg.split(" ")
+            command = tokens[0]
+            self.log(f"Command: {command}")
+            arguments = tokens[1:]
+            self.log(f"Arguments: {arguments}")
+            self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self.pipe.send, msg)
 
         # NOTE(remy): "cancel_phase" and other commands are all handled in OBDH/__init__.py :)
 
