@@ -47,6 +47,7 @@
 
     function handleCommand(message) {
         let response;
+        console.log(`Command received: ${message}`);
         let msg = message.split(" ");
         let cmd = msg[0];
         let args = msg.slice(1);

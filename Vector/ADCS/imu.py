@@ -135,8 +135,8 @@ class Imu:
                 if "complete" in line:
                     calibrating = False
                     complete = True
-            else:
-                break
+            # else:
+            #     break
         return complete
 
     def set_calibration_offset(self, offset: float) -> None:

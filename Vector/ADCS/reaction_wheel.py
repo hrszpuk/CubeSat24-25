@@ -275,15 +275,12 @@ class ReactionWheel:
     def calibration_rotation(self):
         """Perform a calibration rotation."""
         # Test motor from 50% to 100% throttle
-        for percent in range(20, 61, 10):
+        for percent in range(0, 20, 5):
+            self.motor.set_speed(percent)
+            time.sleep(2)
+        
+        for percent in range(20, 0, -10):
             self.motor.set_speed(percent)
             time.sleep(2)
 
         self.motor.stop()  # Stop the motor
-
-        #print("Calibration rotation complete. Motor stopped.")
-
-        # # Ramp down
-        # for percent in range(40, 0, -10):
-        #     self.motor.set_speed(percent)
-        #     time.sleep(3)
