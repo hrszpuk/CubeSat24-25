@@ -26,8 +26,8 @@ class AdcsController:
         self.imu = Imu()
         self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
-        #self.current_reaction_wheel = self.main_reaction_wheel
-        self.current_reaction_wheel = self.backup_reaction_wheel
+        self.current_reaction_wheel = self.main_reaction_wheel
+        #self.current_reaction_wheel = self.backup_reaction_wheel
         self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):

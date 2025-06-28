@@ -1,6 +1,6 @@
 import logging
 import sys
-from ttc_handler import TTCHandler
+from OBDH.ttc_handler import TTCHandler
 
 class Logger:
     def __init__(self, log_to_console=True, log_file="vector.log", ttc_pipe=None):
