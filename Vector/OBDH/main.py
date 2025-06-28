@@ -1,7 +1,7 @@
 import os
 import threading
 import time
-from Vector.enums import OBDHState, Phase, SubPhase
+from enums import OBDHState, Phase, SubPhase
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
@@ -9,7 +9,7 @@ from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 class OBDH:
     def __init__(self):
         self.state = OBDHState.INITIALISING
-        self.logger = Logger().get_logger()
+        self.logger = Logger()
         self.manager = ProcessManager(self.logger)
         self.start_time = None
         self.phase = Phase.INITIALISATION
@@ -25,6 +25,8 @@ class OBDH:
                     self.manager.send(name, "is_ready")
 
                 is_ready = self.manager.receive(name)["response"]
+
+        self.logger.set_ttc_handler(self.manager.pipes["TTC"])
 
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")
@@ -163,7 +165,7 @@ class OBDH:
                     case 'c':
                         timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.c
-                        run_phase3c(self.manager, logger=self.logger)
+                        run_phase3c(self, self.manager, logger=self.logger)
                         self.reset_timer(timer)
                         self.reset_state()
                     case _:

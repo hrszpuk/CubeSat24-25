@@ -1,4 +1,4 @@
-from Vector.enums import Mode
+from enums import Mode
 from OBDH.main import OBDH
 
 

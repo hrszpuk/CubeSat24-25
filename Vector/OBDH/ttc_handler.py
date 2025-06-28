@@ -1,4 +1,5 @@
 import logging
+from multiprocessing import *
 
 class TTCHandler(logging.Handler):
     def __init__(self, pipe_conn):

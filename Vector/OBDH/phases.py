@@ -1,6 +1,4 @@
 from time import time
-from OBDH import logger
-from OBDH.main import OBDH
 from scipy import stats
 
 def run_phase2(obdh, manager, logger, sequence):
@@ -105,12 +103,12 @@ def run_phase3a(obdh, manager, logger):
             if initial_time is None:
                 logger.info("Starting distance measurement")
                 initial_time = time.time()
-                current_time = time.time()
-                elapsed_time = int(current_time - initial_time)
-                if elapsed_time not in distance_data.keys():
-                    manager.send("Payload", "take_distance")
-                    distance = manager.receive("Payload")["response"]
-                    distance_data[elapsed_time] = distance
+            current_time = time.time()
+            elapsed_time = int(current_time - initial_time)
+            if elapsed_time not in distance_data.keys():
+                manager.send("Payload", "take_distance")
+                distance = manager.receive("Payload")["response"]
+                distance_data[elapsed_time] = distance
 
     manager.send("ADCS", "stop_reaction_wheel")
     logger.info("Phase 3a completed, distance data collected")
@@ -153,7 +151,10 @@ def run_phase3b(obdh, manager, logger):
     # take image of target
     # send image and spin rate
 
-    manager.send("ADCS", "phase3b_reacquire_target")
+    manager.send("ADCS", "phase3_reacquire_target")
+
+    initial_time = None
+    spin_data = {}
 
     while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.B:
         adcs_response = manager.receive("ADCS")
@@ -167,22 +168,70 @@ def run_phase3b(obdh, manager, logger):
                 manager.send("ADCS", "apriltag_detected", {"pose": pose})
         elif cmd == "target_found":
             manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"], "break_on_target_aligned": False})
-        elif cmd == "reading_target":
-            manager.send("ADCS", "phase3_read_target")
-
+        elif cmd == "target_aligned":
+            manager.send("ADCS", "phase3b_read_target")
+        elif cmd == "reading_phase3b":
+            adcs_rcv = manager.receive("ADCS")
+            if adcs_rcv["command"] == "readings_phase3b":
+                if initial_time is None:
+                    logger.info("Starting measurement of spin rate")
+                    initial_time = time.time()
+                current_time = time.time()
+                elapsed_time = int(current_time - initial_time)
+                if elapsed_time not in spin_data.keys():
+                    spin_data[elapsed_time] = adcs_rcv["arguments"]['yaw']
         elif cmd == "timeout":
             logger.warning("Target search timed out. Subphase terminated.")
             obdh.subphase = None
             return 
 
-    # SEND PICTURE TO TTC
     manager.send("Payload", "take_picture_phase_3")
     path = manager.receive("Payload")["response"]
 
-    pass
+    manager.send("ADCS", "stop_reaction_wheel")
+    logger.info("Phase 3b completed, spin data collected")
 
-def run_phase3c(manager, logger):
+    x = list(spin_data.keys())
+    y = [val for val in spin_data.values() if isinstance(val, (int, float))]
+
+    if x and y:
+        slope, intercept, r, p, std_err = stats.linregress(x, y)
+    else:
+        slope, intercept, r, p, std_err = 0, 0, 0, 0, 0
+
+    spin_rate = slope
+
+    manager.send("TTC", "send_picture", {"path": path})
+    manager.send("TTC", "send_message", {
+        "spin_rate": spin_rate + " degrees/s",
+        "raw_data": spin_data
+    })
+
+def run_phase3c(obdh, manager, logger):
     #continuously align and measure distance to target
     # if target is lost, search again
     # send contact confirmation
-    pass
+    
+    manager.send("ADCS", "phase3_reacquire_target")
+
+    distance = 200
+
+    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.C and distance > 4:
+        adcs_response = manager.receive("ADCS")
+        cmd = adcs_response["command"]
+        args = adcs_response["arguments"]
+
+        if cmd == "detect_apriltag":
+            manager.send("Payload", "detect_apriltag")
+            pose = manager.receive("Payload")["response"]
+            if pose is not None:
+                manager.send("ADCS", "apriltag_detected", {"pose": pose})
+        elif cmd == "target_found":
+            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"], "break_on_target_aligned": False})
+        elif cmd == "target_aligned":
+            manager.send("Payload", "take_distance")
+            distance = manager.receive("Payload")["response"]
+    manager.send("ADCS", "stop_reaction_wheel")
+    logger.info("Phase 3c completed, docking completed")
+
+    manager.send("TTC", "send_message", {"message": "Contact Confirmed"})

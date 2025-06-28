@@ -26,8 +26,8 @@ class AdcsController:
         self.imu = Imu()
         self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
-        #self.current_reaction_wheel = self.main_reaction_wheel
-        self.current_reaction_wheel = self.backup_reaction_wheel
+        self.current_reaction_wheel = self.main_reaction_wheel
+        #self.current_reaction_wheel = self.backup_reaction_wheel
         self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
@@ -371,8 +371,20 @@ class AdcsController:
         self.log("Target lost during alignment")
         pipe.send(("target_lost", {}))
 
-    def phase3a_read_target(self, pipe):
-        pass
+    def phase3b_read_target(self, pipe):
+        # Lock target yaw and get any april tag pose
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(self.target_yaw,))
+        rotation_thread.start()
+
+        while self.is_reaction_wheel_rotating():
+            pipe.send(("detect_apriltag", {}))
+            line, args = pipe.recv()
+            if line == "apriltag_detected":
+                target_pose = args.get("pose", None)
+                if target_pose is not None:
+                    pitch, yaw, roll = target_pose['degree']
+                    pipe.send(("reading_target", {"yaw": yaw, "pitch": pitch, "roll": roll}))
+        
 
     def stop_reaction_wheel(self):
         self.current_reaction_wheel.set_state("STANDBY")

@@ -2,7 +2,7 @@ import os
 import socket
 import websockets
 import json
-from Vector.enums import TTCState, MessageType
+from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
 
