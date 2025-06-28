@@ -18,7 +18,7 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
     autoConnect: false,
     autoReconnect: {
         retries: 3, 
-        delay: 500, 
+        delay: 1000, 
         onFailed() {
             toast.add({severity: "error", summary: "WebSocket Error", detail: `Failed to connect WebSocket on ${connection.ip}:${connection.port} after 3 retries`, life: 3000});
         }
@@ -38,7 +38,7 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
         toast.add({severity: "error", summary: "WebSocket Error", detail: `Error connecting to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },
     onMessage(ws, event) {
-        //message_sfx.play()
+        message_sfx.play()
         console.log(`Message from CubeSat: ${event}`);
     }
 });

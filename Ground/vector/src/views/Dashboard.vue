@@ -33,11 +33,13 @@
             
             switch(obj.type) {
                 case "log":
-                    log.value.push(obj.data)
+                    log.value.push(obj.data)                    
                     break;
                 case "message":
                     if (obj.data.localeCompare("File send complete") === 0) {
-                        
+                        fileBlob = new Blob(filedata.value)
+                        data.value = fileBlob
+                        saveAs({suggestedName: filemetadata.name})
                         console.log(filedata.value)
                     }
 
@@ -48,7 +50,7 @@
                     filemetadata.name = obj.name;
                     break;
                 case "filedata":
-                    filedata.value.push(obj.data)
+                    filedata.value.push(atob(obj.data))
                     break;
             }
         }
@@ -63,14 +65,14 @@
 
         switch(cmd) {
             case "connect":
-                let ip = args[0]
+                let ip = args[0];
                 response = establishConnection(ip);
 
                 break;
             case "disconnect":
                 response = dropConnection();
                 
-                break;
+                break;        
             default:
                 sendMessage(message)
         }

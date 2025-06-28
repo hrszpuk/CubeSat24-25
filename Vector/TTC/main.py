@@ -2,6 +2,7 @@ import os
 import socket
 import websockets
 import json
+import base64
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
@@ -130,8 +131,11 @@ class TTC:
             case "ping":
                 pass
             case "get_file":
-                path = arguments[0]
-                await self.send_file(path)
+                if arguments:
+                    path = arguments[0]
+                    await self.send_file(path)
+                else:
+                    await self.send_message("No file path provided!")
             case "start_phase":
                 phase = int(arguments[0])
                 
@@ -159,10 +163,6 @@ class TTC:
                     self.log(f"[ERROR] {file_path} does not exist!")
                     break
 
-                if not os.path.isdir(file_path):
-                    self.log(f"[ERROR] {file_path} does not point to a directory!")
-                    break
-
                 file_base_name = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
                 file_size_in_bytes = file_size.to_bytes(self.BYTEORDER_LENGTH, "big")
@@ -174,7 +174,7 @@ class TTC:
                     self.log("Sending file data...")
 
                     while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(json.dumps({"type": MessageType.FILEDATA.name.lower(), "data": chunk}))
+                        await self.connection.send(json.dumps({"type": MessageType.FILEDATA.name.lower(), "data": base64.b64encode(chunk)}))
 
                     await self.send_message("File send complete")
                     self.log("Sent file data")
