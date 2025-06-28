@@ -4,9 +4,8 @@ import time
 from enums import OBDHState, Phase, SubPhase
 from OBDH.process_manager import ProcessManager
 from OBDH.logger import Logger
-# from OBDH.health_check import run_health_checks
-# from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
-
+#from OBDH.health_check import run_health_checks
+#from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase
 class OBDH:
     def __init__(self):
         self.state = OBDHState.INITIALISING
@@ -16,7 +15,7 @@ class OBDH:
         self.start_time = None
         self.phase = Phase.INITIALISATION
         self.subphase = None
-        self.subsystems = ["TTC"]
+        self.subsystems = ["TTC"] #, "ADCS", "Payload"]
 
         for name in self.subsystems:
             is_ready = False
@@ -28,7 +27,7 @@ class OBDH:
 
                 is_ready = self.manager.receive(name)["response"]
 
-        self._logger.set_ttc_handler(self.manager.pipes["TTC"])
+        #self._logger.set_ttc_handler(self.manager.pipes["TTC"])
 
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")
@@ -39,8 +38,8 @@ class OBDH:
     def handle_input(self):
         while True:
             input = self.manager.receive("TTC")["response"]
-            cmd = input["command"]
-            args = input["arguments"]
+            self.logger.info(f"Received input: {input}")
+            cmd = input
 
             self.logger.info(f"Matching command: {cmd}")
 
@@ -53,9 +52,12 @@ class OBDH:
                     if self.state == OBDHState.BUSY:
                         self.logger.info("Cancelling current phase")
                         self.reset_state()
+                case "test_wheel":
+                    self.manager.send("ADCS", "test_wheel")
                 case "shutdown":
                     self.manager.shutdown()
                     self.logger.info(len(self.manager.processes))
+                    break
 
                 # payload manual commands
                 case "payload_health_check":
@@ -117,8 +119,8 @@ class OBDH:
                         self.logger.info("Health check report sent")
                     except Exception as e:
                         self.logger.warning(f"Health check report failed: {e}")
-                    else:
-                        self.logger.error("health.txt not found.")
+                else:
+                    self.logger.error("health.txt not found.")
                 self.reset_state()
 
             case '2':

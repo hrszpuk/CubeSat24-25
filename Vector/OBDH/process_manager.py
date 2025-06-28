@@ -45,7 +45,6 @@ class ProcessManager:
             self.logger.warning(f"{name} is not running.")
             return
         try:
-            print("TEST", name)
             self.pipes[name].send(("stop", {}))
         except (BrokenPipeError, EOFError, OSError) as e:
             self.logger.warning(f"Could not send stop to {name}: {e}")

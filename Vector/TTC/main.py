@@ -5,6 +5,8 @@ import json
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
+import threading
+import asyncio
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -34,40 +36,43 @@ class TTC:
     def log(self, msg):
         self.log_queue.put(("TT&C", msg))
 
-    async def handle_obdh_instructions(self):
-        running = True
+    def start_pipe_listener(self):
+        def pipe_loop():
+            self.log("Starting pipe listener thread...")
 
-        while running:
-            if not self.pipe.poll():
-                continue
+            while True:
+                response = self.pipe.recv()
+                command = response[0]
+                args = response[1:]
+                self.log(f"Pipe listener got command: {command} with args: {args}")
 
-            self.instruction = self.pipe.recv()        
-            command = self.instruction[0]
-            args = self.instruction[1] if len(self.instruction) > 1 else {}
-            self.log(f"Received command from OBDH: {command} with arguments {args}")
+                if command == "stop":
+                    self.log("Pipe listener shutting down...")
+                    self.event_loop.call_soon_threadsafe(self.event_loop.stop)
+                    break
 
-            try:
-                match command:
-                    case "log":
-                        msg = args["message"]
-                        await self.send_log(msg)
-                    case "health_check":
-                        health_check = self.health_check()
-                        self.pipe.send(health_check)
-                    case "send_message":
-                        msg = args["message"]
-                        await self.send_message(msg)
-                    case "send_file":
-                        path = args["path"]
-                        await self.send_file(path)
-                    case "stop":
-                        self.log("Stopping subprocesses and shutting down...")
-                        running = False
-                        self.log("Successfully shut down")
-                    case _:
-                        self.log(f"Invalid command received from OBDH: {command}")
-            except Exception as err:
-                self.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
+                # push the work to the asyncio loop:
+                loop = asyncio.get_event_loop()
+                if command == "send_message":
+                    asyncio.run_coroutine_threadsafe(
+                        self.send_message(args["message"]), loop
+                    )
+                elif command == "send_file":
+                    asyncio.run_coroutine_threadsafe(
+                        self.send_file(args["path"]), loop
+                    )
+                elif command == "log":
+                    # plain sync log is fine
+                    self.log(args.get("message", ""))
+                elif command == "health_check":
+                    # handle sync
+                    health = self.health_check()
+                    self.pipe.send(health)
+                else:
+                    self.log(f"[Pipe listener] Unknown command: {command}")
+
+        t = threading.Thread(target=pipe_loop, daemon=True)
+        t.start()
 
     async def start_server(self):
         try:
