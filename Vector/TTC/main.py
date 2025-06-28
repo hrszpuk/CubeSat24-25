@@ -1,4 +1,3 @@
-import asyncio
 import os
 import socket
 import websockets
@@ -8,7 +7,7 @@ from datetime import datetime
 from TTC.utils import get_connection_info
 
 class TTC:
-    def __init__(self, pipe, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+    def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
         log_queue.put(("TT&C", "Initialising..."))
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))
@@ -16,6 +15,7 @@ class TTC:
         # module configuration
         self.state = TTCState.INITIALISING
         self.pipe = pipe
+        self.event_loop = event_loop
         self.log_queue = log_queue
         self.BUFFER_SIZE = buffer_size
         self.FORMAT = format
@@ -32,8 +32,42 @@ class TTC:
         log_queue.put(("TT&C", "Initialised"))
 
     def log(self, msg):
-        # print(f"(TT&C) {msg}")
         self.log_queue.put(("TT&C", msg))
+
+    async def handle_obdh_instructions(self):
+        running = True
+
+        while running:
+            if not self.pipe.poll():
+                continue
+
+            self.instruction = self.pipe.recv()        
+            command = self.instruction[0]
+            args = self.instruction[1] if len(self.instruction) > 1 else {}
+            self.log(f"Received command from OBDH: {command} with arguments {args}")
+
+            try:
+                match command:
+                    case "log":
+                        msg = args["message"]
+                        await self.send_log(msg)
+                    case "health_check":
+                        health_check = self.health_check()
+                        self.pipe.send(health_check)
+                    case "send_message":
+                        msg = args["message"]
+                        await self.send_message(msg)
+                    case "send_file":
+                        path = args["path"]
+                        await self.send_file(path)
+                    case "stop":
+                        self.log("Stopping subprocesses and shutting down...")
+                        running = False
+                        self.log("Successfully shut down")
+                    case _:
+                        self.log(f"Invalid command received from OBDH: {command}")
+            except Exception as err:
+                self.log(f"[ERROR] Failed to process command ({command}) from OBDH: {err}")
 
     async def start_server(self):
         try:
@@ -65,8 +99,7 @@ class TTC:
     async def handle_message(self):
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
-        if message != "ping":
-            self.log(f"({self.last_command_received}) CubeSat received: {message}")
+        self.log(f"({self.last_command_received}) CubeSat received: {message}")
         await self.process_command(message)
 
     async def send_log(self, message):
@@ -87,21 +120,31 @@ class TTC:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
     async def process_command(self, msg):
-    
-        if msg == "ping":
-            await self.connection.send(f"HEARTBEAT {datetime.now().time()}")
-        else:
-            self.log("Processing command...")
-            tokens = msg.split(" ")
-            command = tokens[0]
-            self.log(f"Command: {command}")
-            arguments = tokens[1:]
-            self.log(f"Arguments: {arguments}")
-            self.log(f"Received command \"{command}\" with {len(arguments)} arguments ({arguments})")
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self.pipe.send, {"response": msg, "command": command, "arguments": arguments})
+        self.log("Processing command...")
+        tokens = msg.split(" ")
+        command = tokens[0]
+        self.log(f"Command: {command}")
+        arguments = tokens[1:]
+        self.log(f"Arguments: {arguments}")
 
-        # NOTE(remy): "cancel_phase" and other commands are all handled in OBDH/__init__.py :)
+        match command:
+            case "start_phase":
+                phase = int(arguments[0])
+                
+                match phase:
+                    case 1 | 2 | 3:
+                        self.pipe.send(msg)
+                        await self.send_message(f"Starting phase {phase}...")
+                    case _:
+                        await self.send_message(f"{phase} is not a valid phase!")
+            case "ping":
+                await self.send_message("pong")
+            case "shutdown":
+                await self.send_message("Shutting down...")
+                self.pipe.send("shutdown")
+            case _:
+                self.log(f"[ERROR] Invalid command received: {command}")
+                await self.send_message(f"{command} is not a valid command!")
 
     async def send_file(self, file_path):
         retries = 0
@@ -131,6 +174,7 @@ class TTC:
                     while chunk := f.read(self.BUFFER_SIZE):
                         await self.connection.send(json.dumps({"type": MessageType.FILEDATA.name.lower(), "data": chunk}))
 
+                    await self.send_message("File send complete")
                     self.log("Sent file data")
 
                 break                

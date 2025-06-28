@@ -23,6 +23,7 @@
         size: null,
         name: null,
     });
+    const filedata = ref([]);
     
     watch(
         message,
@@ -35,11 +36,19 @@
                     log.value.push(obj.data)
                     break;
                 case "message":
+                    if (obj.data.localeCompare("File send complete") === 0) {
+                        
+                        console.log(filedata.value)
+                    }
+
                     toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
                     break;
                 case "filemetadata":
                     filemetadata.size = obj.size;
                     filemetadata.name = obj.name;
+                    break;
+                case "filedata":
+                    filedata.value.push(obj.data)
                     break;
             }
         }
@@ -102,7 +111,7 @@
         <template #content>
             <ScrollPanel>
                 <code v-if="!messages.length" class="block">No messages</code>
-                <code v-else v-for="message in messages" class="block">{{ message }}</code>
+                <code v-else v-for="message in messages" class="block">{{ message.data }}</code>
             </ScrollPanel>
         </template>
     </Card>

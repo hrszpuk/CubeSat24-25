@@ -4,8 +4,8 @@ import time
 from enums import OBDHState, Phase, SubPhase
 from OBDH.process_manager import ProcessManager
 from OBDH.logger import Logger
-from OBDH.health_check import run_health_checks
-from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
+# from OBDH.health_check import run_health_checks
+# from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 
 class OBDH:
     def __init__(self):
@@ -16,7 +16,7 @@ class OBDH:
         self.start_time = None
         self.phase = Phase.INITIALISATION
         self.subphase = None
-        self.subsystems = ["TTC", "ADCS", "Payload"]
+        self.subsystems = ["TTC"]
 
         for name in self.subsystems:
             is_ready = False

@@ -3,7 +3,7 @@ import subprocess
 
 def get_connection_info(interface="wlan0"):
     try:
-        result = subprocess.run(["iwconfig", interface], capture_output=True, text=True, check=True)
+        result = subprocess.run(["sudo iwconfig", interface], capture_output=True, text=True, check=True)
         output = result.stdout
         connection_info = {
             "Downlink Frequency": None,
