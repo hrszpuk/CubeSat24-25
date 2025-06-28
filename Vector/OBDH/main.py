@@ -1,7 +1,7 @@
 import os
 import threading
 import time
-from Vector.enums import OBDHState, Phase, SubPhase
+from enums import OBDHState, Phase, SubPhase
 from OBDH.process_manager import ProcessManager, Logger
 from OBDH.health_check import run_health_checks
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
