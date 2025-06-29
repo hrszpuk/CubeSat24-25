@@ -35,10 +35,14 @@ class ProcessManager:
         
         parent_conn, child_conn = mp.Pipe()
         proc = mp.Process(target=self._run_subsystem, args=(module_name, child_conn, self.log_queue), name=name)
-        proc.start()
-        self.processes[name] = proc
-        self.pipes[name] = parent_conn
-        self.logger.info(f"Started {name} subsystem.")
+
+        try:
+            proc.start()
+            self.processes[name] = proc
+            self.pipes[name] = parent_conn
+            self.logger.info(f"Started {name} subsystem.")
+        except Exception as e:
+            self.logger.error((module_name.upper(), f"Error starting subsystem: {e}"))
 
     def stop(self, name):
         if name not in self.processes:

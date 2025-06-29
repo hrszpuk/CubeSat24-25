@@ -1,4 +1,6 @@
 import os
+import threading
+import asyncio
 import socket
 import websockets
 import json
@@ -6,8 +8,6 @@ import base64
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
-import threading
-import asyncio
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -37,45 +37,44 @@ class TTC:
     def log(self, msg):
         self.log_queue.put(("TT&C", msg))
 
-    def start_pipe_listener(self):
-        def loop_process():
-            self.log("Starting OBDH listener thread...")
-
-            while True:
-                if self.pipe.poll():
-                    instruction = self.pipe.recv()
-                    command = instruction[0]
-                    args = instruction[1] if len(instruction) == 2 else None
-                    self.log(f"Received command: {command} with args: {args} from OBDH")
-                    pipe_loop = asyncio.get_event_loop()
-
-                    match command:
-                        case "stop":
-                            self.log("OBDH listener shutting down...")
-                            self.event_loop.call_soon_threadsafe(self.event_loop.stop)
-                            break
-                        case "log":
-                            asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), pipe_loop)
-                        case "send_message":
-                            asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), pipe_loop)
-                        case "send_file":
-                            asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), pipe_loop)
-                        case "health_check":
-                            health = self.health_check()
-                            self.pipe.send(health)
-                        case _:
-                            self.log(f"Invalid instruction received from OBDH: {command}")
-
-        t = threading.Thread(target=loop_process, daemon=True)
+    def start_obdh_listener(self):
+        self.log("Starting OBDH listener...")
+        t = threading.Thread(target=self.handle_instructions, name="OBDH Listener", daemon=True)
         t.start()
+        self.state = TTCState.READY
+        self.pipe.send(self.state == TTCState.READY)
+        self.log(f"Ready")
+
+    def handle_instructions(self):
+        while True:
+            if self.pipe.poll():
+                instruction = self.pipe.recv()
+                command = instruction[0]
+                args = instruction[1] if len(instruction) == 2 else None
+                self.log(f"Received command: {command} with args: {args} from OBDH")
+                pipe_loop = asyncio.new_event_loop()
+
+                match command:
+                    case "stop":
+                        self.log("OBDH listener shutting down...")
+                        self.event_loop.call_soon_threadsafe(self.event_loop.stop)
+                        break
+                    case "log":
+                        asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), pipe_loop)
+                    case "send_message":
+                        asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), pipe_loop)
+                    case "send_file":
+                        asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), pipe_loop)
+                    case "health_check":
+                        health = self.health_check()
+                        self.pipe.send(health)
+                    case _:
+                        self.log(f"Invalid instruction received from OBDH: {command}")
 
     async def start_server(self):
         try:
             await websockets.serve(self.handle_connection, self.ip, self.port)
             self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
-            self.state = TTCState.READY
-            self.pipe.send(self.state == TTCState.READY)
-            self.log(f"Ready")
         except Exception as e:
             self.log(f"[ERROR] Could not start WebSocket server: {e}")
 
