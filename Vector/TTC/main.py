@@ -45,7 +45,7 @@ class TTC:
                 if self.pipe.poll():
                     instruction = self.pipe.recv()
                     command = instruction[0]
-                    args = instruction[1]
+                    args = instruction[1] if len(instruction) == 2 else None
                     self.log(f"Received command: {command} with args: {args} from OBDH")
                     pipe_loop = asyncio.get_event_loop()
 
@@ -107,6 +107,7 @@ class TTC:
 
         try:
             await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
+            self.log(f"Sent \"{message}\" to Ground")
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
@@ -114,7 +115,7 @@ class TTC:
         self.log(f"Sending \"{message}\" to Ground...")
 
         try:
-            await self.connection.send(json.dumps({"type": MessageType.MESSAGE.name.lower(), "data": message}))
+            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.MESSAGE.name.lower(), "data": message}))
             self.log(f"Sent \"{message}\" to Ground")
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
@@ -123,12 +124,12 @@ class TTC:
         self.log("Processing command...")
         tokens = msg.split(" ")
         command = tokens[0]
-        self.log(f"Command: {command}")
-        arguments = tokens[1:]
-        self.log(f"Arguments: {arguments}")
+        arguments = tokens[1:] if len(tokens) > 1 else None
+        self.log(f"Command: {command}; Arguments: {arguments}")
 
         match command:
             case "ping":
+                await self.send_message("pong")
                 pass
             case "get_file":
                 if arguments:
@@ -137,14 +138,24 @@ class TTC:
                 else:
                     await self.send_message("No file path provided!")
             case "start_phase":
-                phase = int(arguments[0])
-                
-                match phase:
-                    case 1 | 2 | 3:
-                        self.pipe.send(msg)
-                        await self.send_message(f"Starting phase {phase}...")
-                    case _:
-                        await self.send_message(f"{phase} is not a valid phase!")
+                if arguments:
+                    phase = int(arguments[0])
+                    subphase = arguments[1] if len(arguments) == 2 else None
+                    
+                    match phase:
+                        case 1 | 2:
+                            self.pipe.send(msg)
+                            await self.send_message(f"Starting phase {phase}...")
+                        case 3:
+                            if subphase:
+                                self.pipe.send(msg)
+                                await self.send_message(f"Starting phase {phase} subphase {subphase}...")
+                            else:
+                                await self.send_message("No subphase provided!")
+                        case _:
+                            await self.send_message(f"{phase} is not a valid phase!")
+                else:
+                    await self.send_message("No phase provided!")
             case "shutdown":
                 await self.send_message("Shutting down...")
                 self.pipe.send("shutdown")
@@ -166,14 +177,14 @@ class TTC:
                 file_base_name = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
                 self.log("Sending file metadata...")
-                await self.connection.send(json.dumps({"type": MessageType.FILEMETADATA.name.lower(), "data": {"size": file_size, "name": file_base_name}}))
+                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": file_size, "name": file_base_name}}))
                 self.log("Sent file metadata")
 
                 with open(file_path, "rb") as f:
                     self.log("Sending file data...")
 
                     while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(json.dumps({"type": MessageType.FILEDATA.name.lower(), "data": base64.b64encode(chunk).decode("ascii")}))
+                        await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.FILEDATA.name.lower(), "data": base64.b64encode(chunk).decode("ascii")}))
 
                     await self.send_message("File send complete")
                     self.log("Sent file data")
