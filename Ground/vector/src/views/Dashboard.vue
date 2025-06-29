@@ -15,42 +15,51 @@
     const toast = useToast();
     const dateToday = useDateFormat(useNow(), "DD/MM/YYYY");
     const timeNow = useDateFormat(useNow(), "HH:mm:ss");
-    const { isSupported, data, file, fileName, fileMIME, fileSize, fileLastModified, create, open, save, saveAs, updateData } = useFileSystemAccess();
-    const phase3_subphases = [{label: "Start Phase 3a", command: () => {}}, {label: "Start Phase 3b", command: () => {}}, {label: "Start Phase 3c", command: () => {}}]
-    const log = ref([]);
+    const { isSupported, data, saveAs } = useFileSystemAccess();
+    const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
+    const logs = ref([]);
     const messages = ref([]);
-    const filemetadata = reactive({
+    const fileMetadata = reactive({
         size: null,
         name: null,
     });
-    const filedata = ref([]);
+    const fileData = ref([]);    
     
     watch(
         message,
         message => {
-            let obj = JSON.parse(message);
-            messages.value.push(obj);
+            let obj = JSON.parse(message);            
             
             switch(obj.type) {
                 case "log":
-                    log.value.push(obj.data)                    
+                    logs.value.push(obj.data);
                     break;
                 case "message":
                     if (obj.data.localeCompare("File send complete") === 0) {
-                        fileBlob = new Blob(filedata.value)
-                        data.value = fileBlob
-                        saveAs({suggestedName: filemetadata.name})
-                        console.log(filedata.value)
-                    }
+                        let fileBlob = new Blob(fileData.value);
 
+                        if (isSupported) {
+                            data.value = fileBlob;
+                            saveAs({suggestedName: fileMetadata.name});
+                        } else {
+                            let fileURL = URL.createObjectURL(fileBlob);
+                            let downloading = browser.downloads.download({
+                                url: fileURL,
+                                filename: fileMetadata.name,
+                                saveAs: true
+                            });
+                            downloading.then(() => URL.revokeObjectURL(fileURL), (error) => toast.add({severity: "error", summary: "File Download Error", detail: `Failed to download file ${fileMetadata.name}: ${error}`, life: 3000}))
+                        }
+                    }
+                    messages.value.push(obj.data);
                     toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
                     break;
                 case "filemetadata":
-                    filemetadata.size = obj.size;
-                    filemetadata.name = obj.name;
+                    fileMetadata.size = obj.size;
+                    fileMetadata.name = obj.name;
                     break;
                 case "filedata":
-                    filedata.value.push(atob(obj.data))
+                    fileData.value.push(decodeURIComponent(atob(obj.data)))
                     break;
             }
         }
@@ -92,9 +101,9 @@
 <template>    
     <Toolbar>
         <template #center>
-            <Button class="mr-2" label="Start Phase 1"></Button>
-            <Button class="mr-2" label="Start Phase 2"></Button>
-            <SplitButton class="mr-2" label="Start Phase 3" :model="phase3_subphases"></SplitButton>
+            <Button class="mr-2" label="Start Phase 1" @click="sendMessage('start_phase 1')"></Button>
+            <Button class="mr-2" label="Start Phase 2" @click="sendMessage('start_phase 2')"></Button>
+            <SplitButton class="mr-2" label="Start Phase 3" :model="phase3Subphases"></SplitButton>
             <Button severity="danger" label="Stop Phase"></Button>
         </template>
     </Toolbar>
@@ -102,18 +111,18 @@
     <Card>
         <template #title>Log</template>
         <template #content>
-            <ScrollPanel>
-                <code v-if="!log.length" class="block">No log messages</code>
-                <code v-else v-for="message in log" class="block">{{ message }}</code>
+            <ScrollPanel style="width: 100%; height: 200px">
+                <code v-if="!logs.length" class="block">No log messages</code>
+                <code v-else v-for="log in logs" class="block">{{ log }}</code>
             </ScrollPanel>
         </template>
     </Card>
     <Card>
         <template #title>Messages</template>
         <template #content>
-            <ScrollPanel>
-                <code v-if="!messages.length" class="block">No messages</code>
-                <code v-else v-for="message in messages" class="block">{{ message.data }}</code>
+            <ScrollPanel style="width: 100%; height: 200px">
+                <code v-if="!messages.length" class="block">No messages from CubeSat</code>
+                <code v-else v-for="message in messages" class="block">{{ message }}</code>
             </ScrollPanel>
         </template>
     </Card>
