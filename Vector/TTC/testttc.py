@@ -1,6 +1,4 @@
 import os
-import threading
-import asyncio
 import socket
 import websockets
 import json
@@ -8,11 +6,12 @@ import base64
 from datetime import datetime
 
 class TestTTC:
-    def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+    def __init__(self, event_loop, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))
 
         # module configuration
+        self.pipe = None
         self.event_loop = event_loop
         self.BUFFER_SIZE = buffer_size
         self.FORMAT = format
@@ -28,38 +27,6 @@ class TestTTC:
 
     def log(self, msg):
         print(msg)
-
-    def start_obdh_listener(self):
-        self.log("Starting OBDH listener...")
-        t = threading.Thread(target=self.handle_instructions, name="OBDH Listener", daemon=True)
-        t.start()
-        self.log(f"Ready")
-
-    def handle_instructions(self):
-        while True:
-            if self.pipe.poll():
-                instruction = self.pipe.recv()
-                command = instruction[0]
-                args = instruction[1] if len(instruction) == 2 else None
-                self.log(f"Received command: {command} with args: {args} from OBDH")
-                pipe_loop = asyncio.new_event_loop()
-
-                match command:
-                    case "stop":
-                        self.log("OBDH listener shutting down...")
-                        self.event_loop.call_soon_threadsafe(self.event_loop.stop)
-                        break
-                    case "log":
-                        asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), pipe_loop)
-                    case "send_message":
-                        asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), pipe_loop)
-                    case "send_file":
-                        asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), pipe_loop)
-                    case "health_check":
-                        health = self.health_check()
-                        self.pipe.send(health)
-                    case _:
-                        self.log(f"Invalid instruction received from OBDH: {command}")
 
     async def start_server(self):
         try:
@@ -89,6 +56,12 @@ class TestTTC:
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
         await self.process_command(message)
 
+    async def pong(self):
+        try:
+            await self.connection.send("pong")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"pong\": {err}")
+
     async def send_log(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
 
@@ -96,6 +69,15 @@ class TestTTC:
             await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "log", "data": message}))
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+
+    async def send_data(self, data):
+        self.log(f"Sending {data} to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"type": "data", "data": data}))
+            self.log(f"Sent {data} to Ground")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send {data}: {err}")
 
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
@@ -115,7 +97,7 @@ class TestTTC:
 
         match command:
             case "ping":
-                pass
+                await self.pong()
             case "get_file":
                 if arguments:
                     path = arguments[0]
@@ -123,6 +105,8 @@ class TestTTC:
                     await self.send_file(path)
                 else:
                     await self.send_message("No file path provided!")
+            case "health_check":
+                await self.send_message(f"'{self.health_check()}'")
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
@@ -198,3 +182,33 @@ class TestTTC:
     
     def get_connection(self):
         return self.connection
+    
+    def health_check(self):
+        self.log("Performing subsystem health check...")
+        health_check = {}
+        connection_info = connection_info = {
+            "Downlink Frequency": None,
+            "Uplink Frequency": None,
+            "Signal Strength": None,
+            "Data Transmission Rate": None
+        }
+
+        for metric, value in connection_info.items():
+            if value is not None:
+                item_str = f"{abs(value)}"
+
+                if "Frequency" in metric:
+                    item_str += " GHz"
+                elif metric == "Signal Strength":
+                    item_str += " dBm"
+                elif metric == "Data Transmission Rate":
+                    item_str += " Mb/s"
+            else:
+                item_str = None
+            
+            health_check[metric] = item_str
+
+        health_check["Last Command Received"] = self.last_command_received
+        self.log(f"Subsystem health check: {health_check}")
+
+        return health_check

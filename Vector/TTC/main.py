@@ -49,7 +49,6 @@ class TTC:
                 command = instruction[0]
                 args = instruction[1] if len(instruction) == 2 else None
                 self.log(f"Received instruction: {command} with args: {args}")
-                pipe_loop = asyncio.new_event_loop()
 
                 match command:
                     case "get_state":
@@ -58,6 +57,8 @@ class TTC:
                         asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), self.event_loop)
                     case "send_message":
                         asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), self.event_loop)
+                    case "send_data":
+                        asyncio.run_coroutine_threadsafe(self.send_message(args["data"]), self.event_loop)
                     case "send_file":
                         asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), self.event_loop)
                     case "health_check":
@@ -103,6 +104,12 @@ class TTC:
         self.log(f"({self.last_command_received}) TT&C received: {message}")
         await self.process_command(message)
 
+    async def pong(self):
+        try:
+            await self.connection.send("pong")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"pong\": {err}")
+
     async def send_log(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
 
@@ -112,6 +119,15 @@ class TTC:
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
+    async def send_data(self, data):
+        self.log(f"Sending {data} to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"type": MessageType.DATA.name.lower(), "data": data}))
+            self.log(f"Sent {data} to Ground")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send {data}: {err}")
+    
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
 
@@ -224,7 +240,7 @@ class TTC:
     def health_check(self):
         self.log("Performing subsystem health check...")
         health_check = {}
-        connection_info = get_connection_info()
+        connection_info = get_connection_info()        
 
         for metric, value in connection_info.items():
             if value is not None:

@@ -144,7 +144,7 @@ class OBDH:
                             args = adcs_rcv["arguments"]
 
                         # Send data to TTC
-                        self.manager.send("TTC", "send_message", {
+                        self.manager.send("TTC", "send_data", {
                             "current_wheel_velocity": args["current_wheel_velocity"] + " RPM" if "current_wheel_velocity" in args else None,
                             "current_satellite_velocity": args["current_satellite_velocity"] + " º/s" if "current_satellite_velocity" in args else None,
                             "distance_data": distance_data,

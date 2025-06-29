@@ -18,6 +18,7 @@
     const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
     const logs = ref([]);
     const messages = ref([]);
+    const cubeSatData = ref([]);
     const fileMetadata = reactive({
         size: null,
         name: null,
@@ -27,38 +28,43 @@
     watch(
         message,
         message => {
-            let obj = JSON.parse(message);            
-            
-            switch(obj.type) {
-                case "log":
-                    logs.value.push(obj.data);
-                    break;
-                case "message":
-                    if (obj.data.localeCompare("File send complete") === 0) {
-                        let fileBlob = new Blob(fileData.value);
-                        let fileURL = URL.createObjectURL(fileBlob);
-                        const elem = document.createElement("a");
-                        elem.href = fileURL;
-                        elem.download = fileMetadata.name;
-                        document.body.appendChild(elem);
-                        elem.click();
-                        document.body.removeChild(elem);
-                        URL.revokeObjectURL(fileURL);
-                    }
-
-                    messages.value.push(obj);
-                    toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
-                    break;
-                case "filemetadata":
-                    fileMetadata.size = obj.data.size;
-                    fileMetadata.name = obj.data.name;
-                    break;
-                case "filedata":
-                    let data = decodeURIComponent(atob(obj.data).split('').map(function(c) {
-                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                    }).join(''));
-                    fileData.value.push(data);
-                    break;                    
+            if (message !== "pong") {
+                let obj = JSON.parse(message);            
+                
+                switch(obj.type) {
+                    case "log":
+                        logs.value.push(obj.data);
+                        break;
+                    case "data":
+                        cubeSatData.value.push(obj.data);
+                        break;
+                    case "message":
+                        if (obj.data.localeCompare("File send complete") === 0) {
+                            let fileBlob = new Blob(fileData.value);
+                            let fileURL = URL.createObjectURL(fileBlob);
+                            const elem = document.createElement("a");
+                            elem.href = fileURL;
+                            elem.download = fileMetadata.name;
+                            document.body.appendChild(elem);
+                            elem.click();
+                            document.body.removeChild(elem);
+                            URL.revokeObjectURL(fileURL);
+                        }
+    
+                        messages.value.push(obj);
+                        toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
+                        break;
+                    case "filemetadata":
+                        fileMetadata.size = obj.data.size;
+                        fileMetadata.name = obj.data.name;
+                        break;
+                    case "filedata":
+                        let data = decodeURIComponent(atob(obj.data).split('').map(function(c) {
+                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                        }).join(''));
+                        fileData.value.push(data);
+                        break;
+                }
             }
         }
     );

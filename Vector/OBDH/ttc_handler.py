@@ -9,7 +9,7 @@ class TTCHandler(logging.Handler):
 
     def emit(self, record):
         try:
-            self.pipe_conn.send(("get_state", {}))
+            self.pipe_conn.send(("get_state", None))
             ttc_state = self.pipe_conn.recv()
 
             if ttc_state == TTCState.CONNECTED:
