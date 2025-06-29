@@ -41,9 +41,6 @@ class TTC:
         self.log("Starting OBDH listener...")
         t = threading.Thread(target=self.handle_instructions, name="OBDH Listener", daemon=True)
         t.start()
-        self.state = TTCState.READY
-        self.pipe.send(self.state == TTCState.READY)
-        self.log(f"Ready")
 
     def handle_instructions(self):
         while True:
@@ -51,23 +48,25 @@ class TTC:
                 instruction = self.pipe.recv()
                 command = instruction[0]
                 args = instruction[1] if len(instruction) == 2 else None
-                self.log(f"Received command: {command} with args: {args} from OBDH")
+                self.log(f"Received instruction: {command} with args: {args}")
                 pipe_loop = asyncio.new_event_loop()
 
                 match command:
+                    case "get_state":
+                        self.pipe.send(self.get_state())
+                    case "log":
+                        asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), self.event_loop)
+                    case "send_message":
+                        asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), self.event_loop)
+                    case "send_file":
+                        asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), self.event_loop)
+                    case "health_check":
+                        health = self.health_check()
+                        self.pipe.send(health)
                     case "stop":
                         self.log("OBDH listener shutting down...")
                         self.event_loop.call_soon_threadsafe(self.event_loop.stop)
                         break
-                    case "log":
-                        asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), pipe_loop)
-                    case "send_message":
-                        asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), pipe_loop)
-                    case "send_file":
-                        asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), pipe_loop)
-                    case "health_check":
-                        health = self.health_check()
-                        self.pipe.send(health)
                     case _:
                         self.log(f"Invalid instruction received from OBDH: {command}")
 
@@ -75,6 +74,9 @@ class TTC:
         try:
             await websockets.serve(self.handle_connection, self.ip, self.port)
             self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
+            self.state = TTCState.READY
+            self.pipe.send(self.state == TTCState.READY)
+            self.log("Ready")
         except Exception as e:
             self.log(f"[ERROR] Could not start WebSocket server: {e}")
 
@@ -124,7 +126,8 @@ class TTC:
         tokens = msg.split(" ")
         command = tokens[0]
         arguments = tokens[1:] if len(tokens) > 1 else None
-        self.log(f"Command: {command}; Arguments: {arguments}")
+        self.log(f"Command: {command}")
+        self.log(f"Arguments: {arguments}")
 
         match command:
             case "ping":
@@ -139,15 +142,20 @@ class TTC:
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
-                    subphase = arguments[1] if len(arguments) == 2 else None
                     
                     match phase:
-                        case 1 | 2:
-                            self.pipe.send(msg)
+                        case 1:
+                            self.pipe.send(("start_phase", [phase]))
+                            await self.send_message(f"Starting phase {phase}...")
+                        case 2:
+                            sequence = arguments[1] if len(arguments) == 2 else -None
+                            self.pipe.send(("start_phase", [phase, sequence]))
                             await self.send_message(f"Starting phase {phase}...")
                         case 3:
+                            subphase = arguments[1] if len(arguments) == 2 else None
+
                             if subphase:
-                                self.pipe.send(msg)
+                                self.pipe.send(("start_phase", [phase, subphase]))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
                                 await self.send_message("No subphase provided!")

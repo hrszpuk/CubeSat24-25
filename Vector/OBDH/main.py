@@ -16,7 +16,7 @@ class OBDH:
         self.start_time = None
         self.phase = Phase.INITIALISATION
         self.subphase = None
-        self.subsystems = ["TTC", "ADCS", "Payload"]
+        self.subsystems = ["TTC"]#, "ADCS", "Payload"]
 
         for name in self.subsystems:
             is_ready = False
@@ -38,7 +38,7 @@ class OBDH:
     
     def handle_input(self):
         while True:
-            input = self.manager.receive("TTC")["response"]
+            input = self.manager.receive("TTC")
             self.logger.info(f"OBDH received: {input}")
             cmd = input["command"]
             args = input["arguments"]
@@ -104,7 +104,7 @@ class OBDH:
 
     def start_phase(self, phase, args):
         match phase:
-            case '1':
+            case 1:
                 self.state = OBDHState.BUSY
                 self.phase = Phase.FIRST
                 self.start_time = time.time()
@@ -123,14 +123,14 @@ class OBDH:
                     self.logger.error("health.txt not found.")
                 self.reset_state()
 
-            case '2':
+            case 2:
                 self.state = OBDHState.BUSY
                 self.phase = Phase.SECOND
                 self.start_time = time.time()
                 sequence = args["sequence"]
                 run_phase2(self, self.manager, logger=self.logger, sequence=sequence)
                 self.reset_state()
-            case '3':
+            case 3:
                 self.state = OBDHState.BUSY
                 self.phase = Phase.THIRD
                 self.start_time = time.time()
