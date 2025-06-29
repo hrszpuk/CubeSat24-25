@@ -34,8 +34,8 @@
             <template #center>
                 <span class="mr-2">IP: <InputText v-model="connection.ip" type="text"></InputText></span>
                 <span class="mr-2">Port: <InputNumber v-model="connection.port" :useGrouping="false"></InputNumber></span>
-                <Button :severity="getStatus() === 'CONNECTING'  ? 'primary' : getStatus() === 'OPEN' ? 'danger' : 'success'" :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="connectionButtonClick"></Button>
-                <Button v-if="getStatus() == 'OPEN'" class="mr-2" severity="danger" label="Shutdown" @click="shutdownButtonClick"></Button>
+                <Button class="mr-2" :severity="getStatus() === 'CONNECTING'  ? 'primary' : getStatus() === 'OPEN' ? 'danger' : 'success'" :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="connectionButtonClick"></Button>
+                <Button v-if="getStatus() == 'OPEN'" severity="danger" label="Shutdown" @click="shutdownButtonClick"></Button>
             </template>
         </Toolbar>
         Status: <Tag :severity="getStatus() === 'CONNECTING'  ? 'info' : getStatus() === 'OPEN' ? 'success' : 'danger'" :value="getStatus() === 'CONNECTING'  ? 'CONNECTING' : getStatus() === 'OPEN' ? 'ONLINE' : 'OFFLINE'"></Tag>

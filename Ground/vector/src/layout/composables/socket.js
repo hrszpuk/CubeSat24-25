@@ -40,7 +40,12 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
     },
     onMessage(ws, event) {
         // playMessageSfx()
-        console.log(`Message from CubeSat: ${event}`);
+        let obj = JSON.parse(event.data)
+        
+        if (obj.type.localeCompare("message") === 0) {
+            console.log(`Message from CubeSat: ${obj.data}`);
+        }
+
     }
 });
 
