@@ -1,3 +1,4 @@
+import math
 import time
 import serial
 import logging
@@ -55,7 +56,7 @@ class Imu:
     def parse_imu_data(self, line: str, cap_rotations=True) -> Tuple[List[float], List[float]]:
         """
         Parse IMU JSON data.
-        Example line: {"gyroscope":[0.04,0.03,0.06],"orientation":[-55.69,-7.44,-12.08],"bms_voltage":10,"bms_current":20.60902,"bms_temp":21.2178} -> Format: [x, y, z], [Yaw, Pitch, Roll]
+        Example line: {"gyroscope":[0.04,0.03,0.06],"orientation":[-55.69,-7.44,-12.08],"bms_voltage":10,"bms_current":20.60902,"bms_temp":21.2178} -> Format: [x, y, z] in rad/s, [Yaw, Pitch, Roll] in deg
         """
         try:
             data = json.loads(line)
@@ -64,6 +65,8 @@ class Imu:
             return [], [], None, None, None
 
         gyroscope = data.get("gyroscope", [])
+        for i in range(len(gyroscope)):
+            gyroscope[i] = math.degrees(gyroscope[i])
         orientation = data.get("orientation", [])
         bms_voltage = data.get("bms_voltage", None)
         bms_current = data.get("bms_current", None)
