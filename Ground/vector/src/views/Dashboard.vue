@@ -1,8 +1,10 @@
 <script setup>
     import { onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
-    import { useDateFormat, useNow } from '@vueuse/core';    
+    import { useDateFormat, useNow } from '@vueuse/core';
+    import { useDialog } from 'primevue/usedialog';
     import { useSocket } from '@/layout/composables/socket.js';
     import { useToast } from '@/layout/composables/toast.js';
+    import ArgumentsDialog from '@/components/ArgumentsDialog.vue';
     import Button from 'primevue/button';
     import Card from 'primevue/card';
     import ScrollPanel from 'primevue/scrollpanel';
@@ -13,6 +15,7 @@
     
     const { establishConnection, sendMessage, message, dropConnection } = useSocket();
     const toast = useToast();
+    const dialog = useDialog();
     const dateToday = useDateFormat(useNow(), "DD/MM/YYYY");
     const timeNow = useDateFormat(useNow(), "HH:mm:ss");
     const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
@@ -96,6 +99,22 @@
         TerminalService.emit("response", response)
     }
 
+    function phase2Button() {
+        dialog.open(ArgumentsDialog, {
+            props: {header: "Enter Sequence for Phase 2", modal: true},
+            data: {
+                submitFunction: () => {
+                    sendMessage(`start_phase 2 ${sequence}`)
+                },
+                fields: [
+                    {id: "sequence", label: "Sequence", required: true}
+                ],
+                record: {},
+                hasSubmitted: false
+            }
+        });
+    }
+
     onMounted(() => {
         TerminalService.on("command", handleCommand)
     })
@@ -109,7 +128,7 @@
     <Toolbar>
         <template #center>
             <Button class="mr-2" label="Start Phase 1" @click="sendMessage('start_phase 1')"></Button>
-            <Button class="mr-2" label="Start Phase 2" @click="sendMessage('start_phase 2')"></Button>
+            <Button class="mr-2" label="Start Phase 2" @click="phase2Button"></Button>
             <SplitButton class="mr-2" label="Start Phase 3" :model="phase3Subphases"></SplitButton>
             <Button severity="danger" label="Stop Phase"></Button>
         </template>
