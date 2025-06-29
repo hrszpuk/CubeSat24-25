@@ -1,13 +1,13 @@
-import { createApp } from 'vue'
+import { createApp } from 'vue';
 import router from './router';
-import PrimeVue from 'primevue/config'
-import Aura from '@primeuix/themes/aura'
-import { definePreset } from '@primeuix/themes'
-import ConfirmationService from 'primevue/confirmationservice'
-import DialogService from 'primevue/dialogservice'
-import ToastService from 'primevue/toastservice'
-import App from './Main.vue'
-import '@/assets/styles.scss'
+import PrimeVue from 'primevue/config';
+import Aura from '@primeuix/themes/aura';
+import { definePreset } from '@primeuix/themes';
+import DialogService from 'primevue/dialogservice';
+import ToastService from 'primevue/toastservice';
+import App from './Main.vue';
+import '@/assets/styles.scss';
+import "@/assets/tailwind.css";
 
 const Noir = definePreset(Aura, {
     semantic: {
@@ -94,11 +94,14 @@ createApp(App)
         theme: {
             preset: Noir,
             options: {
-                darkModeSelector: 'system'
+                darkModeSelector: 'system',
+                cssLayer: {
+                    name: "primevue",
+                    order: "tailwind-base, primevue, tailwind-utilities"
+                }
             }
         }
     })
-    .use(ConfirmationService)
     .use(DialogService)
     .use(ToastService)
-    .mount('#app')
+    .mount('#app');

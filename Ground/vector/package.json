@@ -4,12 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@primeuix/themes": "^1.1.1",
+    "@vueuse/core": "^13.4.0",
+    "@vueuse/sound": "^2.1.3",
     "primeicons": "^7.0.0",
     "primevue": "^4.3.5",
     "vue": "^3.5.13",
@@ -17,7 +19,11 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.40",
     "sass": "^1.89.2",
+    "tailwindcss": "^3.4.6",
+    "tailwindcss-primeui": "^0.3.4",
     "vite": "^6.3.5"
   }
 }

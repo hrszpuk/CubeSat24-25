@@ -1,0 +1,49 @@
+--- Vector CubeSat Health Check Report ---
+Date: 19-06-2025
+Time: 18:45:15 GMT
+
+--- Power Subsystem ---
+Battery Voltage
+Battery Current
+Battery Temperature
+
+
+--- Thermal Subsystem ---
+Internal Temperature: 55.10°C (NOMINAL)
+Status: OK
+
+
+--- Communication Subsystem ---
+
+
+--- ADCS Subsystem ---
+Gyroscope: X: -0.01 º/s, Y: 0.01 º/s, Z: -0.0 º/s
+Orientation: X: 143.62 º, Y: 358.54 º, Z: 359.3 º
+Sun Sensor 0: ACTIVE
+Sun Sensor 1: ACTIVE
+Sun Sensor 2: ACTIVE
+Sun Sensor 3: ACTIVE
+Main Reaction Wheel RPM: 0.00
+Backup Reaction Wheel RPM: 0.00
+STATUS: O
+
+--- Payload Subsystem ---
+Stereo Camera: ACTIVE
+Distance Sensor: ACTIVE
+STATUS: O
+
+--- Command and Data Handling Subsystem ---
+Memory Usage: 11.2%
+Last Command Received: 19-06-2025 18:45:15 GMT
+Uptime: 154 minutes
+
+
+--- Error Log ---
+No errors detected.
+
+
+--- Overall Status ---
+WARNING - Subsystems affected: ADCS, Payload
+Recommended actions: Reset and reinitialise ADCS, Payload; check connections.
+
+--- End of Report ---
