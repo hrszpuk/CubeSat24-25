@@ -160,7 +160,6 @@ class AdcsController:
             SunSensor(id=0, i2c_address=0x23, bus=1),
             SunSensor(id=1, i2c_address=0x5c, bus=1),
             SunSensor(id=2, i2c_address=0x23, bus=3),
-            SunSensor(id=3, i2c_address=0x5c, bus=3),
         ]
         
     def get_sun_sensors_status(self):
