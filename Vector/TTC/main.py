@@ -98,7 +98,7 @@ class TTC:
     async def handle_message(self):
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
-        self.log(f"({self.last_command_received}) CubeSat received: {message}")
+        self.log(f"({self.last_command_received}) TT&C received: {message}")
         await self.process_command(message)
 
     async def send_log(self, message):
