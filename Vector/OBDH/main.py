@@ -4,7 +4,7 @@ import time
 from enums import OBDHState, Phase, SubPhase
 from OBDH.process_manager import ProcessManager
 from OBDH.logger import Logger
-from OBDH.health_check import run_health_checks
+from OBDH.health_check import construct_file
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 
 class OBDH:
@@ -105,7 +105,16 @@ class OBDH:
                 self.phase = Phase.FIRST
                 self.start_time = time.time()
 
-                hc = run_health_checks(self.manager)
+                self.manager.send("TTC", "health_check")
+                ttc_health_check = self.manager.receive("TTC")["response"]
+                self.manager.send("ADCS", "health_check")
+                adcs_health_check = self.manager.receive("ADCS")["response"]
+                self.manager.send("Payload", "health_check")
+                payload_health_check = self.manager.receive("Payload")["response"]
+                self.manager.send("ADCS", "eps_health_check")
+                power_health_check = self.manager.receive("ADCS")["response"]
+
+                hc = construct_file(ttc_health_check, adcs_health_check, payload_health_check, power_health_check)
 
                 if not hc:
                     self.logger.error("Health check failed, health.txt not generated.")
