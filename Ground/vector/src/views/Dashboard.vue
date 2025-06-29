@@ -1,6 +1,6 @@
 <script setup>
     import { onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
-    import { useDateFormat, useFileSystemAccess, useNow } from '@vueuse/core';    
+    import { useDateFormat, useNow } from '@vueuse/core';    
     import { useSocket } from '@/layout/composables/socket.js';
     import { useToast } from '@/layout/composables/toast.js';
     import Button from 'primevue/button';
@@ -15,53 +15,75 @@
     const toast = useToast();
     const dateToday = useDateFormat(useNow(), "DD/MM/YYYY");
     const timeNow = useDateFormat(useNow(), "HH:mm:ss");
-    const { isSupported, data, file, fileName, fileMIME, fileSize, fileLastModified, create, open, save, saveAs, updateData } = useFileSystemAccess();
-    const phase3_subphases = [{label: "Start Phase 3a", command: () => {}}, {label: "Start Phase 3b", command: () => {}}, {label: "Start Phase 3c", command: () => {}}]
-    const log = ref([]);
+    const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
+    const logs = ref([]);
     const messages = ref([]);
-    const filemetadata = reactive({
+    const fileMetadata = reactive({
         size: null,
         name: null,
     });
+    const fileData = ref([]);    
     
     watch(
         message,
         message => {
-            let obj = JSON.parse(message);
-            messages.value.push(obj);
+            let obj = JSON.parse(message);            
             
             switch(obj.type) {
                 case "log":
-                    log.value.push(obj.data)
+                    logs.value.push(obj.data);
                     break;
                 case "message":
+                    if (obj.data.localeCompare("File send complete") === 0) {
+                        console.log(fileMetadata.name)
+                        let fileBlob = new Blob(fileData.value);
+                        let fileURL = URL.createObjectURL(fileBlob);
+                        const elem = document.createElement("a");
+                        elem.href = fileURL;
+                        elem.download = fileMetadata.name;
+                        document.body.appendChild(elem);
+                        elem.click();
+                        document.body.removeChild(elem);
+                        URL.revokeObjectURL(fileURL);
+                    }
+
+                    messages.value.push(obj);
                     toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
                     break;
                 case "filemetadata":
-                    filemetadata.size = obj.size;
-                    filemetadata.name = obj.name;
+                    fileMetadata.size = obj.data.size;
+                    fileMetadata.name = obj.data.name;
                     break;
+                case "filedata":
+                    let data = decodeURIComponent(atob(obj.data).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    fileData.value.push(data);
+                    break;                    
             }
         }
     );
 
     function handleCommand(message) {
         let response;
-        console.log(`Command received: ${message}`);
         let msg = message.split(" ");
         let cmd = msg[0];
-        let args = msg.slice(1);
+        let args = msg.length > 1 ? msg.slice(1) : null;
 
         switch(cmd) {
             case "connect":
-                let ip = args[0]
-                response = establishConnection(ip);
+                if (args) {
+                    let ip = args[0];
+                    response = establishConnection(ip);
+                } else {
+                    response = "No IP provided!";
+                }
 
                 break;
             case "disconnect":
                 response = dropConnection();
                 
-                break;
+                break;        
             default:
                 sendMessage(message)
         }
@@ -81,9 +103,9 @@
 <template>    
     <Toolbar>
         <template #center>
-            <Button class="mr-2" label="Start Phase 1"></Button>
-            <Button class="mr-2" label="Start Phase 2"></Button>
-            <SplitButton class="mr-2" label="Start Phase 3" :model="phase3_subphases"></SplitButton>
+            <Button class="mr-2" label="Start Phase 1" @click="sendMessage('start_phase 1')"></Button>
+            <Button class="mr-2" label="Start Phase 2" @click="sendMessage('start_phase 2')"></Button>
+            <SplitButton class="mr-2" label="Start Phase 3" :model="phase3Subphases"></SplitButton>
             <Button severity="danger" label="Stop Phase"></Button>
         </template>
     </Toolbar>
@@ -91,18 +113,18 @@
     <Card>
         <template #title>Log</template>
         <template #content>
-            <ScrollPanel>
-                <code v-if="!log.length" class="block">No log messages</code>
-                <code v-else v-for="message in log" class="block">{{ message }}</code>
+            <ScrollPanel style="width: 100%; height: 200px">
+                <code v-if="!logs.length" class="block">No log messages</code>
+                <code v-else v-for="log in logs" class="block">{{ log }}</code>
             </ScrollPanel>
         </template>
     </Card>
     <Card>
         <template #title>Messages</template>
         <template #content>
-            <ScrollPanel>
-                <code v-if="!messages.length" class="block">No messages</code>
-                <code v-else v-for="message in messages" class="block">{{ message }}</code>
+            <ScrollPanel style="width: 100%; height: 200px">
+                <code v-if="!messages.length" class="block">No messages from CubeSat</code>
+                <code v-else v-for="message in messages" class="block">[{{ message.timestamp }}] {{ message.data }}</code>
             </ScrollPanel>
         </template>
     </Card>

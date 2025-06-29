@@ -1,5 +1,6 @@
 <script setup>
     import { useSocket } from '@/layout/composables/socket.js';
+    import { useAudio } from '@/layout/composables/audio';
     import Button from 'primevue/button';
     import InputText from 'primevue/inputtext';
     import InputNumber from 'primevue/inputnumber';
@@ -7,6 +8,7 @@
     import Tag from 'primevue/tag';
 
     const { connection, getStatus, establishConnection, dropConnection } = useSocket();
+    const { playShutdownSfx } = useAudio;
 
     const connectionButtonClick = () => {
         if (getStatus() === "OPEN") {
@@ -18,6 +20,7 @@
 
     const shutdownButtonClick = () => {
         sendMessage("shutdown");
+        playShutdownSfx();
     }
 </script>
 
@@ -31,7 +34,7 @@
             <template #center>
                 <span class="mr-2">IP: <InputText v-model="connection.ip" type="text"></InputText></span>
                 <span class="mr-2">Port: <InputNumber v-model="connection.port" :useGrouping="false"></InputNumber></span>
-                <Button :severity="getStatus() === 'CONNECTING'  ? 'primary' : getStatus() === 'OPEN' ? 'danger' : 'success'" :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="connectionButtonClick"></Button>
+                <Button class="mr-2" :severity="getStatus() === 'CONNECTING'  ? 'primary' : getStatus() === 'OPEN' ? 'danger' : 'success'" :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="connectionButtonClick"></Button>
                 <Button v-if="getStatus() == 'OPEN'" severity="danger" label="Shutdown" @click="shutdownButtonClick"></Button>
             </template>
         </Toolbar>
