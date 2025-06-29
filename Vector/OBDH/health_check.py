@@ -14,7 +14,7 @@ def read_all_errors(log_path="vector.log"):
     except FileNotFoundError:
         return ["Log file not found.\n"]
 
-def run_health_checks(manager, logger):
+def run_health_checks(manager):
     manager.send("TTC", "health_check")
     ttc_health_check = manager.receive("TTC")["response"]
     manager.send("ADCS", "health_check")
@@ -127,5 +127,5 @@ def run_health_checks(manager, logger):
     with open("health.txt", "w") as f:
         f.write(health_check_text)
         return True
+    
     return False
-

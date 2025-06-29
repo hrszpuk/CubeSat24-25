@@ -5,7 +5,6 @@ from Payload.number_identifier import identify_numbers_from_files
 from Payload import tag_finder
 import os
 
-
 class PayloadController:
     def __init__(self, log_queue):
         self.state = "INITIALIZING"
@@ -47,14 +46,14 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        status = self.stereo_camera.get_camera_status
+        status = self.stereo_camera.get_camera_status()
 
-        if status["is_left_camera_available"] is False:
+        if status["left_camera_available"] is False:
             health_check_text += "Left camera: INACTIVE\n"
             errors.append("Left camera not available")
         else:
             health_check_text += "Left camera: ACTIVE\n"
-        if status["is_right_camera_available"] is False:
+        if status["right_camera_available"] is False:
             health_check_text += "Right camera: INACTIVE\n"
             errors.append("Right camera not available")
         else:
@@ -121,4 +120,3 @@ class PayloadController:
         
         pose = tagfinder_obj.Poses[-1]
         return pose
-

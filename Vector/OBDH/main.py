@@ -29,7 +29,6 @@ class OBDH:
                 is_ready = self.manager.receive(name)["response"]
 
         self._logger.set_ttc_handler(self.manager.pipes["TTC"])
-
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")
 
@@ -38,69 +37,66 @@ class OBDH:
     
     def handle_input(self):
         while True:
-            input = self.manager.receive("TTC")
-            self.logger.info(f"OBDH received: {input}")
-            cmd = input["command"]
-            args = input["arguments"]
+            if self.state == OBDHState.READY:
+                input = self.manager.receive("TTC")
+                self.logger.info(f"OBDH received: {input}")
+                cmd = input["command"]
+                args = input["arguments"]
+                self.logger.info(f"Matching command: {cmd}")
 
-            self.logger.info(f"Matching command: {cmd}")
+                match cmd:
+                    # general commands
+                    case "start_phase":
+                        phase = args[0]
+                        self.start_phase(phase, args[1:])
+                    case "test_wheel":
+                        self.manager.send("ADCS", "test_wheel")
+                    case "shutdown":
+                        self.manager.shutdown()
+                        self.logger.info(len(self.manager.processes))
 
-            match cmd:
-                # general commands
-                case "start_phase":
-                    phase = args[0]
-                    self.start_phase(phase, args[1:])
-                case "test_wheel":
-                    self.manager.send("ADCS", "test_wheel")
-                case "shutdown":
-                    self.manager.shutdown()
-                    self.logger.info(len(self.manager.processes))
-
-                # payload manual commands
-                case "payload_health_check":
-                    self.manager.send("Payload", "health_check")
-                    result = self.manager.receive("Payload")
-                    self.logger.info(f"Payload health check result: {result}")
-                case "payload_take_picture":
-                    path = "images/manual/"
-                    self.manager.send("Payload", "take_picture_raw", args={"dir": path, "name": "manual"})
-                    if os.path.exists(path+"manual_left.jpg") and os.path.exists(path+"manual_right.jpg"):
-                        self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
-                        self.manager.send("TTC", "send_file", args={"path": path+"manual_left.jpg.jpg"})
-                        self.manager.send("TTC", "send_file", args={"path": path+"manual_right.jpg"})
-                    else:
-                        self.logger.error("(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
-                case "payload_get_state":
-                    self.manager.send("Payload", "get_state")
-                    result = self.manager.receive("Payload")
-                    self.logger.info(f"(payload_get_state) state: {result}")
-                case "payload_is_ready":
-                    self.manager.send("Payload", "is_ready")
-                    result = self.manager.receive("Payload")
-                    self.logger.info(f"(payload_is_ready) {'READY' if result else 'NOT READY'}")
-                case "payload_get_numbers":
-                    self.manager.send("Payload", "get_numbers")
-                    result = self.manager.receive("Payload")
-                    self.logger.info("(payload_get_numbers) result: {}".format(result))
-                case "payload_take_distance":
-                    self.manager.send("Payload", "take_distance")
-                    result = self.manager.receive("Payload")
-                    self.logger.info("(payload_take_distance) result: {}".format(result))
-                case "payload_detect_apriltag":
-                    self.manager.send("Payload", "detect_apriltag")
-                    result = self.manager.receive("Payload")
-                    if result is None:
-                        self.logger.error("(payload_detect_apriltag) could not detect apriltag")
-                    else:
-                        self.logger.info("(payload_detect_apriltag) detected apriltag: {}".format(result))
-                case "payload_restart":
-                    self.manager.stop("Payload")
-                    self.manager.start("Payload")
-
-                #
-
-                case _:
-                    self.logger.error(f"{cmd} couldn't be matched! It is likely invalid.")
+                    # payload manual commands
+                    case "payload_health_check":
+                        self.manager.send("Payload", "health_check")
+                        result = self.manager.receive("Payload")
+                        self.logger.info(f"Payload health check result: {result}")
+                    case "payload_take_picture":
+                        path = "images/manual/"
+                        self.manager.send("Payload", "take_picture_raw", args={"dir": path, "name": "manual"})
+                        if os.path.exists(path+"manual_left.jpg") and os.path.exists(path+"manual_right.jpg"):
+                            self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
+                            self.manager.send("TTC", "send_file", args={"path": path+"manual_left.jpg.jpg"})
+                            self.manager.send("TTC", "send_file", args={"path": path+"manual_right.jpg"})
+                        else:
+                            self.logger.error("(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
+                    case "payload_get_state":
+                        self.manager.send("Payload", "get_state")
+                        result = self.manager.receive("Payload")
+                        self.logger.info(f"(payload_get_state) state: {result}")
+                    case "payload_is_ready":
+                        self.manager.send("Payload", "is_ready")
+                        result = self.manager.receive("Payload")
+                        self.logger.info(f"(payload_is_ready) {'READY' if result else 'NOT READY'}")
+                    case "payload_get_numbers":
+                        self.manager.send("Payload", "get_numbers")
+                        result = self.manager.receive("Payload")
+                        self.logger.info("(payload_get_numbers) result: {}".format(result))
+                    case "payload_take_distance":
+                        self.manager.send("Payload", "take_distance")
+                        result = self.manager.receive("Payload")
+                        self.logger.info("(payload_take_distance) result: {}".format(result))
+                    case "payload_detect_apriltag":
+                        self.manager.send("Payload", "detect_apriltag")
+                        result = self.manager.receive("Payload")
+                        if result is None:
+                            self.logger.error("(payload_detect_apriltag) could not detect apriltag")
+                        else:
+                            self.logger.info("(payload_detect_apriltag) detected apriltag: {}".format(result))
+                    case "payload_restart":
+                        self.manager.stop("Payload")
+                        self.manager.start("Payload")
+                    case _:
+                        self.logger.error(f"{cmd} couldn't be matched! It is likely invalid.")
 
     def start_phase(self, phase, args):
         match phase:
@@ -109,7 +105,7 @@ class OBDH:
                 self.phase = Phase.FIRST
                 self.start_time = time.time()
 
-                hc = run_health_checks(self.manager, self.logger)
+                hc = run_health_checks(self.manager)
 
                 if not hc:
                     self.logger.error("Health check failed, health.txt not generated.")

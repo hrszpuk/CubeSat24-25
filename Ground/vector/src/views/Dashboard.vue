@@ -35,7 +35,6 @@
                     break;
                 case "message":
                     if (obj.data.localeCompare("File send complete") === 0) {
-                        console.log(fileMetadata.name)
                         let fileBlob = new Blob(fileData.value);
                         let fileURL = URL.createObjectURL(fileBlob);
                         const elem = document.createElement("a");

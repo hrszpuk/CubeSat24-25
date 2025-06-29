@@ -39,7 +39,7 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
     },
     onMessage(ws, event) {
         //message_sfx.play()
-        console.log(`Message from CubeSat: ${event}`);
+        console.log(`Message from CubeSat: ${event.data}`);
     }
 });
 
