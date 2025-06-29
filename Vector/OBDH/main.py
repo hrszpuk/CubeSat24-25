@@ -16,7 +16,7 @@ class OBDH:
         self.start_time = None
         self.phase = Phase.INITIALISATION
         self.subphase = None
-        self.subsystems = ["TTC"]#, "ADCS", "Payload"]
+        self.subsystems = ["TTC", "ADCS", "Payload"]
 
         for name in self.subsystems:
             is_ready = False
