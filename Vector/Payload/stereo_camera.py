@@ -3,37 +3,103 @@ import cv2 as cv
 from matplotlib import pyplot as plt
 from Payload.camera import Camera
 import logging
+import time
+import threading
 
 class StereoCamera:
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        """Implement singleton pattern to prevent multiple camera managers"""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(StereoCamera, cls).__new__(cls)
+        return cls._instance
+    
     def __init__(self):
+        # Prevent re-initialization if already initialized
+        if hasattr(self, '_initialized'):
+            return
+            
         self.left_camera = None
         self.right_camera = None
         self.left_camera_available = False
         self.right_camera_available = False
+        self.initialization_attempts = 0
+        self.max_initialization_attempts = 3
         
-        # Try to initialize left camera
+        # Initialize cameras with proper timing and error handling
+        self._initialize_cameras()
+        self._initialized = True
+    
+    def _initialize_cameras(self):
+        self._cleanup_cameras()
+
+        time.sleep(2)
+            
+        self._initialize_left_camera()
+        self._initialize_right_camera()
+
+    
+    def _initialize_left_camera(self):
+        """Initialize left camera with error handling"""
         try:
+            print("Initializing left camera (index 0)...")
             self.left_camera = Camera(camera_index=0)
-            self.left_camera_available = True
-            print("Left camera (index 0) initialized successfully")
+            if self.left_camera.is_initialized:
+                self.left_camera_available = True
+                print("Left camera (index 0) initialized successfully")
+                return True
+            else:
+                print("Left camera initialization returned False")
+                self.left_camera = None
+                return False
         except Exception as e:
             print(f"Failed to initialize left camera (index 0): {e}")
             self.left_camera_available = False
-        
-        # Try to initialize right camera
+            self.left_camera = None
+            return False
+    
+    def _initialize_right_camera(self):
+        """Initialize right camera with error handling"""
         try:
+            print("Initializing right camera (index 1)...")
             self.right_camera = Camera(camera_index=1)
-            self.right_camera_available = True
-            print("Right camera (index 1) initialized successfully")
+            if self.right_camera.is_initialized:
+                self.right_camera_available = True
+                print("Right camera (index 1) initialized successfully")
+                return True
+            else:
+                print("Right camera initialization returned False")
+                self.right_camera = None
+                return False
         except Exception as e:
             print(f"Failed to initialize right camera (index 1): {e}")
             self.right_camera_available = False
+            self.right_camera = None
+            return False
+    
+    def _cleanup_cameras(self):
+        """Clean up camera resources"""
+        if self.left_camera is not None:
+            try:
+                self.left_camera.stop()
+            except Exception as e:
+                print(f"Error stopping left camera: {e}")
+            finally:
+                self.left_camera = None
+                self.left_camera_available = False
         
-        # Check if stereo functionality is available
-        if not self.left_camera_available and not self.right_camera_available:
-            print("WARNING: No cameras available. StereoCamera functionality will be limited.")
-        elif not self.left_camera_available or not self.right_camera_available:
-            print("WARNING: Only one camera available. Stereo depth calculation will not be possible.")
+        if self.right_camera is not None:
+            try:
+                self.right_camera.stop()
+            except Exception as e:
+                print(f"Error stopping right camera: {e}")
+            finally:
+                self.right_camera = None
+                self.right_camera_available = False
     
     def is_stereo_available(self):
         """Check if both cameras are available for stereo processing"""
