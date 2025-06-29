@@ -1,3 +1,4 @@
+import math
 import time
 from ADCS.brushless_motor import BrushlessMotor
 from ADCS.brushed_motor import BrushedMotor
@@ -117,7 +118,7 @@ class ReactionWheel:
             """
             return 0.5 * mass * (side1)
         
-    def activate_wheel(self, setpoint):
+    def activate_wheel(self, setpoint, tolerance=10):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -129,8 +130,6 @@ class ReactionWheel:
         dt = 0.1  # Time step in seconds
         omega_wheel = 0  # Initialize angular velocity
 
-        last_wheel_percentage = 0
-
         initial_yaw = self.imu.get_current_yaw()
         turns = initial_yaw // 360
         setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
@@ -138,15 +137,21 @@ class ReactionWheel:
             setpoint + 360
 
         # PID Parameters
-        kp = 3  # Proportional gain
-        ki = 0.1  # Integral gain
-        kd = 0.05  # Derivative gain
+        kp = 2  # Proportional gain
+        ki = 0  # Integral gain
+        kd = 0.1  # Derivative gain
 
         self.set_state("ROTATING")  # Set state to rotating
 
         while self.get_state() == "ROTATING":
-            # Get current yaw and compute PID control
             pv = self.imu.get_current_yaw()
+            gyro = self.imu.get_current_angular_velocity()
+
+            if self.motor.get_current_speed == 0 and setpoint + tolerance < pv and (gyro > 0 and gyro < 1):
+                print("REVERSE not possible. going to next turn")
+                setpoint = initial_yaw + setpoint
+
+            # Get current yaw and compute PID control
             control, error, integral = self.pid_controller(
                 setpoint, kp, ki, kd, previous_error, integral, dt
             )
@@ -161,19 +166,21 @@ class ReactionWheel:
             alpha_wheel = (new_omega_wheel - omega_wheel) / dt
             omega_wheel = new_omega_wheel
 
-            # Convert to motor voltage (simplified for unidirectional ESC)
-            voltage = (R * self.I_wheel * alpha_wheel) / self.kt + self.ke * omega_wheel
-            
-            # Cap voltage to motor's operational range and convert to duty cycle (0-100%)
-            voltage = np.clip(voltage, 0, self.motor.v)  # Force positive voltage
+            rpm = omega_wheel * 60 / (2 * math.pi)
 
-            duty_cycle = (voltage / self.motor.v) * 100  # 0-100% range
+            rpm = np.clip(rpm, 0, 7000)  # Cap RPM to a reasonable range
+
+            # # Convert to motor voltage (simplified for unidirectional ESC)
+            # voltage = (R * self.I_wheel * alpha_wheel) / self.kt + self.ke * omega_wheel
+            
+            # # Cap voltage to motor's operational range and convert to duty cycle (0-100%)
+            # voltage = np.clip(voltage, 0, self.motor.v)  # Force positive voltage
+
+            # duty_cycle = (voltage / self.motor.v) * 100  # 0-100% range
+            duty_cycle = rpm / 70  # Assuming 7000 RPM is 100% duty cycle
             
             # Ensure duty cycle stays within 0-100%
-            duty_cycle = np.clip(duty_cycle, 0, 100)
-
-            if (duty_cycle / last_wheel_percentage) > 2 and last_wheel_percentage != 0:
-                duty_cycle = last_wheel_percentage * 2
+            duty_cycle = np.clip(duty_cycle, 0, 50)
             
             # Update motor speed
             self.motor.set_speed(duty_cycle)

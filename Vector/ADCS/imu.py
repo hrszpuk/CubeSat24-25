@@ -1,13 +1,9 @@
+import math
 import time
 import serial
 import logging
 from typing import Optional, Tuple, Dict, List
 import json
-
-# Set up logging
-#TODO
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
 
 class Imu:
     def __init__(self, port: str = '/dev/serial0', baudrate: int = 9600, timeout: float = 1.0):
@@ -36,7 +32,7 @@ class Imu:
                 if line:  # Only return if data is valid
                     return line
             except (UnicodeDecodeError, serial.SerialException) as e:
-                #logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                #print(f"Attempt {attempt + 1} failed: {e}")
                 time.sleep(0.1)
         return None
 
@@ -49,28 +45,30 @@ class Imu:
             }
         except serial.SerialException as e:
             error = f"IMU connection error: {e}"
-            #logger.error(error)
+            #print(error)
             return {"status": "INACTIVE", "errors": [error]}
 
     def parse_imu_data(self, line: str, cap_rotations=True) -> Tuple[List[float], List[float]]:
         """
         Parse IMU JSON data.
-        Example line: {"gyroscope":[0.04,0.03,0.06],"orientation":[-55.69,-7.44,-12.08],"bms_voltage":10,"bms_current":20.60902,"bms_temp":21.2178} -> Format: [x, y, z], [Yaw, Pitch, Roll]
+        Example line: {"gyroscope":[0.04,0.03,0.06],"orientation":[-55.69,-7.44,-12.08],"bms_voltage":10,"bms_current":20.60902,"bms_temp":21.2178} -> Format: [x, y, z] in rad/s, [Yaw, Pitch, Roll] in deg
         """
         try:
             data = json.loads(line)
         except json.JSONDecodeError as e:
-            #logger.error(f"JSON decode error: {e} for line: {line}")
+            #print(f"JSON decode error: {e} for line: {line}")
             return [], [], None, None, None
 
         gyroscope = data.get("gyroscope", [])
+        for i in range(len(gyroscope)):
+            gyroscope[i] = math.degrees(gyroscope[i])
         orientation = data.get("orientation", [])
         bms_voltage = data.get("bms_voltage", None)
         bms_current = data.get("bms_current", None)
         bms_temp = data.get("bms_temp", None)
 
         if orientation:
-            orientation[0] = (orientation[0] + self.calibration_offset)
+            orientation[0] = round((orientation[0] + self.calibration_offset), 2)
             if cap_rotations:
                 orientation = [val % 360 for val in orientation ]
         return gyroscope, orientation, bms_voltage, bms_current, bms_temp
@@ -127,16 +125,17 @@ class Imu:
         """Trigger calibration."""
         self.send_command('CALIBRATE')
         time.sleep(0.3)
+        attempts = 0
         calibrating = True
         complete = False
-        while calibrating:
+        while calibrating and attempts < 4:
             line = self.get_serial_text()
             if line:
                 if "complete" in line:
                     calibrating = False
                     complete = True
-            # else:
-            #     break
+            else:
+                attempts += 1
         return complete
 
     def set_calibration_offset(self, offset: float) -> None:

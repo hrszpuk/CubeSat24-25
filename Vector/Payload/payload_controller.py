@@ -1,8 +1,8 @@
 import glob
 from Payload.distance_sensor import DistanceSensor
-# from Payload.stereo_camera import StereoCamera
-# from Payload.number_identifier import identify_numbers_from_files
-#from Payload import tag_finder
+from Payload.stereo_camera import StereoCamera
+from Payload.number_identifier import identify_numbers_from_files
+from Payload import tag_finder
 import os
 
 
@@ -10,8 +10,8 @@ class PayloadController:
     def __init__(self, log_queue):
         self.state = "INITIALIZING"
         self.log_queue = log_queue
-        #self.stereo_camera = StereoCamera()
-        #self.distance_sensor = DistanceSensor()
+        self.stereo_camera = StereoCamera()
+        self.distance_sensor = DistanceSensor()
         self.state = "READY"
         self.numbers_indentified = []
 
@@ -22,23 +22,23 @@ class PayloadController:
         health_check_text = ""
         errors = []
 
-        # # get the status of the stereo camera
-        # sc_health_check_text, sc_health_check, sc_errors = self.get_stereo_camera_health_check()
-        # health_check_text += sc_health_check_text
-        # errors.extend(sc_errors)
+        # get the status of the stereo camera
+        sc_health_check_text, sc_health_check, sc_errors = self.get_stereo_camera_health_check()
+        health_check_text += sc_health_check_text
+        errors.extend(sc_errors)
 
-        # # get the status of the distance sensor
-        # ds_health_check_text, ds_health_check, ds_errors = self.get_distance_sensor_health_check()
-        # health_check_text += ds_health_check_text
-        # errors.extend(ds_errors)
+        # get the status of the distance sensor
+        ds_health_check_text, ds_health_check, ds_errors = self.get_distance_sensor_health_check()
+        health_check_text += ds_health_check_text
+        errors.extend(ds_errors)
 
-        # # check subsystem health
-        # if ds_health_check: # and sc_health_check:
-        #     self.status = "OK"
-        #     health_check_text += "STATUS: OK"
-        # else:
-        #     self.status = "DOWN"
-        #     health_check_text += "STATUS: DOWN - Error in one or more components"
+        # check subsystem health
+        if ds_health_check: # and sc_health_check:
+            self.status = "OK"
+            health_check_text += "STATUS: OK"
+        else:
+            self.status = "DOWN"
+            health_check_text += "STATUS: DOWN - Error in one or more components"
 
         return health_check_text, errors
 
@@ -47,18 +47,22 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        left_image = self.stereo_camera.get_left_image()
-        right_image = self.stereo_camera.get_right_image()
+        status = self.stereo_camera.get_camera_status
 
-        if left_image is None:
+        if status["is_left_camera_available"] is False:
+            health_check_text += "Left camera: INACTIVE\n"
             errors.append("Left camera not available")
-        if right_image is None:
+        else:
+            health_check_text += "Left camera: ACTIVE\n"
+        if status["is_right_camera_available"] is False:
+            health_check_text += "Right camera: INACTIVE\n"
             errors.append("Right camera not available")
+        else:
+            health_check_text += "Right camera: ACTIVE\n"
         
         if errors:
             health_check_text += "Stereo Camera: DOWN\n"
         else:
-            health_check_text += f"Stereo Camera: ACTIVE\n"
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
@@ -69,9 +73,9 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        if self.distance_sensor is None:
+        if self.distance_sensor is None or not self.distance_sensor.get_status():
             errors.append("Distance sensor data not available")
-            health_check_text += f"Distance Sensor: DOWN\n"
+            health_check_text += f"Distance Sensor: INACTIVE\n"
         else:
             health_check_text += f"Distance Sensor: ACTIVE\n"
             is_component_ready = True

@@ -22,11 +22,11 @@ class Detector:
                        refine_edges=1,
                        decode_sharpening=0.25,
                        debug=0)
-      self.img = self.camera_obj.get_left_image()
+      self.img, _ = self.camera_obj.get_available_image()
       self.camera_width,self.camera_height = self.img.shape[1],self.img.shape[0]
 
    def capture_Camera(self):
-      self.img = self.camera_obj.get_left_image()
+      self.img, _ = self.camera_obj.get_available_image()
 
    def getPose(self):
       self.gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
