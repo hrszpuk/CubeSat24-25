@@ -73,7 +73,7 @@ class Imu:
         bms_temp = data.get("bms_temp", None)
 
         if orientation:
-            orientation[0] = (orientation[0] + self.calibration_offset)
+            orientation[0] = round((orientation[0] + self.calibration_offset), 2)
             if cap_rotations:
                 orientation = [val % 360 for val in orientation ]
         return gyroscope, orientation, bms_voltage, bms_current, bms_temp
