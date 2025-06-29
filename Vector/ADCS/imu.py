@@ -5,11 +5,6 @@ import logging
 from typing import Optional, Tuple, Dict, List
 import json
 
-# Set up logging
-#TODO
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
 class Imu:
     def __init__(self, port: str = '/dev/serial0', baudrate: int = 9600, timeout: float = 1.0):
         self.serial_connection = serial.Serial(
@@ -37,7 +32,7 @@ class Imu:
                 if line:  # Only return if data is valid
                     return line
             except (UnicodeDecodeError, serial.SerialException) as e:
-                #logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                #print(f"Attempt {attempt + 1} failed: {e}")
                 time.sleep(0.1)
         return None
 
@@ -50,7 +45,7 @@ class Imu:
             }
         except serial.SerialException as e:
             error = f"IMU connection error: {e}"
-            #logger.error(error)
+            #print(error)
             return {"status": "INACTIVE", "errors": [error]}
 
     def parse_imu_data(self, line: str, cap_rotations=True) -> Tuple[List[float], List[float]]:
@@ -61,7 +56,7 @@ class Imu:
         try:
             data = json.loads(line)
         except json.JSONDecodeError as e:
-            #logger.error(f"JSON decode error: {e} for line: {line}")
+            #print(f"JSON decode error: {e} for line: {line}")
             return [], [], None, None, None
 
         gyroscope = data.get("gyroscope", [])
@@ -130,16 +125,17 @@ class Imu:
         """Trigger calibration."""
         self.send_command('CALIBRATE')
         time.sleep(0.3)
+        attempts = 0
         calibrating = True
         complete = False
-        while calibrating:
+        while calibrating and attempts < 4:
             line = self.get_serial_text()
             if line:
                 if "complete" in line:
                     calibrating = False
                     complete = True
-            # else:
-            #     break
+            else:
+                attempts += 1
         return complete
 
     def set_calibration_offset(self, offset: float) -> None:
