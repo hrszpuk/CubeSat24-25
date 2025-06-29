@@ -1,10 +1,12 @@
 <script setup>
-    import { onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
+    import { onMounted, onBeforeUnmount, reactive, ref, watch, markRaw } from 'vue';
     import { useDateFormat, useNow } from '@vueuse/core';
     import { useDialog } from 'primevue/usedialog';
     import { useSocket } from '@/layout/composables/socket.js';
     import { useToast } from '@/layout/composables/toast.js';
+    import { useAudio } from '@/layout/composables/audio.js';
     import ArgumentsDialog from '@/components/ArgumentsDialog.vue';
+    import DialogFooter from '@/components/DialogFooter.vue';
     import Button from 'primevue/button';
     import Card from 'primevue/card';
     import ScrollPanel from 'primevue/scrollpanel';
@@ -13,9 +15,10 @@
     import TerminalService from 'primevue/terminalservice';
     import Toolbar from 'primevue/toolbar';
     
-    const { establishConnection, sendMessage, message, dropConnection } = useSocket();
-    const toast = useToast();
+    const { getStatus, establishConnection, sendMessage, message, dropConnection } = useSocket();
     const dialog = useDialog();
+    const toast = useToast();
+    const {playLogSfx} = useAudio();
     const dateToday = useDateFormat(useNow(), "DD/MM/YYYY");
     const timeNow = useDateFormat(useNow(), "HH:mm:ss");
     const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
@@ -36,6 +39,7 @@
                 
                 switch(obj.type) {
                     case "log":
+                        playLogSfx();
                         logs.value.push(obj.data);
                         break;
                     case "data":
@@ -102,12 +106,16 @@
     function phase2Button() {
         dialog.open(ArgumentsDialog, {
             props: {header: "Enter Sequence for Phase 2", modal: true},
+            templates: {
+                footer: markRaw(DialogFooter)
+            },
             data: {
-                submitFunction: () => {
-                    sendMessage(`start_phase 2 ${sequence}`)
+                submitFunction: (record) => {
+                    console.log("submit button clicked")
+                    sendMessage(`start_phase 2 ${record.sequence}`);
                 },
                 fields: [
-                    {id: "sequence", label: "Sequence", required: true}
+                    { id: "sequence", label: "Sequence", required: true }
                 ],
                 record: {},
                 hasSubmitted: false
@@ -127,10 +135,10 @@
 <template>    
     <Toolbar>
         <template #center>
-            <Button class="mr-2" label="Start Phase 1" @click="sendMessage('start_phase 1')"></Button>
-            <Button class="mr-2" label="Start Phase 2" @click="phase2Button"></Button>
-            <SplitButton class="mr-2" label="Start Phase 3" :model="phase3Subphases"></SplitButton>
-            <Button severity="danger" label="Stop Phase"></Button>
+            <Button class="mr-2" label="Start Phase 1" :disabled="getStatus() !== 'OPEN'" @click="sendMessage('start_phase 1')"></Button>
+            <Button class="mr-2" label="Start Phase 2" :disabled="getStatus() !== 'OPEN'" @click="phase2Button"></Button>
+            <SplitButton class="mr-2" label="Start Phase 3" :model="phase3Subphases" :disabled="getStatus() !== 'OPEN'"></SplitButton>
+            <Button severity="danger" label="Stop Phase" :disabled="getStatus() !== 'OPEN'"></Button>
         </template>
     </Toolbar>
     <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>

@@ -12,7 +12,7 @@
     });
 
     function validateField(field) {
-        return dialogRef.value?.data.hasSubmitted && field.required && !dialogRef.value?.data.newRecord[field.id];
+        return dialogRef.value?.data.hasSubmitted && field.required && !dialogRef.value?.data.record[field.id];
     }
 </script>
 
@@ -21,7 +21,7 @@
         <article v-for="field in fields" class="flex flex-col gap-2">
             <label :for="field.id">{{ field.label }}<span v-if="field.required" title="required" class="required-indicator" aria-hidden="true">*</span></label>
             <InputText :id="field.id" v-model.trim="record[field.id]" :invalid="validateField(field)" fluid></InputText>
-            <Message v-if="validateField(field)" variant="simple" size="small">{{ field.label }} is a required field</Message>
+            <Message v-if="validateField(field)" severity="error" variant="simple" size="small">{{ field.label }} is a required field</Message>
         </article>
     </form>
 </template>
