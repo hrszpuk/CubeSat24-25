@@ -164,14 +164,14 @@ class TTC:
                     
                     match phase:
                         case 1:
-                            self.pipe.send(("start_phase", [phase]))
+                            self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
                             sequence = arguments[1] if len(arguments) == 2 else None
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
-                                self.pipe.send(("start_phase", [phase, sequence_list]))
+                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
                                 await self.send_message(f"Starting phase {phase}...")
                             else:
                                 await self.send_message("No sequence provided!")
@@ -179,7 +179,7 @@ class TTC:
                             subphase = arguments[1] if len(arguments) == 2 else None
 
                             if subphase:
-                                self.pipe.send(("start_phase", [phase, subphase]))
+                                self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
                                 await self.send_message("No subphase provided!")
