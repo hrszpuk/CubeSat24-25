@@ -26,6 +26,7 @@
             dialogRef.value?.data.submitFunction(record);
             dialogRef.value.data.hasSubmitted = false;
             isProcessing.value = false;
+            closeDialog();
         }
     }
 
