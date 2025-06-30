@@ -173,7 +173,11 @@ class TTC:
                             self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
+<<<<<<< HEAD
                             sequence = arguments[1] if len(arguments) >= 2 else None
+=======
+                            sequence = arguments[1] if len(arguments) == 2 else None
+>>>>>>> 5e271578ff6ccfa71012798bdd0339fd5079c514
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
