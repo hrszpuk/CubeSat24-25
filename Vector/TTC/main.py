@@ -167,9 +167,14 @@ class TTC:
                             self.pipe.send(("start_phase", [phase]))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-                            sequence = arguments[1] if len(arguments) == 2 else -None
-                            self.pipe.send(("start_phase", [phase, sequence]))
-                            await self.send_message(f"Starting phase {phase}...")
+                            sequence = arguments[1] if len(arguments) == 2 else None
+
+                            if sequence:
+                                sequence_list = [int(number) for number in sequence.split(",")]
+                                self.pipe.send(("start_phase", [phase, sequence_list]))
+                                await self.send_message(f"Starting phase {phase}...")
+                            else:
+                                await self.send_message("No sequence provided!")
                         case 3:
                             subphase = arguments[1] if len(arguments) == 2 else None
 

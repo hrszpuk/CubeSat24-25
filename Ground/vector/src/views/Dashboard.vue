@@ -111,7 +111,6 @@
             },
             data: {
                 submitFunction: (record) => {
-                    console.log("submit button clicked")
                     sendMessage(`start_phase 2 ${record.sequence}`);
                 },
                 fields: [
