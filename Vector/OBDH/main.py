@@ -50,7 +50,11 @@ class OBDH:
                         phase = args[0]
                         self.start_phase(phase, args[1:])
                     case "test_wheel":
-                        self.manager.send("ADCS", "test_wheel")
+                        self.manager.send("ADCS", "test_wheel", args={
+                            "kp": args[0],
+                            "ki": args[1],
+                            "kd": args[2],
+                        })
                     case "shutdown":
                         self.manager.shutdown()
                         self.logger.info(len(self.manager.processes))

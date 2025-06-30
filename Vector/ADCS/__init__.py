@@ -13,7 +13,10 @@ def start(pipe, log_queue):
             variable = adcs_controller.health_check()
             pipe.send(variable)
         elif line == "test_wheel":
-            variable = adcs_controller.test_reaction_wheel()
+            kp = args["kp"]
+            ki = args["ki"]
+            kd = args["kd"]
+            variable = adcs_controller.test_reaction_wheel(kp, ki, kd, t=60)
             pipe.send(variable)
         elif line == "eps_health_check":
             variable = adcs_controller.get_eps_health_check()
