@@ -61,7 +61,7 @@ class Imu:
 
         gyroscope = data.get("gyroscope", [])
         for i in range(len(gyroscope)):
-            gyroscope[i] = math.degrees(gyroscope[i])
+            gyroscope[i] = round(math.degrees(gyroscope[i]), 2)
         orientation = data.get("orientation", [])
         bms_voltage = data.get("bms_voltage", None)
         bms_current = data.get("bms_current", None)
@@ -73,7 +73,7 @@ class Imu:
                 orientation = [val % 360 for val in orientation ]
         return gyroscope, orientation, bms_voltage, bms_current, bms_temp
 
-    def get_imu_data(self, cap_rotations = True, max_attempts: int = 3) -> Dict[str, Optional[List[float]] | List[str]]:
+    def get_imu_data(self, cap_rotations = True, max_attempts: int = 10) -> Dict[str, Optional[List[float]] | List[str]]:
         """Fetch IMU data with error handling."""
         errors = []
         for attempt in range(max_attempts):
@@ -86,8 +86,10 @@ class Imu:
             if gyro or orient:  # At least one dataset is valid
                 return {"gyroscope": gyro, "orientation": orient, "bms_voltage": bms_voltage, "bms_current": bms_current, "bms_temp": bms_temp , "errors": errors}
             else:
-                errors.append(f"Attempt {attempt + 1}: Invalid data format")
+                errors.append(f"Attempt {attempt + 1}: Invalid data format. Response: {line}")
         
+        time.sleep(0.5)
+
         return {"gyroscope": None, "orientation": None, "errors": errors}
 
     def get_orientation(self, cap_rotations=True) -> List[float]:
@@ -102,9 +104,9 @@ class Imu:
         yaw = orientation_data[0]
         return yaw
     
-    def get_current_angular_velocity(self):
+    def get_current_angular_velocity(self, cap_rotations=True):
         """Get current angular velocity (gyroscope data)."""
-        imu_data = self.get_imu_data()
+        imu_data = self.get_imu_data(cap_rotations)
         if imu_data["gyroscope"] is None:
             raise ValueError(f"No gyroscope data. Errors: {imu_data['errors']}")
         return imu_data["gyroscope"][2]  # Return only the Z-axis value

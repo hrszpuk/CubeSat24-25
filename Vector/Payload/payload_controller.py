@@ -32,7 +32,7 @@ class PayloadController:
         errors.extend(ds_errors)
 
         # check subsystem health
-        if ds_health_check: # and sc_health_check:
+        if ds_health_check and sc_health_check:
             self.status = "OK"
             health_check_text += "STATUS: OK"
         else:
@@ -72,7 +72,7 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        if self.distance_sensor is None or not self.distance_sensor.get_status():
+        if self.distance_sensor.get_distance() is None:
             errors.append("Distance sensor data not available")
             health_check_text += f"Distance Sensor: INACTIVE\n"
         else:
@@ -83,8 +83,8 @@ class PayloadController:
 
     def identify_numbers_from_files(self):
         image_paths = glob.glob("images/phase2/*.jpg")
-        self.numbers_indentified = identify_numbers_from_files(image_paths)
-        return self.numbers_indentified
+        self.numbers_identified = identify_numbers_from_files(image_paths)
+        return self.numbers_identified
 
     def take_picture(self, directory, filename):
         os.makedirs(directory, exist_ok=True)

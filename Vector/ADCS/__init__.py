@@ -29,7 +29,7 @@ def start(pipe, log_queue):
             pipe.send(variable)
         elif line == "phase2_rotate":
             adcs_controller.phase2_rotate(pipe)
-            pipe.send("rotation_complete")
+            pipe.send(("rotation_complete", None))
         elif line == "phase2_sequence":
             sequence = args.get("sequence", None)
             numbers = args.get("numbers", None)
