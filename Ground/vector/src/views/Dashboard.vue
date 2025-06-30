@@ -40,10 +40,10 @@
                 switch(obj.type) {
                     case "log":
                         playLogSfx();
-                        logs.value.push(obj.data);
+                        logs.value.unshift(obj.data);
                         break;
                     case "data":
-                        cubeSatData.value.push(obj.data);
+                        cubeSatData.value.unshift(obj.data);
                         break;
                     case "message":
                         if (obj.data.localeCompare("File send complete") === 0) {
@@ -57,9 +57,9 @@
                             document.body.removeChild(elem);
                             URL.revokeObjectURL(fileURL);
                         }
-    
-                        messages.value.push(obj);
-                        toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
+
+                        messages.value.unshift(obj);
+                        toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})    
                         break;
                     case "filemetadata":
                         fileMetadata.size = obj.data.size;

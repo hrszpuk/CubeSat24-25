@@ -86,7 +86,7 @@ class ProcessManager:
                         return {"response": result}
                 else:
                     self.logger.warning(f"Timeout waiting for response from {name}.")
-                    return {"response": "Timed out waiting for response."}
+                    return None
             else:
                 result = conn.recv()
                 
