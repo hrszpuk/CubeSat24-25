@@ -158,23 +158,34 @@ class TTC:
                     await self.send_file(path)
                 else:
                     await self.send_message("No file path provided!")
+            case "test_wheel":
+                kp = arguments[0]
+                ki = arguments[1]
+                kd = arguments[2]
+                #time = arguments[3]
+                self.pipe.send(("test_wheel", [kp, ki, kd]))
+                await self.send_message("Testing wheel...")
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
-                    
                     match phase:
                         case 1:
-                            self.pipe.send(("start_phase", [phase]))
+                            self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-                            sequence = arguments[1] if len(arguments) == 2 else -None
-                            self.pipe.send(("start_phase", [phase, sequence]))
-                            await self.send_message(f"Starting phase {phase}...")
+                            sequence = arguments[1] if len(arguments) == 2 else None
+
+                            if sequence:
+                                sequence_list = [int(number) for number in sequence.split(",")]
+                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                await self.send_message(f"Starting phase {phase}...")
+                            else:
+                                await self.send_message("No sequence provided!")
                         case 3:
                             subphase = arguments[1] if len(arguments) == 2 else None
 
                             if subphase:
-                                self.pipe.send(("start_phase", [phase, subphase]))
+                                self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
                                 await self.send_message("No subphase provided!")

@@ -26,8 +26,8 @@ class AdcsController:
         self.imu = Imu()
         self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
-        self.current_reaction_wheel = self.main_reaction_wheel
-        #self.current_reaction_wheel = self.backup_reaction_wheel
+        #self.current_reaction_wheel = self.main_reaction_wheel
+        self.current_reaction_wheel = self.backup_reaction_wheel
         self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
@@ -235,12 +235,12 @@ class AdcsController:
 
         readings_queue.put(readings)
 
-    def test_reaction_wheel(self):
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(30,))
+    def test_reaction_wheel(self, kp, ki, kd, t=60):
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(0, kp, ki, kd))
         #rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(30,))
         rotation_thread.start()
-
-        time.sleep(120)
+        time.sleep(t)
+        print("Stopping reaction wheel after test duration")
         self.stop_reaction_wheel()
 
         rotation_thread.join()

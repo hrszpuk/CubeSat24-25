@@ -96,6 +96,10 @@ class ReactionWheel:
         return self.motor.get_current_speed()
 
     def pid_controller(self, setpoint, kp, ki, kd, previous_error=0, integral=0, dt=0.1):
+        # Ensure PID gains are floats
+        kp = float(kp)
+        ki = float(ki)
+        kd = float(kd)
         error = setpoint - self.imu.get_current_yaw() # This is PV
         integral += error * dt
         derivative = (error - previous_error) / dt
@@ -118,7 +122,7 @@ class ReactionWheel:
             """
             return 0.5 * mass * (side1)
         
-    def activate_wheel(self, setpoint, tolerance=10):
+    def activate_wheel(self, setpoint, kp=1.6, ki=0.02, kd=0.1, t=60, tolerance=30):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -136,14 +140,11 @@ class ReactionWheel:
         if abs(setpoint) < abs(initial_yaw):
             setpoint + 360
 
-        # PID Parameters
-        kp = 2  # Proportional gain
-        ki = 0  # Integral gain
-        kd = 0.1  # Derivative gain
+        initial_time = time.time()
 
         self.set_state("ROTATING")  # Set state to rotating
 
-        while self.get_state() == "ROTATING":
+        while self.get_state() == "ROTATING" or (time.time() - initial_time < t):
             pv = self.imu.get_current_yaw()
             gyro = self.imu.get_current_angular_velocity()
 
@@ -180,7 +181,7 @@ class ReactionWheel:
             duty_cycle = rpm / 70  # Assuming 7000 RPM is 100% duty cycle
             
             # Ensure duty cycle stays within 0-100%
-            duty_cycle = np.clip(duty_cycle, 0, 50)
+            duty_cycle = np.clip(duty_cycle, 0, 30)
             
             # Update motor speed
             self.motor.set_speed(duty_cycle)
@@ -189,7 +190,7 @@ class ReactionWheel:
             previous_error = error
             
             # Logging (optional)
-            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%")
+            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, kp: {kp}, ki: {ki}, kd: {kd}, State: {self.get_state()}")
             
             time.sleep(dt)
         self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
@@ -295,11 +296,11 @@ class ReactionWheel:
     def calibration_rotation(self):
         """Perform a calibration rotation."""
         # Test motor from 50% to 100% throttle
-        for percent in range(5, 15, 2):
+        for percent in range(5, 100, 10):
             self.motor.set_speed(percent)
             time.sleep(1)
         
-        for percent in range(15, 0, -2):
+        for percent in range(100, 0, -10):
             self.motor.set_speed(percent)
             time.sleep(1)
 

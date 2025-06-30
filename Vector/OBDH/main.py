@@ -47,10 +47,14 @@ class OBDH:
                 match cmd:
                     # general commands
                     case "start_phase":
-                        phase = args[0]
-                        self.start_phase(phase, args[1:])
+                        phase = args["phase"]
+                        self.start_phase(phase, args)
                     case "test_wheel":
-                        self.manager.send("ADCS", "test_wheel")
+                        self.manager.send("ADCS", "test_wheel", args={
+                            "kp": args[0],
+                            "ki": args[1],
+                            "kd": args[2],
+                        })
                     case "shutdown":
                         self.manager.shutdown()
                         self.logger.info(len(self.manager.processes))
@@ -118,6 +122,7 @@ class OBDH:
 
                 if not hc:
                     self.logger.error("Health check failed, health.txt not generated.")
+
                 if os.path.exists("health.txt") and hc:
                     try:
                         self.manager.send("TTC", "send_file", {"path": "health.txt"})
@@ -126,8 +131,8 @@ class OBDH:
                         self.logger.warning(f"Health check report failed: {e}")
                 else:
                     self.logger.error("health.txt not found.")
-                self.reset_state()
 
+                self.reset_state()
             case 2:
                 self.state = OBDHState.BUSY
                 self.phase = Phase.SECOND
