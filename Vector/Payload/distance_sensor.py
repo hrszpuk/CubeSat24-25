@@ -14,16 +14,18 @@ class DistanceSensor:
             print(f"ERROR: {e}") # SWAP for logging
             self.sensor = None
 
-    def get_status(self):
-        """Check if the distance sensor is initialized and ready."""
-        if self.sensor is None:
-            return False
-        return self.sensor.data_ready
-
     def get_distance(self):
-        if self.sensor is None or not self.sensor.data_ready:
+        if self.sensor is None:
             return None
+        
+        # Wait for data to be ready (with timeout)
+        timeout = time.time() + 2.0  # 2 second timeout
+        while not self.sensor.data_ready:
+            if time.time() > timeout:
+                print("Timeout waiting for sensor data")
+                return None
+            time.sleep(0.01)  # Small delay to avoid busy waiting
+        
         self.sensor.clear_interrupt()
         distance = self.sensor.distance
-
         return distance

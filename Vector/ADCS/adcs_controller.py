@@ -6,6 +6,8 @@ import threading
 import queue
 import numpy as np
 
+from ADCS.brushed_motor import BrushedMotor
+
 class AdcsController:
     def __init__(self, log_queue):
         self.state = "INITIALIZING"
@@ -26,8 +28,11 @@ class AdcsController:
         self.imu = Imu()
         self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
-        #self.current_reaction_wheel = self.main_reaction_wheel
-        self.current_reaction_wheel = self.backup_reaction_wheel
+        #self.current_reaction_wheel = self.backup_reaction_wheel
+        self.current_reaction_wheel = self.main_reaction_wheel
+
+        #brushless_thread = threading.Thread(target=self.main_reaction_wheel.brushless_compensation)
+        #brushless_thread.start()
         self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
@@ -236,30 +241,28 @@ class AdcsController:
         readings_queue.put(readings)
 
     def test_reaction_wheel(self, kp, ki, kd, t=60):
+        # if type(self.current_reaction_wheel.motor) == BrushedMotor:
+        #     rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(0, kp, ki, kd))
+        #     self.log("Testing brushed motor reaction wheel Time:", t)
+        # else:
+        #     rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(0, kp, ki, kd))
+        #     self.log("Testing brushless motor reaction wheel Time:", t)
+
         rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(0, kp, ki, kd))
+
         #rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(30,))
         rotation_thread.start()
-        time.sleep(t)
+        time.sleep(10)
         print("Stopping reaction wheel after test duration")
         self.stop_reaction_wheel()
 
         rotation_thread.join()
+        self.current_reaction_wheel.stop_event.clear()
 
     def phase2_rotate(self, pipe):
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(10,))
-        rotation_thread.start()
-        self.log("ADCS phase 2 rotation started")
-        self.current_reaction_wheel.set_state("ROTATING")        
+        self.log("ADCS phase 2 rotation started")  
+        self.current_reaction_wheel.activate_wheel_with_speed_desired(pipe, 30)  # Start rotating at 30 RPM
 
-        initial_yaw = abs(self.get_current_yaw())
-        last_yaw = initial_yaw
-        while abs(self.get_current_yaw()) < initial_yaw + 360 and self.is_reaction_wheel_rotating():
-            if abs(self.get_current_yaw()) > last_yaw + 10:
-                pipe.send(("take_picture", {"current_yaw": self.get_current_yaw()}))
-                last_yaw = abs(self.get_current_yaw())
-
-        self.stop_reaction_wheel()
-        rotation_thread.join()
 
     def phase2_sequence_rotation(self, pipe, sequence, numbers):
         numbers = {v: k for k, v in numbers.items()}
@@ -271,13 +274,15 @@ class AdcsController:
         for i in range(len(sequence)):
             current_target = sequence[i]
             current_target_yaw = numbers[current_target]
-            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(current_target_yaw))
+            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(current_target_yaw))
             rotation_thread.start()
-            time.sleep(10) # wait 10 seconds
+            time.sleep(20) # wait 10 seconds
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
-            self.current_reaction_wheel.set_state("STANDBY")
             pipe.send(("take_distance", {}))  # send to Payload to measure distance
+            self.stop_reaction_wheel()
             rotation_thread.join()
+            self.current_reaction_wheel.stop_event.clear()
+
         
         pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
 
@@ -399,6 +404,7 @@ class AdcsController:
 
     def stop_reaction_wheel(self):
         self.current_reaction_wheel.set_state("STANDBY")
+        self.current_reaction_wheel.stop_event.set()
 
     def is_reaction_wheel_rotating(self):
         return self.current_reaction_wheel.get_state() == "ROTATING" or self.current_reaction_wheel.get_state() == "ALIGNING"
