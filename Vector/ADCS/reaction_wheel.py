@@ -190,6 +190,80 @@ class ReactionWheel:
             time.sleep(dt)
         self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
 
+    def activate_wheel_brushless_phase2(self, pipe, setpoint, kp=2, ki=0, kd=0.1, tolerance=0):
+        """
+        Activate the reaction wheel to adjust the satellite's orientation.
+        Parameters: 
+            - setpoint: Target yaw angle (degrees/radians).
+        """
+        # Initialize PID variables
+        previous_error = 0
+        integral = 0
+        dt = 0.1  # Time step in seconds
+        omega_wheel = 0  # Initialize angular velocity
+        last_wheel_percentage = 0  # Track last duty cycle
+
+        initial_yaw = self.imu.get_current_yaw()
+        turns = initial_yaw // 360
+        setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
+        if abs(setpoint) < abs(initial_yaw):
+            setpoint + 360
+
+        self.set_state("ROTATING")  # Set state to rotating
+
+        while abs(self.imu.get_current_yaw()) < initial_yaw + 360:
+            yaw = self.imu.get_current_yaw()
+            if abs(yaw) > last_yaw + 10 or abs(yaw) < last_yaw - 10:
+                pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
+                last_yaw = abs(yaw)
+
+            pv = self.imu.get_current_yaw()
+            gyro = self.imu.get_current_angular_velocity()
+
+            if self.motor.get_current_speed == 0 and setpoint + tolerance < pv and (gyro > 0 and gyro < 5):
+                print("REVERSE not possible. going to next turn")
+                setpoint = initial_yaw + setpoint
+
+            # Get current yaw and compute PID control
+            control, error, integral = self.pid_controller(
+                setpoint, kp, ki, kd, previous_error, integral, dt
+            )
+
+            # Calculate new satellite and wheel angles
+            new_pv = pv + control * dt
+            angle_delta_sat = new_pv - pv
+            angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
+
+            # Update angular velocities
+            new_omega_wheel = angle_delta_wheel / dt
+            alpha_wheel = (new_omega_wheel - omega_wheel) / dt
+            omega_wheel = new_omega_wheel
+
+            rpm = omega_wheel * 60 / (2 * math.pi)
+            rpm = np.clip(rpm, 0, 7000)  # Cap RPM to a reasonable range
+            
+            duty_cycle = rpm / 70  # Assuming 7000 RPM is 100% duty cycle
+            
+            # Apply duty cycle limits
+            if duty_cycle < 5 and last_wheel_percentage < 5:
+                # Initial boost when below 5% and was previously below 5%
+                duty_cycle = 10  # Set initial higher percentage
+            else:
+                # Normal operation with 15% limit
+                duty_cycle = np.clip(duty_cycle, 0, 15)
+            
+            # Update motor speed
+            self.motor.set_speed(duty_cycle)
+            last_wheel_percentage = duty_cycle
+
+            previous_error = error
+            
+            # Logging (optional)
+            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, kp: {kp}, ki: {ki}, kd: {kd}, State: {self.get_state()}")
+            
+            time.sleep(dt)
+        self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
+
     def activate_wheel_with_speed_desired(self, pipe, setpoint = 20,):
         """
         Activate the reaction wheel to rotate the satellite at a specified speed.

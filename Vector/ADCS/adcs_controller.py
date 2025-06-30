@@ -274,7 +274,7 @@ class AdcsController:
         for i in range(len(sequence)):
             current_target = sequence[i]
             current_target_yaw = numbers[current_target]
-            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(current_target_yaw))
+            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushless_phase2, args=(pipe, current_target_yaw))
             rotation_thread.start()
             time.sleep(20) # wait 10 seconds
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
