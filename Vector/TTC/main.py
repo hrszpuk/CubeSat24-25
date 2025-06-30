@@ -52,7 +52,7 @@ class TTC:
 
                 match command:
                     case "get_state":
-                        self.pipe.send(self.get_state())
+                        self.pipe.send(self.state)
                     case "log":
                         asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), self.event_loop)
                     case "send_message":
@@ -111,13 +111,16 @@ class TTC:
             self.log(f"[ERROR] Failed to send \"pong\": {err}")
 
     async def send_log(self, message):
-        self.log(f"Sending \"{message}\" to Ground...")
+        if (self.state == TTCState.CONNECTED):
+            self.log(f"Sending \"{message}\" to Ground...")
 
-        try:
-            await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
-            self.log(f"Sent \"{message}\" to Ground")
-        except Exception as err:
-            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+            try:
+                await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
+                self.log(f"Sent \"{message}\" to Ground")
+            except Exception as err:
+                self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+        else:
+            self.log("Not connected to ground, log not sent")
 
     async def send_data(self, data):
         self.log(f"Sending {data} to Ground...")
@@ -167,17 +170,22 @@ class TTC:
                     phase = int(arguments[0])
                     match phase:
                         case 1:
-                            self.pipe.send(("start_phase", [phase]))
+                            self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-                            sequence = arguments[1] if len(arguments) == 2 else -None
-                            self.pipe.send(("start_phase", [phase, sequence]))
-                            await self.send_message(f"Starting phase {phase}...")
+                            sequence = arguments[1] if len(arguments) == 2 else None
+
+                            if sequence:
+                                sequence_list = [int(number) for number in sequence.split(",")]
+                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                await self.send_message(f"Starting phase {phase}...")
+                            else:
+                                await self.send_message("No sequence provided!")
                         case 3:
                             subphase = arguments[1] if len(arguments) == 2 else None
 
                             if subphase:
-                                self.pipe.send(("start_phase", [phase, subphase]))
+                                self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
                                 await self.send_message("No subphase provided!")
@@ -236,12 +244,6 @@ class TTC:
 
         if retries >= self.MAX_RETRIES:
             self.log(f"[ERROR] Failed to send file {file_path} after {self.MAX_RETRIES} retries!")
-    
-    def get_state(self):
-        return self.state
-    
-    def get_connection(self):
-        return self.connection
 
     def health_check(self):
         self.log("Performing subsystem health check...")
