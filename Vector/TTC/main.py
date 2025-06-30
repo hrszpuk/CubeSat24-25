@@ -50,7 +50,7 @@ class TTC:
                 args = instruction[1] if len(instruction) == 2 else None
                 self.log(f"Received instruction: {command} with args: {args}")
 
-                match command:
+                match command:                    
                     case "get_state":
                         self.pipe.send(self.state)
                     case "log":
@@ -58,7 +58,7 @@ class TTC:
                     case "send_message":
                         asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), self.event_loop)
                     case "send_data":
-                        asyncio.run_coroutine_threadsafe(self.send_message(args["data"]), self.event_loop)
+                        asyncio.run_coroutine_threadsafe(self.send_data(args["data"]), self.event_loop)
                     case "send_file":
                         asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), self.event_loop)
                     case "health_check":
