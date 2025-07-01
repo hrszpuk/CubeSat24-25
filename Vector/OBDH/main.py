@@ -33,12 +33,12 @@ class OBDH:
         self.logger.info("All subsystems are ready")
 
     def start_mission(self):
-        print("Automatic mode")
+        self.start_phase(1)
     
     def handle_input(self):
         while True:
             if self.state == OBDHState.READY:
-                input = self.manager.receive("TTC")
+                input = self.manager.poll("TTC")
                 self.logger.info(f"OBDH received: {input}")
                 cmd = input["command"]
                 args = input["arguments"]
@@ -113,7 +113,7 @@ class OBDH:
                     case _:
                         self.logger.error(f"{cmd} couldn't be matched! It is likely invalid.")
 
-    def start_phase(self, phase, args):
+    def start_phase(self, phase, args=None):
         match phase:
             case 1:
                 self.state = OBDHState.BUSY

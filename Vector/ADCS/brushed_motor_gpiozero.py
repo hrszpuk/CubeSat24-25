@@ -50,4 +50,5 @@ if __name__ == "__main__":
         while True:
             motor.forward(0.3)
     except KeyboardInterrupt:
+>>>>>>> f4faa05bff3c63eb1cf9c5385e6ff210737e3bab
         pass
