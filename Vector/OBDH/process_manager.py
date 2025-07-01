@@ -45,22 +45,7 @@ class ProcessManager:
             self.pipes[name] = parent_conn
             self.logger.info(f"Started {name} subsystem.")
         except Exception as e:
-            self.logger.error((module_name.upper(), f"Error starting subsystem: {e}"))
-
-    def stop(self, name):
-        if name not in self.processes:
-            self.logger.warning(f"{name} is not running.")
-            return
-        
-        try:
-            self.pipes[name].send(("stop", None))
-        except (BrokenPipeError, EOFError, OSError) as e:
-            self.logger.warning(f"Could not send stop to {name}: {e}")
-        
-        self.processes[name].join()
-        self.logger.info(f"Stopped {name} subsystem.")
-        del self.processes[name]
-        del self.pipes[name]
+            self.logger.error((module_name.upper(), f"Error starting subsystem: {e}"))    
 
     def send(self, name, msg, args=None, log=True):
         if name not in self.pipes:
@@ -69,14 +54,19 @@ class ProcessManager:
         
         if args:
             self.pipes[name].send((msg, args))
+
+            if log:
+                self.logger.info(f"Sent instruction to {name}: {msg} with args {args}")
         else:
             self.pipes[name].send(msg)
 
-        if log:
-            if args:
-                self.logger.info(f"Sent instruction to {name}: {msg} with args {args}")
-            else:
+            if log:
                 self.logger.info(f"Sent instruction to {name}: {msg}")
+
+    def send_command(self, name, cmd, args=None):
+        if name not in self.pipes:
+            self.logger.warning(f"{name} is not running.")
+            return
 
     def receive(self, name, timeout=None):
         conn = self.pipes[name]
@@ -114,6 +104,23 @@ class ProcessManager:
             cmd, args = response
 
             return {"response": response, "command": cmd, "arguments": args}
+
+        return False
+    
+    def stop(self, name):
+        if name not in self.processes:
+            self.logger.warning(f"{name} is not running.")
+            return
+        
+        try:
+            self.pipes[name].send(("stop", None))
+        except (BrokenPipeError, EOFError, OSError) as e:
+            self.logger.warning(f"Could not send stop to {name}: {e}")
+        
+        self.processes[name].join()
+        self.logger.info(f"Stopped {name} subsystem.")
+        del self.processes[name]
+        del self.pipes[name]
 
     def shutdown(self):
         self.logger.info("Shutting down ProcessManager...")

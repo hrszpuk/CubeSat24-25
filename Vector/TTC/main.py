@@ -4,6 +4,7 @@ import asyncio
 import socket
 import websockets
 import json
+import time
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info, zip_folder, zip_file
@@ -147,7 +148,7 @@ class TTC:
 
     async def handle_message(self):
         message = await self.connection.recv()
-        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
+        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
         self.log(f"({self.last_command_received}) TT&C received: {message}")
         await self.process_command(message)
 
@@ -221,21 +222,21 @@ class TTC:
                 kp = arguments[0]
                 ki = arguments[1]
                 kd = arguments[2]
-                time = arguments[3]
+                t = arguments[3]
                 degree = arguments[4]
-                self.pipe.send(("test_wheel", [kp, ki, kd, time, degree]))
-
+                self.send_command("test_wheel", [kp, ki, kd, t, degree])
                 await self.send_message("Testing wheel...")
             case "stop_wheel":
-                self.pipe.send(("stop_wheel", []))
+                self.send_command("stop_wheel")
                 await self.send_message("Stopping wheel...")
             case "calibrate_sun_sensors":
-                self.pipe.send(("calibrate_sun_sensors", []))
+                self.send_command("calibrate_sun_sensors")
                 await self.send_message("Calibrating sun sensors...")
             case "imu":
                 initial_time = time.time()
+
                 while (time.time() - initial_time) < 30:
-                    self.pipe.send(("imu", []))
+                    self.send_command("imu")
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
@@ -309,7 +310,6 @@ class TTC:
 
                 break
             except Exception as err:
-                # Handle other general errors
                 self.log(f"[ERROR] {err}, retrying...")
             finally:
                 if zip_path and os.path.exists(zip_path):
@@ -353,7 +353,6 @@ class TTC:
 
                 break
             except Exception as err:
-                # Handle other general errors
                 self.log(f"[ERROR] {err}, retrying...")
             finally:
                 if zip_path and os.path.exists(zip_path):
