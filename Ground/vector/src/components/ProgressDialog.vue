@@ -1,7 +1,9 @@
 <script setup>
     import { inject, ref, watch } from 'vue';
+    import { useSocket } from '@/layout/composables/socket.js';
     import ProgressBar from 'primevue/progressbar';
 
+    const { getStatus } = useSocket();
     const dialogRef = inject("dialogRef");
     const value = ref(0);
     const total = dialogRef.value?.data.total;
@@ -17,11 +19,13 @@
 
     watch(progress, progress => {
         value.value = progress/total * 100;
-
-        if (progress/total * 100 === 100) {
-            dialogRef.value?.close();            
+        
+        if (value.value === 100) {
+            dialogRef.value?.close();
         }
     });
+    
+    watch(getStatus, () => dialogRef.value?.close());
 </script>
 
 <template>

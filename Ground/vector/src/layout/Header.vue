@@ -2,6 +2,7 @@
     import { useSocket } from '@/layout/composables/socket.js';
     import { useAudio } from '@/layout/composables/audio';
     import Button from 'primevue/button';
+    import FloatLabel from 'primevue/floatlabel';
     import InputText from 'primevue/inputtext';
     import InputNumber from 'primevue/inputnumber';
     import Toolbar from 'primevue/toolbar';
@@ -26,18 +27,26 @@
 
 <template>
     <header class="layout__header">
-        <div class="layout__header-logo">
+        <section class="layout__header-logo">
             <img src="/logo.png" alt="Vector logo">
             <span>Vector</span>
-        </div>
+        </section>
         <Toolbar class="layout__header-toolbar">
             <template #center>
-                <span class="mr-2">IP: <InputText v-model="connection.ip" type="text"></InputText></span>
-                <span class="mr-2">Port: <InputNumber v-model="connection.port" :useGrouping="false"></InputNumber></span>
-                <Button class="mr-2" :severity="getStatus() === 'CONNECTING'  ? 'primary' : getStatus() === 'OPEN' ? 'danger' : 'success'" :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="connectionButtonClick"></Button>
-                <Button v-if="getStatus() == 'OPEN'" severity="danger" label="Shutdown" @click="shutdownButtonClick"></Button>
+                <section class="flex gap-2">
+                    <FloatLabel variant="on">
+                        <InputText id="ip" v-model="connection.ip" type="text"></InputText>
+                        <label for="ip">IP</label>
+                    </FloatLabel>
+                    <FloatLabel variant="on">
+                        <InputNumber id="port" v-model="connection.port" :useGrouping="false"></InputNumber>
+                        <label for="port">Port</label>
+                    </FloatLabel>
+                    <Button :severity="getStatus() === 'CONNECTING'  ? 'primary' : getStatus() === 'OPEN' ? 'danger' : 'success'" :label="getStatus() === 'CLOSED' ? 'Connect' : getStatus() === 'OPEN' ? 'Disconnect' : 'Connecting...'" :loading="getStatus() === 'CONNECTING'" @click="connectionButtonClick"></Button>
+                    <Button v-if="getStatus() == 'OPEN'" severity="danger" label="Shutdown" @click="shutdownButtonClick"></Button>
+                </section>
             </template>
         </Toolbar>
-        Status: <Tag :severity="getStatus() === 'CONNECTING'  ? 'info' : getStatus() === 'OPEN' ? 'success' : 'danger'" :value="getStatus() === 'CONNECTING'  ? 'CONNECTING' : getStatus() === 'OPEN' ? 'ONLINE' : 'OFFLINE'"></Tag>
+        <span>Status: <Tag :severity="getStatus() === 'CONNECTING'  ? 'info' : getStatus() === 'OPEN' ? 'success' : 'danger'" :value="getStatus() === 'CONNECTING'  ? 'CONNECTING' : getStatus() === 'OPEN' ? 'ONLINE' : 'OFFLINE'"></Tag></span>
     </header>
 </template>
