@@ -123,6 +123,10 @@ float roundToTwoDecimalPlaces(float value) {
 
 void setup() {
   analogReadResolution(12); // Set ADC resolution to 12 bits
+  pinMode(BMS_thermistor_pin, INPUT);
+  pinMode(BMS_voltage_pin, INPUT);
+  pinMode(BMS_current_pin, INPUT);
+  
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, 20, 21);
 
