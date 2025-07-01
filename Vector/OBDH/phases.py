@@ -1,5 +1,6 @@
 from time import time
 from scipy import stats
+from enums import OBDHState, Phase, SubPhase
 
 def run_phase2(obdh, manager, logger, sequence):
     logger.info("Starting Phase 2")
@@ -43,7 +44,7 @@ def run_phase2(obdh, manager, logger, sequence):
 
     waiting_for_completion = True
     manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
-    while waiting_for_completion and obdh.phase == OBDH.Phase.SECOND:
+    while waiting_for_completion and obdh.phase == Phase.SECOND:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
 
@@ -79,7 +80,7 @@ def run_phase3a(obdh, manager, logger):
     distance_data_backup = {}
     read_target = False 
 
-    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.A:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.A:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -163,7 +164,7 @@ def run_phase3b(obdh, manager, logger):
     initial_time = None
     spin_data = {}
 
-    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.B:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.B:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -223,7 +224,7 @@ def run_phase3c(obdh, manager, logger):
 
     distance = 200
 
-    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.C and distance > 4:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.C and distance > 4:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]

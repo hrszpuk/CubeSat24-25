@@ -153,6 +153,7 @@ def identify_numbers_from_files(image_paths):
         numbers_orientations = {}  # Store orientations
 
         for image_path in image_paths:
+            print(f"Processing image: {image_path}")
             numbers, width_in_pixels = (get_numbers(image_path))
 
             for number in numbers:

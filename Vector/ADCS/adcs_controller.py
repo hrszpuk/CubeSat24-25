@@ -260,7 +260,9 @@ class AdcsController:
         initial_yaw = self.imu.get_current_yaw()
         target_yaw = initial_yaw
         pictures_taken = 0
-        while pictures_taken <= 18 or not self.current_reaction_wheel.stop_event.is_set():
+        timeout = 120
+        start_time = time.time()
+        while (pictures_taken <= 18 or not self.current_reaction_wheel.stop_event.is_set()) and (time.time() - start_time < timeout):
             self.current_reaction_wheel.activate_wheel_brushed_phase2(target_yaw) 
             yaw = self.imu.get_current_yaw()
             pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
@@ -279,15 +281,9 @@ class AdcsController:
         for i in range(len(sequence)):
             current_target = sequence[i]
             current_target_yaw = numbers[current_target]
-            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushless_phase2, args=(pipe, current_target_yaw))
-            rotation_thread.start()
-            time.sleep(20) # wait 10 seconds
+            self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw)
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
             pipe.send(("take_distance", {}))  # send to Payload to measure distance
-            self.stop_reaction_wheel()
-            rotation_thread.join()
-            self.current_reaction_wheel.stop_event.clear()
-
         
         pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
 
@@ -298,7 +294,8 @@ class AdcsController:
         # Start rotating at specific speed
         # if apriltag is detected, stop rotating and record pose of target
         # if not, continue rotating until a timeout is reached
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(10,))
+        current_yaw = self.get_current_yaw()
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(current_yaw - 360,))
         rotation_thread.start()
 
         target_found = False
@@ -339,7 +336,7 @@ class AdcsController:
                 pipe.send(("detect_apriltag", {}))
                 line, args = pipe.recv()
                 if line == "apriltag_detected":
-                    last_speed = self.current_reaction_wheel.get_current_speed()
+                    last_speed = self.current_reaction_wheel.get_current_speed(return_percentage=True)
                     target_found = True
                     break
             self.stop_reaction_wheel()
@@ -359,7 +356,7 @@ class AdcsController:
     def phase3_align_target(self, pipe, last_speed=0, break_on_target_aligned=True):
         # Rotate according to april tag rotation until the satellite is aligned with the target
         self.log("Aligning with target...")
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_to_align, args=(last_speed,))
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed_to_align, args=(last_speed,))
         rotation_thread.start()
 
         self.log("Alignment complete.")
@@ -411,6 +408,7 @@ class AdcsController:
         self.current_reaction_wheel.set_state("STANDBY")
         if not self.current_reaction_wheel.stop_event.is_set():
             self.current_reaction_wheel.stop_event.set()
+        self.current_reaction_wheel.stop_event.clear()
 
     def is_reaction_wheel_rotating(self):
         return self.current_reaction_wheel.get_state() == "ROTATING" or self.current_reaction_wheel.get_state() == "ALIGNING"

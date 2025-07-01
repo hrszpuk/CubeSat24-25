@@ -38,8 +38,9 @@ def start(pipe, log_queue):
             numbers = args.get("numbers", None)
             if sequence is None or numbers is None:
                 log_queue.put(("ADCS", "Error: Sequence or numbers not provided. Phase 2 Failed."))
-            degree_distances = adcs_controller.phase2_sequence_rotation(pipe, sequence, numbers)
-            pipe.send(("phase2_sequence_response", degree_distances))
+            else:
+                degree_distances = adcs_controller.phase2_sequence_rotation(pipe, sequence, numbers)
+                pipe.send(("phase2_sequence_response", degree_distances))
         elif line == "phase3_search_target":
             adcs_controller.phase3_search_target(pipe)
         elif line == "phase3_reacquire_target":
