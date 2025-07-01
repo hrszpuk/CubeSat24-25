@@ -11,6 +11,7 @@ class Dummy:
         self.thread = None
 
     def start(self):
+        self.stop_event.clear()
         self.thread = threading.Thread(target=self.func, daemon=True)
         self.thread.start()
         print("Dummy started")
