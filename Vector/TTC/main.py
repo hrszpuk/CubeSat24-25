@@ -78,13 +78,30 @@ class TTC:
                     case "get_state":
                         self.pipe.send(self.state)
                     case "log":
-                        asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), self.event_loop)
+                        if args["message"]:
+                            asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), self.event_loop)
+                        else:
+                            self.log("[ERROR] No log message provided!")
                     case "send_message":
-                        asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), self.event_loop)
+                        if args["message"]:
+                            asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), self.event_loop)
+                        else:
+                            self.log("[ERROR] No message provided!")
                     case "send_data":
-                        asyncio.run_coroutine_threadsafe(self.send_data(args["data"]), self.event_loop)
+                        if args["data"]:
+                            asyncio.run_coroutine_threadsafe(self.send_data(args["data"]), self.event_loop)
+                        else:
+                            self.log("[ERROR] No message provided!")
                     case "send_file":
-                        asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), self.event_loop)
+                        if args["path"]:
+                            asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), self.event_loop)
+                        else:
+                            self.log("[ERROR] No file path provided!")
+                    case "send_folder":
+                        if args["path"]:
+                            asyncio.run_coroutine_threadsafe(self.send_folder(args["path"]), self.event_loop)
+                        else:
+                            self.log("[ERROR] No folder path provided!")
                     case "health_check":
                         health = self.health_check()
                         self.pipe.send(health)
@@ -94,6 +111,9 @@ class TTC:
                         break
                     case _:
                         self.log(f"Invalid instruction received from OBDH: {command}")
+
+    def send_command(self, input, arguments=None):
+        self.pipe.send((input, arguments))
 
     async def start_server(self):
         try:
@@ -199,7 +219,7 @@ class TTC:
                 ki = arguments[1]
                 kd = arguments[2]
                 #time = arguments[3]
-                self.pipe.send(("test_wheel", [kp, ki, kd]))
+                self.send_command("test_wheel", [kp, ki, kd])
                 await self.send_message("Testing wheel...")
             case "start_phase":
                 if arguments:
@@ -207,14 +227,14 @@ class TTC:
 
                     match phase:
                         case 1:
-                            self.pipe.send(("start_phase", {"phase": phase}))
+                            self.send_command(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
                             sequence = arguments[1] if len(arguments) == 2 else None
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
-                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                self.send_command(("start_phase", {"phase": phase, "sequence": sequence_list}))
                                 await self.send_message(f"Starting phase {phase}...")
                             else:
                                 await self.send_error("No sequence provided!")
@@ -222,7 +242,7 @@ class TTC:
                             subphase = arguments[1] if len(arguments) == 2 else None
 
                             if subphase:
-                                self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
+                                self.send_command(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
                                 await self.send_error("No subphase provided!")
@@ -230,9 +250,11 @@ class TTC:
                             await self.send_error(f"{phase} is not a valid phase!")
                 else:
                     await self.send_error("No phase provided!")
+            case "payload_health_check" | "payload_take_picture" | "payload_get_state" | "payload_is_ready" | "payload_get_numbers" | "payload_take_distance" | "payload_detect_apriltag" | "payload_restart":
+                self.send_command(command)
             case "shutdown":
                 await self.send_message("Shutting down...")
-                self.pipe.send("shutdown")
+                self.send_command("shutdown")
             case _:
                 self.log(f"[ERROR] Invalid command received: {command}")
                 await self.send_error(f"{command} is not a valid command!")

@@ -1,6 +1,6 @@
+import importlib
 import multiprocessing as mp
 from OBDH.logger import Logger
-import importlib
 
 class ProcessManager:
     def __init__(self, logger):
@@ -8,15 +8,18 @@ class ProcessManager:
         self.processes = {}
         self.pipes = {}
         self.log_queue = mp.Queue()
-        self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue,))
+        self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue))
         self.log_listener.start()
 
     def log_listener_process(self, log_queue):
         logger = Logger(log_to_console=True).get_logger()
+
         while True:
             name, msg = log_queue.get()
+
             if msg == "STOP_LOG":
                 break
+
             logger.info(f"[{name}] {msg}")
 
     def _run_subsystem(self, module_name, pipe, log_queue):
@@ -48,28 +51,32 @@ class ProcessManager:
         if name not in self.processes:
             self.logger.warning(f"{name} is not running.")
             return
+        
         try:
-            print("TEST", name)
-            self.pipes[name].send(("stop", {}))
+            self.pipes[name].send(("stop", None))
         except (BrokenPipeError, EOFError, OSError) as e:
             self.logger.warning(f"Could not send stop to {name}: {e}")
+        
         self.processes[name].join()
         self.logger.info(f"Stopped {name} subsystem.")
         del self.processes[name]
         del self.pipes[name]
 
-    def send(self, name, msg, args={}, log=True):
+    def send(self, name, msg, args=None, log=True):
         if name not in self.pipes:
             self.logger.warning(f"{name} is not running.")
             return
         
-        self.pipes[name].send((msg, args))
+        if args:
+            self.pipes[name].send((msg, args))
+        else:
+            self.pipes[name].send(msg)
 
         if log:
             if args:
-                self.logger.info(f"Sent message to {name}: {msg} with args {args}")
+                self.logger.info(f"Sent instruction to {name}: {msg} with args {args}")
             else:
-                self.logger.info(f"Sent message to {name}: {msg}")
+                self.logger.info(f"Sent instruction to {name}: {msg}")
 
     def receive(self, name, timeout=None):
         conn = self.pipes[name]
@@ -80,8 +87,8 @@ class ProcessManager:
                     result = conn.recv()
 
                     if isinstance(result, tuple) and len(result) == 2:
-                        msg, args = result
-                        return {"response": result, "command": msg, "arguments": args}
+                        cmd, args = result
+                        return {"response": result, "command": cmd, "arguments": args}
                     else:
                         return {"response": result}
                 else:
@@ -91,8 +98,8 @@ class ProcessManager:
                 result = conn.recv()
                 
                 if isinstance(result, tuple) and len(result) == 2:
-                    msg, args = result
-                    return {"response": result, "command": msg, "arguments": args}
+                    cmd, args = result
+                    return {"response": result, "command": cmd, "arguments": args}
                 else:
                     return {"response": result}
         except (EOFError, OSError) as e:
@@ -110,6 +117,7 @@ class ProcessManager:
 
     def shutdown(self):
         self.logger.info("Shutting down ProcessManager...")
+
         for name in list(self.processes.keys()):
             self.stop(name)
 
