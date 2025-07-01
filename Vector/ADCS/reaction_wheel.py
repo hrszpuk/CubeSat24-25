@@ -128,79 +128,8 @@ class ReactionWheel:
         
     def normalize_angle(self, angle):
         return (angle % 360) - 180  # Ensures angle is within [-180, 180)
-        
-    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.2, kd=0.2, t=60, tolerance=5):
-        """
-        Activate the reaction wheel to adjust the satellite's orientation.
-        Parameters: 
-            - setpoint: Target yaw angle (degrees/radians).
-        """
-        # Initialize PID variables
-        previous_error = 0
-        integral = 0
-        dt = 0.1  # Time step in seconds
-        omega_wheel = 0  # Initialize angular velocity
 
-        print(f"Initial Yaw: {self.initial_yaw}")
-
-        initial_setpoint = setpoint % 360
-        saturated_attempts = 0
-
-        self.set_state("ROTATING")  # Set state to rotating
-
-        while self.get_state() == "ROTATING" or not self.stop_event.is_set():
-            pv = self.imu.get_current_yaw()
-
-            if setpoint > pv + 360 or setpoint < pv - 360:
-                print("Setpoint is too far from current yaw, adjusting to next turn.")
-                turns = pv // 360
-                setpoint = turns * 360 + initial_setpoint
-
-            # Get current yaw and compute PID control
-            control, error, integral = self.pid_controller(
-                setpoint, kp, ki, kd, previous_error, integral, dt
-            )
-
-            # Calculate new satellite and wheel angles
-            new_pv = pv + control * dt
-            angle_delta_sat = new_pv - pv
-            angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
-
-            # Update angular velocities
-            new_omega_wheel = angle_delta_wheel / dt
-            alpha_wheel = (new_omega_wheel - omega_wheel) / dt
-            omega_wheel = -new_omega_wheel
-
-            rpm = omega_wheel * 60 / (2 * math.pi)
-
-            rpm = np.clip(rpm, -250, 250)  # Cap RPM to a reasonable range
-
-            duty_cycle = rpm / 2.5  # Assuming 250 RPM is 100% duty cycle
-            
-            # Ensure duty cycle stays within 0-100%
-            duty_cycle = np.clip(duty_cycle, -100, 100)
-            
-            # Update motor speed
-            self.motor.set_speed(duty_cycle)
-            last_wheel_percentage = duty_cycle
-
-            previous_error = error
-
-            if abs(self.imu.get_current_angular_velocity()) < 2 and abs(pv - setpoint) > tolerance and abs(duty_cycle) == 100 :
-                saturated_attempts += 1
-            if saturated_attempts > 3:
-                print("WHEEL SATURATION")
-                setpoint = setpoint - 360 * duty_cycle / 100
-                saturated_attempts = 0  # Reset after handling saturation
-
-            
-            # Logging
-            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, State: {self.get_state()}")
-            
-            time.sleep(dt)
-        self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
-
-    def activate_wheel_brushed_phase2(self, setpoint, kp=2, ki=0.2, kd=0.2, t=60, tolerance=10):
+    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.2, kd=0.2, t=60, tolerance=10, break_on_target=True):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -269,7 +198,7 @@ class ReactionWheel:
                 print("WHEEL SATURATION")
                 setpoint = setpoint - 360 * duty_cycle / 100
                 saturated_attempts = 0  # Reset after handling saturation
-            if target_achieved_attempts > 2:
+            if target_achieved_attempts > 2 and break_on_target:
                 print("Target achieved, stopping wheel.")
                 break
 
