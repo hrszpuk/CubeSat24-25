@@ -95,17 +95,6 @@ class ProcessManager:
         except (EOFError, OSError) as e:
             self.logger.error(f"Error receiving from {name}: {e}")
             return None
-        
-    def poll(self, name):
-        conn = self.pipes[name]
-
-        if conn.poll():
-            response = conn.recv()
-            cmd, args = response
-
-            return {"response": response, "command": cmd, "arguments": args}
-
-        return False
     
     def stop(self, name):
         if name not in self.processes:

@@ -124,11 +124,13 @@ class TestTTC:
                             self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-                            sequence = arguments[1] if len(arguments) == 2 else None
+                            if len(arguments) > 2:
+                                sequence = ','.join(arguments[1:])
+                            else:
+                                sequence = arguments[1] if len(arguments) == 2 else None
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
-                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
                                 await self.send_message(f"Starting phase {phase}...")
                             else:
                                 await self.send_error("No sequence provided!")

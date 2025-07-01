@@ -8,7 +8,6 @@ import time
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info, zip_folder, zip_file
-import time
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -213,11 +212,27 @@ class TTC:
                     path = arguments[0]
 
                     if os.path.exists(path):
-                        await self.send_file(path)
+                        if os.path.isfile(path):
+                            await self.send_file(path)
+                        else:
+                            await self.send_error(f"{path} is not a file!")
                     else:
                         await self.send_error(f"{path} does not exist!")
                 else:
                     await self.send_error("No file path provided!")
+            case "get_folder":
+                if arguments:
+                    path = arguments[0]
+
+                    if os.path.exists(path):
+                        if os.path.isdir(path):
+                            await self.send_folder(path)
+                        else:
+                            await self.send_error(f"{path} is not a folder!")
+                    else:
+                        await self.send_error(f"{path} does not exist!")
+                else:
+                    await self.send_error("No folder path provided!")
             case "test_wheel":
                 kp = arguments[0]
                 ki = arguments[1]
@@ -243,16 +258,17 @@ class TTC:
 
                     match phase:
                         case 1:
-                            self.send_command(("start_phase", {"phase": phase}))
-                            self.pipe.send(("start_phase", {"phase": phase}))
+                            self.send_command("start_phase", {"phase": phase})
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-                            sequence = arguments[1] if len(arguments) >= 2 else None
+                            if len(arguments) > 2:
+                                sequence = ','.join(arguments[1:])
+                            else:
+                                sequence = arguments[1] if len(arguments) == 2 else None
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
-                                self.send_command(("start_phase", {"phase": phase, "sequence": sequence_list}))
-                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                self.send_command("start_phase", {"phase": phase, "sequence": sequence_list})
                                 await self.send_message(f"Starting phase {phase}...")
                             else:
                                 await self.send_error("No sequence provided!")
@@ -260,7 +276,7 @@ class TTC:
                             subphase = arguments[1] if len(arguments) == 2 else None
 
                             if subphase:
-                                self.send_command(("start_phase", {"phase": phase, "subphase": subphase}))
+                                self.send_command("start_phase", {"phase": phase, "subphase": subphase})
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
                                 await self.send_error("No subphase provided!")
@@ -284,14 +300,6 @@ class TTC:
             self.log(f"Sending file {path} to Ground... (Attempt {retries + 1})")
 
             try:
-                if not os.path.exists(path):
-                    self.log(f"[ERROR] {path} does not exist!")
-                    break
-
-                if not os.path.isfile(path):
-                    self.log(f"[ERROR] {path} is not a file!")
-                    break
-
                 zip_path = zip_file(path)
                 zip_file_size = os.path.getsize(zip_path)
                 self.log("Sending file metadata...")
@@ -327,14 +335,6 @@ class TTC:
             self.log(f"Sending folder {path} to Ground... (Attempt {retries + 1})")
 
             try:
-                if not os.path.exists(path):
-                    self.log(f"[ERROR] {path} does not exist!")
-                    break
-
-                if not os.path.isdir(path):
-                    self.log(f"[ERROR] {path} is not a folder!")
-                    break
-
                 zip_path = zip_folder(path)
                 zip_file_size = os.path.getsize(zip_path)
                 self.log("Sending folder metadata...")
