@@ -38,7 +38,7 @@ class OBDH:
     def handle_input(self):
         while True:
             if self.state == OBDHState.READY:
-                input = self.manager.poll("TTC")
+                input = self.manager.receive("TTC")
                 self.logger.info(f"OBDH received: {input}")
                 cmd = input["command"]
                 args = input["arguments"]

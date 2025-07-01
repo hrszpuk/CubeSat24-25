@@ -26,4 +26,3 @@ def set_speed(motor, speed_percentage):
 if __name__ == "__main__":
     motor = PWMOutputDevice(PIN, frequency=PWM_FREQUENCY)
     motor.value = us_to_duty_cycle_rpi(MIN_PULSE_WIDTH_US)
->>>>>>> f4faa05bff3c63eb1cf9c5385e6ff210737e3bab

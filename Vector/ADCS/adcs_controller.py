@@ -33,7 +33,7 @@ class AdcsController:
 
         #brushless_thread = threading.Thread(target=self.main_reaction_wheel.brushless_compensation)
         #brushless_thread.start()
-        self.calibrate_orientation_system()
+        #self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
         health_check_text = ""

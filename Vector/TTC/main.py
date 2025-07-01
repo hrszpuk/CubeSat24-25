@@ -6,12 +6,8 @@ import websockets
 import json
 from enums import TTCState, MessageType
 from datetime import datetime
-<<<<<<< HEAD
-from TTC.utils import get_connection_info
+from TTC.utils import get_connection_info, zip_folder, zip_file
 import time
-=======
-from TTC.utils import get_connection_info, zip_file, zip_folder
->>>>>>> f4faa05bff3c63eb1cf9c5385e6ff210737e3bab
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -225,14 +221,10 @@ class TTC:
                 kp = arguments[0]
                 ki = arguments[1]
                 kd = arguments[2]
-<<<<<<< HEAD
                 time = arguments[3]
                 degree = arguments[4]
                 self.pipe.send(("test_wheel", [kp, ki, kd, time, degree]))
-=======
-                #time = arguments[3]
-                self.send_command("test_wheel", [kp, ki, kd])
->>>>>>> f4faa05bff3c63eb1cf9c5385e6ff210737e3bab
+
                 await self.send_message("Testing wheel...")
             case "stop_wheel":
                 self.pipe.send(("stop_wheel", []))
@@ -251,13 +243,15 @@ class TTC:
                     match phase:
                         case 1:
                             self.send_command(("start_phase", {"phase": phase}))
+                            self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-                            sequence = arguments[1] if len(arguments) == 2 else None
+                            sequence = arguments[1] if len(arguments) >= 2 else None
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
                                 self.send_command(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
                                 await self.send_message(f"Starting phase {phase}...")
                             else:
                                 await self.send_error("No sequence provided!")

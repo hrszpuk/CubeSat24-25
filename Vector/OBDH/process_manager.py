@@ -8,7 +8,7 @@ class ProcessManager:
         self.processes = {}
         self.pipes = {}
         self.log_queue = mp.Queue()
-        self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue))
+        self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue,))
         self.log_listener.start()
 
     def log_listener_process(self, log_queue):
