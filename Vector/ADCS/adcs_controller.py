@@ -79,13 +79,13 @@ class AdcsController:
             gyroscope_text = "No data available"
             errors.append("Gyroscope data not available")
         else:
-            gyroscope_text = f"X: {gyroscope_data[0]} º/s, Y: {gyroscope_data[1]} º/s, Z: {gyroscope_data[2]} º/s"
+            gyroscope_text = f"X: {gyroscope_data[0]} °/s, Y: {gyroscope_data[1]} °/s, Z: {gyroscope_data[2]} °/s"
 
         if not orientation_data:
             orientation_text = "No data available"
             errors.append("Orientation data not available")
         else:
-            orientation_text = f"X: {orientation_data[0]} º, Y: {orientation_data[1]} º, Z: {orientation_data[2]} º"
+            orientation_text = f"X: {orientation_data[0]} °, Y: {orientation_data[1]} °, Z: {orientation_data[2]} °"
 
         health_check_text += f"Gyroscope: {gyroscope_text}\n"
         health_check_text += f"Orientation: {orientation_text}\n"
@@ -115,13 +115,13 @@ class AdcsController:
             self.log("Battery temperature not available.\n")
         else:
             if temp > 75:
-                health_check_text += f"Battery Temperature: {temp} ºC (CRITICAL)\n"
+                health_check_text += f"Battery Temperature: {temp} °C (CRITICAL)\n"
                 self.log("Battery temperature is critical!")
             elif temp > 65:
-                health_check_text += f"Battery Temperature: {temp} ºC (WARNING)\n"
+                health_check_text += f"Battery Temperature: {temp} °C (WARNING)\n"
                 self.log("Battery temperature is high.")
             else:
-                health_check_text += f"Battery Temperature: {temp} ºC (NOMINAL)\n"
+                health_check_text += f"Battery Temperature: {temp} °C (NOMINAL)\n"
         return health_check_text
 
     def calibrate_orientation_system(self):

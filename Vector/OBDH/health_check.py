@@ -17,7 +17,7 @@ def read_all_errors(log_path="vector.log"):
 def construct_file(ttc_health_check, adcs_health_check, payload_health_check, power_health_check):
     health_check_text = "--- Vector CubeSat Health Check Report ---\n"
     health_check_text += "Date: " + time.strftime("%d-%m-%Y") + "\n"
-    health_check_text += "Time: " + time.strftime("%H:%M:%S", time.gmtime()) + " GMT\n"
+    health_check_text += "Time: " + time.strftime("%H:%M", time.gmtime()) + " GMT\n"
 
     # Power Subsystem
     health_check_text += ("\n--- Power Subsystem ---\n")
@@ -35,13 +35,13 @@ def construct_file(ttc_health_check, adcs_health_check, payload_health_check, po
     health_check_text += ("\n--- Thermal Subsystem ---\n")
 
     if cpu.temperature > 80:
-        health_check_text += f"Internal Temperature: {cpu.temperature:.2f}°C (CRITICAL)\n"
+        health_check_text += f"Internal Temperature: {cpu.temperature:.2f} °C (CRITICAL)\n"
         health_check_text += "Status: CRITICAL - OVERHEATING\n"
     elif cpu.temperature > 70:
-        health_check_text += f"Internal Temperature: {cpu.temperature:.2f}°C (WARNING)\n"
+        health_check_text += f"Internal Temperature: {cpu.temperature:.2f} °C (WARNING)\n"
         health_check_text += "Status: WARNING - HIGH TEMPERATURE\n"
     else:
-        health_check_text += f"Internal Temperature: {cpu.temperature:.2f}°C (NOMINAL)\n"
+        health_check_text += f"Internal Temperature: {cpu.temperature:.2f} °C (NOMINAL)\n"
         health_check_text += "Status: OK\n"
 
     health_check_text += "\n"
