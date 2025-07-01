@@ -1,24 +1,25 @@
 <script setup>
     import { onMounted, onBeforeUnmount, reactive, ref, watch, markRaw } from 'vue';
     import { useDateFormat, useNow } from '@vueuse/core';
+    import { useAudio } from '@/layout/composables/audio.js';
     import { useDialog } from 'primevue/usedialog';
     import { useSocket } from '@/layout/composables/socket.js';
     import { useToast } from '@/layout/composables/toast.js';
-    import { useAudio } from '@/layout/composables/audio.js';
     import ArgumentsDialog from '@/components/ArgumentsDialog.vue';
     import DialogFooter from '@/components/DialogFooter.vue';
     import Button from 'primevue/button';
     import Card from 'primevue/card';
+    import ProgressDialog from '@/components/ProgressDialog.vue';
     import ScrollPanel from 'primevue/scrollpanel';
     import SplitButton from 'primevue/splitbutton';
     import Terminal from 'primevue/terminal';
     import TerminalService from 'primevue/terminalservice';
     import Toolbar from 'primevue/toolbar';
     
-    const { getStatus, establishConnection, sendMessage, message, dropConnection } = useSocket();
+    const { getStatus, establishConnection, sendMessage, data, dropConnection } = useSocket();
+    const { playLogSfx } = useAudio();
     const dialog = useDialog();
     const toast = useToast();
-    const {playLogSfx} = useAudio();
     const dateToday = useDateFormat(useNow(), "DD/MM/YYYY");
     const timeNow = useDateFormat(useNow(), "HH:mm:ss");
     const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
@@ -29,52 +30,8 @@
         size: null,
         name: null,
     });
-    const fileData = ref([]);    
-    
-    watch(
-        message,
-        message => {
-            if (message !== "pong") {
-                let obj = JSON.parse(message);            
-                
-                switch(obj.type) {
-                    case "log":
-                        playLogSfx();
-                        logs.value.unshift(obj.data);
-                        break;
-                    case "data":
-                        cubeSatData.value.unshift(obj.data);
-                        break;
-                    case "message":
-                        if (obj.data.localeCompare("File send complete") === 0) {
-                            let fileBlob = new Blob(fileData.value);
-                            let fileURL = URL.createObjectURL(fileBlob);
-                            const elem = document.createElement("a");
-                            elem.href = fileURL;
-                            elem.download = fileMetadata.name;
-                            document.body.appendChild(elem);
-                            elem.click();
-                            document.body.removeChild(elem);
-                            URL.revokeObjectURL(fileURL);
-                        }
-
-                        messages.value.unshift(obj);
-                        toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})    
-                        break;
-                    case "filemetadata":
-                        fileMetadata.size = obj.data.size;
-                        fileMetadata.name = obj.data.name;
-                        break;
-                    case "filedata":
-                        let data = decodeURIComponent(atob(obj.data).split('').map(function(c) {
-                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                        }).join(''));
-                        fileData.value.push(data);
-                        break;
-                }
-            }
-        }
-    );
+    const fileData = ref([]);
+    const receivedBytes = ref(0);
 
     function handleCommand(message) {
         let response;
@@ -122,13 +79,75 @@
         });
     }
 
-    onMounted(() => {
-        TerminalService.on("command", handleCommand)
-    })
+    onMounted(() => TerminalService.on("command", handleCommand));
 
-    onBeforeUnmount(() => {
-        TerminalService.off("command", handleCommand)
-    })
+    watch(
+        data,
+        data => {
+            if (typeof data === "string") {
+                if (!data.localeCompare("File transfer started")) {
+                    fileData.value = [];
+                    receivedBytes.value = 0;
+                    dialog.open(ProgressDialog, {
+                        props: {header: "Receiving File from CubeSat...", modal: true, closable: false},
+                        data: {
+                            progress: receivedBytes,
+                            total: fileMetadata.size
+                        }
+                    });
+                } else if (!data.localeCompare("File transfer complete")) {
+                    let totalLength = fileData.value.reduce((acc, chunk) => acc + chunk.byteLength, 0);
+                    let data = new Uint8Array(totalLength);
+                    let offset = 0;
+
+                    for (let chunk of fileData.value) {
+                        data.set(new Uint8Array(chunk), offset);
+                        offset += chunk.byteLength;
+                    }
+
+                    let file = new File([fileData.value], fileMetadata.name, {type: "application/zip"});
+                    let fileURL = URL.createObjectURL(file);
+                    const elem = document.createElement("a");
+                    elem.href = fileURL;
+                    elem.download = fileMetadata.name;
+                    document.body.appendChild(elem);
+                    elem.click();
+                    document.body.removeChild(elem);
+                    URL.revokeObjectURL(fileURL);
+                    toast.add({severity: "info", summary: "File from CubeSat", detail: `Received file ${fileMetadata.name}`, life: 3000})
+                } else if (data.localeCompare("pong")) {
+                    let obj = JSON.parse(data);
+                    
+                    switch(obj.type) {
+                        case "log":
+                            playLogSfx();
+                            logs.value.unshift(obj.data);
+                            break;
+                        case "data":
+                            cubeSatData.value.unshift(obj.data);
+                            break;
+                        case "message":
+                            messages.value.unshift(obj);
+                            toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
+                            break;
+                        case "filemetadata":
+                            fileMetadata.size = obj.data.size;
+                            fileMetadata.name = obj.data.name;
+                            break;
+                    }
+                }
+            } else {
+                if (data instanceof Blob) {
+                    data.arrayBuffer().then(chunk => {
+                        fileData.value.push(chunk);
+                        receivedBytes.value += chunk.byteLength;
+                    });
+                }
+            }
+        }
+    );
+
+    onBeforeUnmount(() => TerminalService.off("command", handleCommand));
 </script>
 
 <template>    

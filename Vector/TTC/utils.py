@@ -1,5 +1,17 @@
+import os
+import tempfile
+import zipfile
 import re
 import subprocess
+
+def zip_file(file_path):    
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            zip_path = tmp.name
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.write(file_path, os.path.basename(file_path))
+
+    return zip_path
 
 def get_connection_info(interface="wlan0"):
     try:

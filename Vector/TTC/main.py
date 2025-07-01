@@ -4,10 +4,9 @@ import asyncio
 import socket
 import websockets
 import json
-import base64
 from enums import TTCState, MessageType
 from datetime import datetime
-from TTC.utils import get_connection_info
+from TTC.utils import get_connection_info, zip_file
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -168,16 +167,13 @@ class TTC:
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
+
                     match phase:
                         case 1:
                             self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-<<<<<<< HEAD
-                            sequence = arguments[1] if len(arguments) >= 2 else None
-=======
                             sequence = arguments[1] if len(arguments) == 2 else None
->>>>>>> 5e271578ff6ccfa71012798bdd0339fd5079c514
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
@@ -215,20 +211,21 @@ class TTC:
                     self.log(f"[ERROR] {file_path} does not exist!")
                     break
 
-                file_base_name = os.path.basename(file_path)
-                file_size = os.path.getsize(file_path)
+                zip_path = zip_file(file_path)
+                zip_file_size = os.path.getsize(zip_path)
                 self.log("Sending file metadata...")
-                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": file_size, "name": file_base_name}}))
+                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(file_path)}.zip"}}))
                 self.log("Sent file metadata")
 
-                with open(file_path, "rb") as f:
+                with open(zip_path, "rb") as f:
                     self.log("Sending file data...")
+                    await self.connection.send("File transfer started")
 
                     while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.FILEDATA.name.lower(), "data": base64.b64encode(chunk).decode("ascii")}))
+                        await self.connection.send(chunk)
 
-                    await self.send_message("File send complete")
                     self.log("Sent file data")
+                    await self.connection.send("File transfer complete")
 
                 break                
             except OSError as err:
@@ -243,6 +240,9 @@ class TTC:
             except Exception as err:
                 # Handle other general errors
                 self.log(f"[ERROR] {err}, retrying...")
+            finally:
+                if zip_path and os.path.exists(zip_path):
+                    os.unlink(zip_path)
 
             retries += 1
 

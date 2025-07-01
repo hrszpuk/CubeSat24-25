@@ -2,8 +2,8 @@ import os
 import socket
 import websockets
 import json
-import base64
 from datetime import datetime
+from TTC.utils import zip_file
 
 class TestTTC:
     def __init__(self, event_loop, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -101,7 +101,6 @@ class TestTTC:
             case "get_file":
                 if arguments:
                     path = arguments[0]
-                    await self.send_message(f"Sending file {path}...")
                     await self.send_file(path)
                 else:
                     await self.send_message("No file path provided!")
@@ -110,15 +109,25 @@ class TestTTC:
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
-                    subphase = arguments[1] if len(arguments) == 2 else None
                     
                     match phase:
-                        case 1 | 2:
-                            self.pipe.send(msg)
+                        case 1:
+                            self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
+                        case 2:
+                            sequence = arguments[1] if len(arguments) == 2 else None
+
+                            if sequence:
+                                sequence_list = [int(number) for number in sequence.split(",")]
+                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                await self.send_message(f"Starting phase {phase}...")
+                            else:
+                                await self.send_message("No sequence provided!")
                         case 3:
+                            subphase = arguments[1] if len(arguments) == 2 else None
+
                             if subphase:
-                                self.pipe.send(msg)
+                                self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
                                 await self.send_message("No subphase provided!")
@@ -143,20 +152,21 @@ class TestTTC:
                     self.log(f"[ERROR] {file_path} does not exist!")
                     break
 
-                file_base_name = os.path.basename(file_path)
-                file_size = os.path.getsize(file_path)
+                zip_path = zip_file(file_path)
+                zip_file_size = os.path.getsize(zip_path)
                 self.log("Sending file metadata...")
-                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "filemetadata", "data": {"size": file_size, "name": file_base_name}}))
+                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "filemetadata", "data": {"size": zip_file_size, "name": f"{os.path.basename(file_path)}.zip"}}))
                 self.log("Sent file metadata")
 
-                with open(file_path, "rb") as f:
+                with open(zip_path, "rb") as f:
                     self.log("Sending file data...")
+                    await self.connection.send("File transfer started")
 
                     while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "filedata", "data": base64.b64encode(chunk).decode("ascii")}))
+                        await self.connection.send(chunk)
 
-                    await self.send_message("File send complete")
                     self.log("Sent file data")
+                    await self.connection.send("File transfer complete")
 
                 break                
             except OSError as err:
@@ -171,6 +181,9 @@ class TestTTC:
             except Exception as err:
                 # Handle other general errors
                 self.log(f"[ERROR] {err}, retrying...")
+            finally:
+                if zip_path and os.path.exists(zip_path):
+                    os.unlink(zip_path)
 
             retries += 1
 

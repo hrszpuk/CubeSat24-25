@@ -39,13 +39,18 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
         toast.add({severity: "error", summary: "WebSocket Error", detail: `Error connecting to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },
     onMessage(ws, event) {
-        // playMessageSfx()
-        let obj = JSON.parse(event.data)
-        
-        if (obj.type.localeCompare("message") === 0) {
-            console.log(`Message from CubeSat: ${obj.data}`);
+        if (typeof event.data === "string") {
+            try {
+                let obj = JSON.parse(event.data);
+                
+                playMessageSfx()
+                console.log(`Message from CubeSat: ${obj.data}`);
+            } catch(err) {
+                console.log(`Message from CubeSat: ${event.data}`);
+            }
+        } else if (event.data instanceof Blob) {
+            console.log(`Received data from CubeSat: ${event.data}`);
         }
-
     }
 });
 
@@ -77,5 +82,5 @@ export function useSocket() {
         close()
     }
 
-    return {connection, getStatus, establishConnection, sendMessage, message: data, dropConnection}
+    return {connection, getStatus, establishConnection, sendMessage, data, dropConnection}
 }
