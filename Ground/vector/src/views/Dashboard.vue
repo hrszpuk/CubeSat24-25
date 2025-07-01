@@ -96,17 +96,8 @@
                         }
                     });
                 } else if (!data.localeCompare("File transfer complete")) {
-                    let totalLength = fileData.value.reduce((acc, chunk) => acc + chunk.byteLength, 0);
-                    let data = new Uint8Array(totalLength);
-                    let offset = 0;
-
-                    for (let chunk of fileData.value) {
-                        data.set(new Uint8Array(chunk), offset);
-                        offset += chunk.byteLength;
-                    }
-
-                    let file = new File([fileData.value], fileMetadata.name, {type: "application/zip"});
-                    let fileURL = URL.createObjectURL(file);
+                    const file = new File(fileData.value, fileMetadata.name, {type: "application/zip"});
+                    const fileURL = URL.createObjectURL(file);
                     const elem = document.createElement("a");
                     elem.href = fileURL;
                     elem.download = fileMetadata.name;
@@ -138,10 +129,8 @@
                 }
             } else {
                 if (data instanceof Blob) {
-                    data.arrayBuffer().then(chunk => {
-                        fileData.value.push(chunk);
-                        receivedBytes.value += chunk.byteLength;
-                    });
+                    fileData.value.push(data);
+                    receivedBytes.value += data.size;
                 }
             }
         }

@@ -5,13 +5,11 @@ import { useAudio } from './audio.js';
 
 const toast = useToast();
 const {playConnectSfx, playErrorSfx, playMessageSfx, playDisconnectSfx} = useAudio();
-
 const connection = reactive({
     ip: "172.20.10.9",
     port: 8000, 
     url: "ws://172.20.10.9:8000"
 });
-
 const { ws, status, data, send, open, close } = useWebSocket(computed(() => connection.url), {
     immediate: false,
     autoConnect: false,
@@ -43,10 +41,15 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
             try {
                 let obj = JSON.parse(event.data);
                 
-                playMessageSfx()
-                console.log(`Message from CubeSat: ${obj.data}`);
+                switch(obj.type) {
+                    case "message":
+                        playMessageSfx()
+                        console.log(`Message from CubeSat: ${obj.data}`);
+                        break;
+                }
             } catch(err) {
                 console.log(`Message from CubeSat: ${event.data}`);
+                console.log(event.data);
             }
         } else if (event.data instanceof Blob) {
             console.log(`Received data from CubeSat: ${event.data}`);
