@@ -147,8 +147,8 @@ class AdcsController:
         # Initialize the four sun sensors
         self.sun_sensors = [
             SunSensor(id=0, i2c_address=0x23, bus=1),
-            SunSensor(id=2, i2c_address=0x5c, bus=1),
             SunSensor(id=1, i2c_address=0x23, bus=3),
+            SunSensor(id=2, i2c_address=0x5c, bus=1),
         ]
         
     def get_sun_sensors_status(self):
@@ -409,7 +409,8 @@ class AdcsController:
 
     def stop_reaction_wheel(self):
         self.current_reaction_wheel.set_state("STANDBY")
-        self.current_reaction_wheel.stop_event.set()
+        if not self.current_reaction_wheel.stop_event.is_set():
+            self.current_reaction_wheel.stop_event.set()
 
     def is_reaction_wheel_rotating(self):
         return self.current_reaction_wheel.get_state() == "ROTATING" or self.current_reaction_wheel.get_state() == "ALIGNING"

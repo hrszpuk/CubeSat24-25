@@ -269,7 +269,7 @@ class ReactionWheel:
                 print("WHEEL SATURATION")
                 setpoint = setpoint - 360 * duty_cycle / 100
                 saturated_attempts = 0  # Reset after handling saturation
-            if target_achieved_attempts > 3:
+            if target_achieved_attempts > 2:
                 print("Target achieved, stopping wheel.")
                 break
 
