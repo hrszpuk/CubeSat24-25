@@ -9,9 +9,14 @@ def start(pipe, log_queue):
     running = True
     while running:
         line, args = pipe.recv()
-        log_queue.put(("ADCS", f"Received command: {line} with args: {args}"))
         if line == "health_check":
             variable = adcs_controller.health_check()
+            pipe.send(variable)
+        elif line == "test_wheel":
+            kp = args["kp"]
+            ki = args["ki"]
+            kd = args["kd"]
+            variable = adcs_controller.test_reaction_wheel(kp, ki, kd, t=60)
             pipe.send(variable)
         elif line == "eps_health_check":
             variable = adcs_controller.get_eps_health_check()
@@ -24,7 +29,7 @@ def start(pipe, log_queue):
             pipe.send(variable)
         elif line == "phase2_rotate":
             adcs_controller.phase2_rotate(pipe)
-            pipe.send("rotation_complete")
+            pipe.send(("rotation_complete", None))
         elif line == "phase2_sequence":
             sequence = args.get("sequence", None)
             numbers = args.get("numbers", None)

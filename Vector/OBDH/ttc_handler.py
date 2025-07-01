@@ -12,4 +12,3 @@ class TTCHandler(logging.Handler):
             self.pipe_conn.send(("log", {"message": s}))
         except Exception:
             self.handleError(record)
-

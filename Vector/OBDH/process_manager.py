@@ -35,16 +35,21 @@ class ProcessManager:
         
         parent_conn, child_conn = mp.Pipe()
         proc = mp.Process(target=self._run_subsystem, args=(module_name, child_conn, self.log_queue), name=name)
-        proc.start()
-        self.processes[name] = proc
-        self.pipes[name] = parent_conn
-        self.logger.info(f"Started {name} subsystem.")
+
+        try:
+            proc.start()
+            self.processes[name] = proc
+            self.pipes[name] = parent_conn
+            self.logger.info(f"Started {name} subsystem.")
+        except Exception as e:
+            self.logger.error((module_name.upper(), f"Error starting subsystem: {e}"))
 
     def stop(self, name):
         if name not in self.processes:
             self.logger.warning(f"{name} is not running.")
             return
         try:
+            print("TEST", name)
             self.pipes[name].send(("stop", {}))
         except (BrokenPipeError, EOFError, OSError) as e:
             self.logger.warning(f"Could not send stop to {name}: {e}")
@@ -81,7 +86,7 @@ class ProcessManager:
                         return {"response": result}
                 else:
                     self.logger.warning(f"Timeout waiting for response from {name}.")
-                    return {"response": "Timed out waiting for response."}
+                    return None
             else:
                 result = conn.recv()
                 
@@ -92,7 +97,7 @@ class ProcessManager:
                     return {"response": result}
         except (EOFError, OSError) as e:
             self.logger.error(f"Error receiving from {name}: {e}")
-            return {"response": "Error receiving"}
+            return None
         
     def poll(self, name):
         conn = self.pipes[name]

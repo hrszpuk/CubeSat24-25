@@ -13,28 +13,20 @@ def read_all_errors(log_path="vector.log"):
         return error_lines if error_lines else ["No errors detected.\n"]
     except FileNotFoundError:
         return ["Log file not found.\n"]
-
-def run_health_checks(manager):
-    manager.send("TTC", "health_check")
-    ttc_health_check = manager.receive("TTC")["response"]
-    manager.send("ADCS", "health_check")
-    adcs_response = manager.receive("ADCS")["response"]
-    manager.send("Payload", "health_check")
-    payload_response = manager.receive("Payload")["response"]
-    manager.send("ADCS", "bms_health_check")
-    power_response = manager.receive("ADCS")["response"]
+    
+def construct_file(ttc_health_check, adcs_health_check, payload_health_check, power_health_check):
     health_check_text = "--- Vector CubeSat Health Check Report ---\n"
     health_check_text += "Date: " + time.strftime("%d-%m-%Y") + "\n"
     health_check_text += "Time: " + time.strftime("%H:%M:%S", time.gmtime()) + " GMT\n"
 
     # Power Subsystem
     health_check_text += ("\n--- Power Subsystem ---\n")
-    health_check_text += "Battery Voltage\n"
-    health_check_text += "Battery Current\n"
-    health_check_text += "Battery Temperature\n"
 
-    for line in power_response[:-1]:
-        health_check_text += line
+    for line in power_health_check:
+        if isinstance(line, list):
+            health_check_text += "".join(str(item) for item in line)
+        else:
+            health_check_text += str(line)
 
     health_check_text += "\n"
 
@@ -59,13 +51,12 @@ def run_health_checks(manager):
     health_check_text += f"Downlink Frequency: {ttc_health_check['Downlink Frequency']} (NOMINAL)\n"
     health_check_text += f"Uplink Frequency: {ttc_health_check['Uplink Frequency']} (NOMINAL)\n"
     health_check_text += f"Signal Strength: {ttc_health_check['Signal Strength']} (NOMINAL)\n"
-    health_check_text += f"Data Transmission Rate: {ttc_health_check['Data Transmission Rate']} (NOMINAL)\n"    
-    health_check_text += "Status: OK\n"
+    health_check_text += f"Data Transmission Rate: {ttc_health_check['Data Transmission Rate']} (NOMINAL)\n"
 
     # ADCS Subsystem
     health_check_text += ("\n--- ADCS Subsystem ---\n")
 
-    for line in adcs_response[:-1]:
+    for line in adcs_health_check[:-1]:
         health_check_text += line
 
     health_check_text += "\n"
@@ -73,7 +64,7 @@ def run_health_checks(manager):
     # Payload Subsystem
     health_check_text += ("\n--- Payload Subsystem ---\n")
 
-    for line in payload_response[:-1]:
+    for line in payload_health_check[:-1]:
         health_check_text += line
 
     health_check_text += "\n"
@@ -100,8 +91,8 @@ def run_health_checks(manager):
 
     # Overall Status
     health_check_text += ("\n--- Overall Status ---\n")
-    adcs_status = "STATUS: OK" in adcs_response[-1]
-    payload_status = "STATUS: OK" in payload_response[-1] # other subsystems go below
+    adcs_status = "STATUS: OK" in adcs_health_check[-1]
+    payload_status = "STATUS: OK" in payload_health_check[-1] # other subsystems go below
     affected = []
 
     if not adcs_status:
@@ -126,4 +117,6 @@ def run_health_checks(manager):
 
     with open("health.txt", "w") as f:
         f.write(health_check_text)
-
+        return True
+    
+    return False

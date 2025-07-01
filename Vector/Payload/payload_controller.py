@@ -1,17 +1,16 @@
 import glob
-#from Payload.distance_sensor import DistanceSensor
-# from Payload.stereo_camera import StereoCamera
-# from Payload.number_identifier import identify_numbers_from_files
-#from Payload import tag_finder
+from Payload.distance_sensor import DistanceSensor
+from Payload.stereo_camera import StereoCamera
+from Payload.number_identifier import identify_numbers_from_files
+from Payload import tag_finder
 import os
-
 
 class PayloadController:
     def __init__(self, log_queue):
         self.state = "INITIALIZING"
         self.log_queue = log_queue
-        #self.stereo_camera = StereoCamera()
-        #self.distance_sensor = DistanceSensor()
+        self.stereo_camera = StereoCamera()
+        self.distance_sensor = DistanceSensor()
         self.state = "READY"
         self.numbers_indentified = []
 
@@ -33,7 +32,7 @@ class PayloadController:
         errors.extend(ds_errors)
 
         # check subsystem health
-        if sc_health_check and ds_health_check:
+        if ds_health_check and sc_health_check:
             self.status = "OK"
             health_check_text += "STATUS: OK"
         else:
@@ -47,18 +46,22 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        left_image = self.stereo_camera.get_left_image()
-        right_image = self.stereo_camera.get_right_image()
+        status = self.stereo_camera.get_camera_status()
 
-        if left_image is None:
+        if status["left_camera_available"] is False:
+            health_check_text += "Left camera: INACTIVE\n"
             errors.append("Left camera not available")
-        if right_image is None:
+        else:
+            health_check_text += "Left camera: ACTIVE\n"
+        if status["right_camera_available"] is False:
+            health_check_text += "Right camera: INACTIVE\n"
             errors.append("Right camera not available")
+        else:
+            health_check_text += "Right camera: ACTIVE\n"
         
         if errors:
             health_check_text += "Stereo Camera: DOWN\n"
         else:
-            health_check_text += f"Stereo Camera: ACTIVE\n"
             is_component_ready = True
 
         return health_check_text, is_component_ready, errors
@@ -69,9 +72,9 @@ class PayloadController:
         is_component_ready = False
         errors = []
 
-        if self.distance_sensor is None:
+        if self.distance_sensor.get_distance() is None:
             errors.append("Distance sensor data not available")
-            health_check_text += f"Distance Sensor: DOWN\n"
+            health_check_text += f"Distance Sensor: INACTIVE\n"
         else:
             health_check_text += f"Distance Sensor: ACTIVE\n"
             is_component_ready = True
@@ -80,8 +83,8 @@ class PayloadController:
 
     def identify_numbers_from_files(self):
         image_paths = glob.glob("images/phase2/*.jpg")
-        self.numbers_indentified = identify_numbers_from_files(image_paths)
-        return self.numbers_indentified
+        self.numbers_identified = identify_numbers_from_files(image_paths)
+        return self.numbers_identified
 
     def take_picture(self, directory, filename):
         os.makedirs(directory, exist_ok=True)
@@ -117,4 +120,3 @@ class PayloadController:
         
         pose = tagfinder_obj.Poses[-1]
         return pose
-

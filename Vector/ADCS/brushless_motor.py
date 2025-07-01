@@ -26,7 +26,7 @@ class BrushlessMotor:
         self.v = v
         self.pin = pin
 
-        self.arm_esc()
+        #self.arm_esc()
 
     def get_current_speed(self):
         return self.current_speed
@@ -41,9 +41,12 @@ class BrushlessMotor:
         self._set_pulse_us(MIN_PULSE_WIDTH_US)
 
     def set_speed(self, speed_percentage):
+        GPIO.setup(self.pin, GPIO.OUT)
         pulse_width_us = MIN_PULSE_WIDTH_US + (speed_percentage / 100.0) * (MAX_PULSE_WIDTH_US - MIN_PULSE_WIDTH_US)
         self._set_pulse_us(int(pulse_width_us))
         self.current_speed = self.kv * self.v * (speed_percentage / 100.0)
+        if speed_percentage == 0:
+            self.stop()
 
     def calibrate(self):
         try:
@@ -65,6 +68,7 @@ class BrushlessMotor:
 
     def stop(self):
         self._set_pulse_us(MIN_PULSE_WIDTH_US)
+        GPIO.setup(self.pin, GPIO.LOW)
         time.sleep(0.5)
         
 if __name__ == "__main__":

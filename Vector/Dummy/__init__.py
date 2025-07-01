@@ -1,20 +1,39 @@
+import threading, time
 
 
-def start(pipe, log_queue):
-    log_queue.put(("Dummy", "Starting Subsystem"))
+import threading
+import time
 
 
-    running = True
-    while running:
-        line, args = pipe.recv()
-        log_queue.put(("Dummy", f"Received command: {line} with args: {args}"))
+class Dummy:
+    def __init__(self):
+        self.stop_event = threading.Event()
+        self.thread = None
 
-        if line == "stop":
-            log_queue.put(("Dummy", f"Stopping Subsystem"))
-            running = False
-        elif line == "echo":
-            pipe.send("ECHO ECHO ECHO ECHO....")
-        elif line == "is_ready":
-            pipe.send(True)
-        else:
-            log_queue.put(("Dummy", f"Unknown command: {line}"))
+    def start(self):
+        self.stop_event.clear()
+        self.thread = threading.Thread(target=self.func, daemon=True)
+        self.thread.start()
+        print("Dummy started")
+
+    def func(self):
+        counter = 0
+        while not self.stop_event.is_set():
+            counter += 1
+            print(f"[Dummy] tick {counter}")
+            self.stop_event.wait(timeout=1.0)
+        print("Dummy loop exit")
+
+    def stop(self):
+        print("Stopping Dummy...")
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join()
+            self.thread = None
+        print("Dummy stopped")
+
+
+d = Dummy()
+d.start()
+time.sleep(3.5)
+d.stop()

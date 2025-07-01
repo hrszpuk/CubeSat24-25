@@ -1,13 +1,12 @@
 import os
+import threading
+import asyncio
 import socket
 import websockets
 import json
-import base64
 from enums import TTCState, MessageType
 from datetime import datetime
-from TTC.utils import get_connection_info
-import threading
-import asyncio
+from TTC.utils import get_connection_info, zip_file, zip_folder
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -37,37 +36,64 @@ class TTC:
     def log(self, msg):
         self.log_queue.put(("TT&C", msg))
 
-    def start_pipe_listener(self):
-        def loop_process():
-            self.log("Starting OBDH listener thread...")
+    def health_check(self):
+        self.log("Performing subsystem health check...")
+        health_check = {}
+        connection_info = get_connection_info()        
 
-            while True:
-                if self.pipe.poll():
-                    instruction = self.pipe.recv()
-                    command = instruction[0]
-                    args = instruction[1] if len(instruction) == 2 else None
-                    self.log(f"Received command: {command} with args: {args} from OBDH")
-                    pipe_loop = asyncio.get_event_loop()
+        for metric, value in connection_info.items():
+            if value is not None:
+                item_str = f"{abs(value)}"
 
-                    match command:
-                        case "stop":
-                            self.log("OBDH listener shutting down...")
-                            self.event_loop.call_soon_threadsafe(self.event_loop.stop)
-                            break
-                        case "log":
-                            asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), pipe_loop)
-                        case "send_message":
-                            asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), pipe_loop)
-                        case "send_file":
-                            asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), pipe_loop)
-                        case "health_check":
-                            health = self.health_check()
-                            self.pipe.send(health)
-                        case _:
-                            self.log(f"Invalid instruction received from OBDH: {command}")
+                if "Frequency" in metric:
+                    item_str += " GHz"
+                elif metric == "Signal Strength":
+                    item_str += " dBm"
+                elif metric == "Data Transmission Rate":
+                    item_str += " Mb/s"
+            else:
+                item_str = None
+            
+            health_check[metric] = item_str
 
-        t = threading.Thread(target=loop_process, daemon=True)
+        health_check["Last Command Received"] = self.last_command_received
+        self.log(f"Subsystem health check: {health_check}")
+
+        return health_check
+
+    def start_obdh_listener(self):
+        self.log("Starting OBDH listener...")
+        t = threading.Thread(target=self.handle_instructions, name="OBDH Listener", daemon=True)
         t.start()
+
+    def handle_instructions(self):
+        while True:
+            if self.pipe.poll():
+                instruction = self.pipe.recv()
+                command = instruction[0]
+                args = instruction[1] if len(instruction) == 2 else None
+                self.log(f"Received instruction: {command} with args: {args}")
+
+                match command:                    
+                    case "get_state":
+                        self.pipe.send(self.state)
+                    case "log":
+                        asyncio.run_coroutine_threadsafe(self.send_log(args["message"]), self.event_loop)
+                    case "send_message":
+                        asyncio.run_coroutine_threadsafe(self.send_message(args["message"]), self.event_loop)
+                    case "send_data":
+                        asyncio.run_coroutine_threadsafe(self.send_data(args["data"]), self.event_loop)
+                    case "send_file":
+                        asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), self.event_loop)
+                    case "health_check":
+                        health = self.health_check()
+                        self.pipe.send(health)
+                    case "stop":
+                        self.log("OBDH listener shutting down...")
+                        self.event_loop.call_soon_threadsafe(self.event_loop.stop)
+                        break
+                    case _:
+                        self.log(f"Invalid instruction received from OBDH: {command}")
 
     async def start_server(self):
         try:
@@ -75,7 +101,7 @@ class TTC:
             self.log(f"Listening for connections on {self.host_name} ({self.ip}:{self.port})")
             self.state = TTCState.READY
             self.pipe.send(self.state == TTCState.READY)
-            self.log(f"Ready")
+            self.log("Ready")
         except Exception as e:
             self.log(f"[ERROR] Could not start WebSocket server: {e}")
 
@@ -99,23 +125,50 @@ class TTC:
     async def handle_message(self):
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
-        self.log(f"({self.last_command_received}) CubeSat received: {message}")
+        self.log(f"({self.last_command_received}) TT&C received: {message}")
         await self.process_command(message)
 
+    async def pong(self):
+        try:
+            await self.connection.send("pong")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"pong\": {err}")
+
     async def send_log(self, message):
-        self.log(f"Sending \"{message}\" to Ground...")
+        if (self.state == TTCState.CONNECTED):
+            self.log(f"Sending \"{message}\" to Ground...")
+
+            try:
+                await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
+                self.log(f"Sent \"{message}\" to Ground")
+            except Exception as err:
+                self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+        else:
+            self.log("Not connected to ground, log not sent")
+
+    async def send_data(self, data):
+        self.log(f"Sending {data} to Ground...")
 
         try:
-            await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
-            self.log(f"Sent \"{message}\" to Ground")
+            await self.connection.send(json.dumps({"type": MessageType.DATA.name.lower(), "data": data}))
+            self.log(f"Sent {data} to Ground")
         except Exception as err:
-            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
-
+            self.log(f"[ERROR] Failed to send {data}: {err}")    
+    
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
 
         try:
-            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.MESSAGE.name.lower(), "data": message}))
+            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.MESSAGE.name.lower(), "data": message}))
+            self.log(f"Sent \"{message}\" to Ground")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+
+    async def send_error(self, message):
+        self.log(f"Sending \"{message}\" to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.MESSAGE.name.lower(), "data": f"[ERROR] {message}"}))
             self.log(f"Sent \"{message}\" to Ground")
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
@@ -125,116 +178,149 @@ class TTC:
         tokens = msg.split(" ")
         command = tokens[0]
         arguments = tokens[1:] if len(tokens) > 1 else None
-        self.log(f"Command: {command}; Arguments: {arguments}")
+        self.log(f"Command: {command}")
+        self.log(f"Arguments: {arguments}")
 
         match command:
             case "ping":
-                await self.send_message("pong")
-                pass
+                await self.connection.send("pong")
             case "get_file":
                 if arguments:
                     path = arguments[0]
-                    await self.send_file(path)
+
+                    if os.path.exists(path):
+                        await self.send_file(path)
+                    else:
+                        await self.send_error(f"{path} does not exist!")
                 else:
-                    await self.send_message("No file path provided!")
+                    await self.send_error("No file path provided!")
+            case "test_wheel":
+                kp = arguments[0]
+                ki = arguments[1]
+                kd = arguments[2]
+                #time = arguments[3]
+                self.pipe.send(("test_wheel", [kp, ki, kd]))
+                await self.send_message("Testing wheel...")
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
-                    subphase = arguments[1] if len(arguments) == 2 else None
-                    
+
                     match phase:
-                        case 1 | 2:
-                            self.pipe.send(msg)
+                        case 1:
+                            self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
+                        case 2:
+                            sequence = arguments[1] if len(arguments) == 2 else None
+
+                            if sequence:
+                                sequence_list = [int(number) for number in sequence.split(",")]
+                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                await self.send_message(f"Starting phase {phase}...")
+                            else:
+                                await self.send_error("No sequence provided!")
                         case 3:
+                            subphase = arguments[1] if len(arguments) == 2 else None
+
                             if subphase:
-                                self.pipe.send(msg)
+                                self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
-                                await self.send_message("No subphase provided!")
+                                await self.send_error("No subphase provided!")
                         case _:
-                            await self.send_message(f"{phase} is not a valid phase!")
+                            await self.send_error(f"{phase} is not a valid phase!")
                 else:
-                    await self.send_message("No phase provided!")
+                    await self.send_error("No phase provided!")
             case "shutdown":
                 await self.send_message("Shutting down...")
                 self.pipe.send("shutdown")
             case _:
                 self.log(f"[ERROR] Invalid command received: {command}")
-                await self.send_message(f"{command} is not a valid command!")
+                await self.send_error(f"{command} is not a valid command!")
 
-    async def send_file(self, file_path):
+    async def send_file(self, path):
         retries = 0
         
         while retries < self.MAX_RETRIES:
-            self.log(f"Sending file {file_path} to Ground... (Attempt {retries + 1})")
+            self.log(f"Sending file {path} to Ground... (Attempt {retries + 1})")
 
             try:
-                if not os.path.exists(file_path):
-                    self.log(f"[ERROR] {file_path} does not exist!")
+                if not os.path.exists(path):
+                    self.log(f"[ERROR] {path} does not exist!")
                     break
 
-                file_base_name = os.path.basename(file_path)
-                file_size = os.path.getsize(file_path)
+                if not os.path.isfile(path):
+                    self.log(f"[ERROR] {path} is not a file!")
+                    break
+
+                zip_path = zip_file(path)
+                zip_file_size = os.path.getsize(zip_path)
                 self.log("Sending file metadata...")
-                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": file_size, "name": file_base_name}}))
+                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
                 self.log("Sent file metadata")
 
-                with open(file_path, "rb") as f:
+                with open(zip_path, "rb") as f:
                     self.log("Sending file data...")
+                    await self.connection.send("File transfer started")
 
                     while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": MessageType.FILEDATA.name.lower(), "data": base64.b64encode(chunk).decode("ascii")}))
+                        await self.connection.send(chunk)
 
-                    await self.send_message("File send complete")
                     self.log("Sent file data")
+                    await self.connection.send("File transfer complete")
 
-                break                
-            except OSError as err:
-                # Handle operating system error
-                self.log(f"[ERROR] OS error: {err}, retrying...")
-            except ConnectionError as err:
-                # Handle connection-related error
-                self.log(f"[ERROR] Connection error: {err}, retrying...")
-            except TimeoutError as err:
-                # Handle timeout-related error
-                self.log(f"[ERROR] Timeout error: {err}, retrying...")
+                break
             except Exception as err:
                 # Handle other general errors
                 self.log(f"[ERROR] {err}, retrying...")
+            finally:
+                if zip_path and os.path.exists(zip_path):
+                    os.unlink(zip_path)
 
             retries += 1
 
         if retries >= self.MAX_RETRIES:
-            self.log(f"[ERROR] Failed to send file {file_path} after {self.MAX_RETRIES} retries!")
-    
-    def get_state(self):
-        return self.state
-    
-    def get_connection(self):
-        return self.connection
+            self.log(f"[ERROR] Failed to send file {path} after {self.MAX_RETRIES} retries!")
 
-    def health_check(self):
-        self.log("Performing subsystem health check...")
-        health_check = {}
-        connection_info = get_connection_info()
+    async def send_folder(self, path):
+        retries = 0
+        
+        while retries < self.MAX_RETRIES:
+            self.log(f"Sending folder {path} to Ground... (Attempt {retries + 1})")
 
-        for metric, value in connection_info.items():
-            if value is not None:
-                item_str = f"{abs(value)}"
+            try:
+                if not os.path.exists(path):
+                    self.log(f"[ERROR] {path} does not exist!")
+                    break
 
-                if "Frequency" in metric:
-                    item_str += " GHz"
-                elif metric == "Signal Strength":
-                    item_str += " dBm"
-                elif metric == "Data Transmission Rate":
-                    item_str += " Mb/s"
-            else:
-                item_str = None
-            
-            health_check[metric] = item_str
+                if not os.path.isdir(path):
+                    self.log(f"[ERROR] {path} is not a folder!")
+                    break
 
-        health_check["Last Command Received"] = self.last_command_received
-        self.log(f"Subsystem health check: {health_check}")
+                zip_path = zip_folder(path)
+                zip_file_size = os.path.getsize(zip_path)
+                self.log("Sending folder metadata...")
+                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
+                self.log("Sent folder metadata")
 
-        return health_check
+                with open(zip_path, "rb") as f:
+                    self.log("Sending folder data...")
+                    await self.connection.send("File transfer started")
+
+                    while chunk := f.read(self.BUFFER_SIZE):
+                        await self.connection.send(chunk)
+
+                    self.log("Sent folder data")
+                    await self.connection.send("File transfer complete")
+
+                break
+            except Exception as err:
+                # Handle other general errors
+                self.log(f"[ERROR] {err}, retrying...")
+            finally:
+                if zip_path and os.path.exists(zip_path):
+                    os.unlink(zip_path)
+
+            retries += 1
+
+        if retries >= self.MAX_RETRIES:
+            self.log(f"[ERROR] Failed to send folder {path} after {self.MAX_RETRIES} retries!")

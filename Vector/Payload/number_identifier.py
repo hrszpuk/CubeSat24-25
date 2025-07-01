@@ -147,23 +147,30 @@ def clean_numbers_orientations(numbers_orientations):
     return dict(sorted(final_orientations.items()))
 
 def identify_numbers_from_files(image_paths):
-    FOV = 75
+    try:
+        FOV = 75
 
-    numbers_orientations = {}  # Store orientations
+        numbers_orientations = {}  # Store orientations
 
-    for image_path in image_paths:
-        numbers, width_in_pixels = (get_numbers(image_path))
+        for image_path in image_paths:
+            numbers, width_in_pixels = (get_numbers(image_path))
 
-        for number in numbers:
-            x, y, w, h, cX, cY, labels = number[1]
-            ground_truth = int(image_path.split('images/numbers/')[1].split('.')[0])
-            digits = int(number[0])
-            offset = cX - (width_in_pixels / 2)
-            degrees_per_pixel = FOV / width_in_pixels
-            angular_offset = offset * degrees_per_pixel
-            degree = (ground_truth + angular_offset) % 360  # Normalize to [0, 360)
-            numbers_orientations[(round(degree))] = (digits, offset)
+            for number in numbers:
+                x, y, w, h, cX, cY, labels = number[1]
+                ground_truth = int(image_path.split('images/phase2/')[1].split('.')[0].split('_')[0])  # Extract ground truth from filename
+                if ground_truth < 0 or ground_truth > 360:
+                    print(f"Invalid ground truth value {ground_truth} in file {image_path}. Skipping this image.")
+                    continue
+                digits = int(number[0])
+                offset = cX - (width_in_pixels / 2)
+                degrees_per_pixel = FOV / width_in_pixels
+                angular_offset = offset * degrees_per_pixel
+                degree = (ground_truth + angular_offset) % 360  # Normalize to [0, 360)
+                numbers_orientations[(round(degree))] = (digits, offset)
 
-    cleaned_numbers_orientations = clean_numbers_orientations(numbers_orientations)
+        cleaned_numbers_orientations = clean_numbers_orientations(numbers_orientations)
+    except Exception as e:
+        print(f"Error processing images: {e}")
+        cleaned_numbers_orientations = {}
 
     return cleaned_numbers_orientations
