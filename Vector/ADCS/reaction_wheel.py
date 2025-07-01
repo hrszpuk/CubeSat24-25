@@ -129,7 +129,7 @@ class ReactionWheel:
     def normalize_angle(self, angle):
         return (angle % 360) - 180  # Ensures angle is within [-180, 180)
         
-    def activate_wheel_brushed(self, setpoint, kp=2, ki=0, kd=0.1, t=60, tolerance=30):
+    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.2, kd=0.2, t=60, tolerance=5):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -143,16 +143,18 @@ class ReactionWheel:
 
         print(f"Initial Yaw: {self.initial_yaw}")
 
-        setpoint = self.normalize_angle(setpoint) + self.initial_yaw
+        initial_setpoint = setpoint % 360
+        saturated_attempts = 0
 
         self.set_state("ROTATING")  # Set state to rotating
 
         while self.get_state() == "ROTATING" or not self.stop_event.is_set():
             pv = self.imu.get_current_yaw()
 
-            # if pv // 360 > max_turns or pv // 360 < min_turns:
-            #     setpoint = (turns * 360) + setpoint
-            #     print(f"Setpoint adjusted to {setpoint} due to turn limit.")
+            if setpoint > pv + 360 or setpoint < pv - 360:
+                print("Setpoint is too far from current yaw, adjusting to next turn.")
+                turns = pv // 360
+                setpoint = turns * 360 + initial_setpoint
 
             # Get current yaw and compute PID control
             control, error, integral = self.pid_controller(
@@ -183,141 +185,22 @@ class ReactionWheel:
             last_wheel_percentage = duty_cycle
 
             previous_error = error
+
+            if abs(self.imu.get_current_angular_velocity()) < 2 and abs(pv - setpoint) > tolerance and abs(duty_cycle) == 100 :
+                saturated_attempts += 1
+            if saturated_attempts > 3:
+                print("WHEEL SATURATION")
+                setpoint = setpoint - 360 * duty_cycle / 100
+                saturated_attempts = 0  # Reset after handling saturation
+
             
-            # Logging (optional)
-            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, kp: {kp}, ki: {ki}, kd: {kd}, State: {self.get_state()}")
-            
-            time.sleep(dt)
-        self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
-
-    def activate_wheel_brushless_phase2(self, pipe, setpoint, kp=2, ki=0, kd=0.1, tolerance=0):
-        """
-        Activate the reaction wheel to adjust the satellite's orientation.
-        Parameters: 
-            - setpoint: Target yaw angle (degrees/radians).
-        """
-        # Initialize PID variables
-        previous_error = 0
-        integral = 0
-        dt = 0.1  # Time step in seconds
-        omega_wheel = 0  # Initialize angular velocity
-        last_wheel_percentage = 0  # Track last duty cycle
-
-        initial_yaw = self.imu.get_current_yaw()
-        turns = initial_yaw // 360
-        setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
-        if abs(setpoint) < abs(initial_yaw):
-            setpoint + 360
-
-        self.set_state("ROTATING")  # Set state to rotating
-
-        while abs(self.imu.get_current_yaw()) < initial_yaw + 360:
-            yaw = self.imu.get_current_yaw()
-            if abs(yaw) > last_yaw + 10 or abs(yaw) < last_yaw - 10:
-                pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
-                last_yaw = abs(yaw)
-
-            pv = self.imu.get_current_yaw()
-            gyro = self.imu.get_current_angular_velocity()
-
-            if self.motor.get_current_speed == 0 and setpoint + tolerance < pv and (gyro > 0 and gyro < 5):
-                print("REVERSE not possible. going to next turn")
-                setpoint = initial_yaw + setpoint
-
-            # Get current yaw and compute PID control
-            control, error, integral = self.pid_controller(
-                setpoint, kp, ki, kd, previous_error, integral, dt
-            )
-
-            # Calculate new satellite and wheel angles
-            new_pv = pv + control * dt
-            angle_delta_sat = new_pv - pv
-            angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
-
-            # Update angular velocities
-            new_omega_wheel = angle_delta_wheel / dt
-            alpha_wheel = (new_omega_wheel - omega_wheel) / dt
-            omega_wheel = new_omega_wheel
-
-            rpm = omega_wheel * 60 / (2 * math.pi)
-            rpm = np.clip(rpm, 0, 7000)  # Cap RPM to a reasonable range
-            
-            duty_cycle = rpm / 70  # Assuming 7000 RPM is 100% duty cycle
-            
-            # Apply duty cycle limits
-            if duty_cycle < 5 and last_wheel_percentage < 5:
-                # Initial boost when below 5% and was previously below 5%
-                duty_cycle = 10  # Set initial higher percentage
-            else:
-                # Normal operation with 15% limit
-                duty_cycle = np.clip(duty_cycle, 0, 15)
-            
-            # Update motor speed
-            self.motor.set_speed(duty_cycle)
-            last_wheel_percentage = duty_cycle
-
-            previous_error = error
-            
-            # Logging (optional)
-            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, kp: {kp}, ki: {ki}, kd: {kd}, State: {self.get_state()}")
+            # Logging
+            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, State: {self.get_state()}")
             
             time.sleep(dt)
         self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
 
-    def activate_wheel_with_speed_desired(self, pipe, setpoint = 20,):
-        """
-        Activate the reaction wheel to rotate the satellite at a specified speed.
-        Parameters:
-            - speed: Speed in deg/s
-        """
-        
-        # Initialize PID variables
-        previous_error = 0
-        integral = 0
-        dt = 0.1  # Time step in seconds
-
-        # PID Parameters
-        kp = 2  # Proportional gain
-        ki = 0.1  # Integral gain
-        kd = 0.05  # Derivative gain
-
-        initial_yaw = abs(self.imu.get_current_yaw())
-        last_yaw = initial_yaw
-
-        self.set_state("ROTATING")  # Set state to rotating
-
-        while abs(self.imu.get_current_yaw()) < initial_yaw + 360:
-            yaw = self.imu.get_current_yaw()
-            if abs(yaw) > last_yaw + 10 or abs(yaw) < last_yaw - 10:
-                pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
-                last_yaw = abs(yaw)
-
-            # Get current yaw and compute PID control
-            pv = self.imu.get_current_yaw()
-            control, error, integral = self.pid_controller(
-                setpoint, kp, ki, kd, previous_error, integral, dt
-            )
-
-            output = control * dt
-
-            output = min(output, 100)
-            output = max(output, -100)
-            
-            # Cap output to motor's operational range and convert to duty cycle (0-100%)
-            duty_cycle = (output / 100) * 100
-            
-            # Update motor speed
-            self.motor.set_speed(duty_cycle)
-            
-            # Logging (optional)
-            #print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
-            print(f"initial_yaw: {initial_yaw:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
-            previous_error = error
-
-            time.sleep(dt)
-        self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
-        
-    def activate_wheel(self, setpoint, kp=1.6, ki=0.02, kd=0.1, t=60, tolerance=30):
+    def activate_wheel_brushed_phase2(self, setpoint, kp=2, ki=0.2, kd=0.2, t=60, tolerance=10):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -329,108 +212,320 @@ class ReactionWheel:
         dt = 0.1  # Time step in seconds
         omega_wheel = 0  # Initialize angular velocity
 
-        initial_yaw = self.imu.get_current_yaw()
-        turns = initial_yaw // 360
-        setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
-        if abs(setpoint) < abs(initial_yaw):
-            setpoint + 360
+        print(f"Initial Yaw: {self.initial_yaw}")
 
-        self.set_state("ROTATING")  # Set state to rotating
-
-        while self.get_state() == "ROTATING" or not self.stop_reaction_wheel.is_set():
-            pv = self.imu.get_current_yaw()
-            gyro = self.imu.get_current_angular_velocity()
-
-            if self.motor.get_current_speed == 0 and setpoint + tolerance < pv and (gyro > 0 and gyro < 1):
-                print("REVERSE not possible. going to next turn")
-                setpoint = initial_yaw + setpoint
-
-            # Get current yaw and compute PID control
-            control, error, integral = self.pid_controller(
-                setpoint, kp, ki, kd, previous_error, integral, dt
-            )
-
-            # Calculate new satellite and wheel angles
-            new_pv = pv + control * dt
-            angle_delta_sat = new_pv - pv
-            angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
-
-            # Update angular velocities
-            new_omega_wheel = angle_delta_wheel / dt
-            alpha_wheel = (new_omega_wheel - omega_wheel) / dt
-            omega_wheel = new_omega_wheel
-
-            rpm = omega_wheel * 60 / (2 * math.pi)
-
-            rpm = np.clip(rpm, 0, 7000)  # Cap RPM to a reasonable range
-
-            # # Convert to motor voltage (simplified for unidirectional ESC)
-            # voltage = (R * self.I_wheel * alpha_wheel) / self.kt + self.ke * omega_wheel
-            
-            # # Cap voltage to motor's operational range and convert to duty cycle (0-100%)
-            # voltage = np.clip(voltage, 0, self.motor.v)  # Force positive voltage
-
-            # duty_cycle = (voltage / self.motor.v) * 100  # 0-100% range
-            duty_cycle = rpm / 70  # Assuming 7000 RPM is 100% duty cycle
-            
-            # Ensure duty cycle stays within 0-100%
-            duty_cycle = np.clip(duty_cycle, 0, 30)
-            
-            # Update motor speed
-            self.motor.set_speed(duty_cycle)
-            last_wheel_percentage = duty_cycle
-
-            previous_error = error
-            
-            # Logging (optional)
-            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, kp: {kp}, ki: {ki}, kd: {kd}, State: {self.get_state()}")
-            
-            time.sleep(dt)
-        self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
-
-    def old_activate_wheel_with_speed_desired(self, setpoint = 20):
-        """
-        Activate the reaction wheel to rotate the satellite at a specified speed.
-        Parameters:
-            - speed: Speed in deg/s
-        """
-        
-        # Initialize PID variables
-        previous_error = 0
-        integral = 0
-        dt = 0.1  # Time step in seconds
-
-        # PID Parameters
-        kp = 2  # Proportional gain
-        ki = 0.1  # Integral gain
-        kd = 0.05  # Derivative gain
+        initial_setpoint = setpoint % 360
+        saturated_attempts = 0
+        target_achieved_attempts = 0
 
         self.set_state("ROTATING")  # Set state to rotating
 
         while self.get_state() == "ROTATING" or not self.stop_event.is_set():
+            pv = self.imu.get_current_yaw()
+
             # Get current yaw and compute PID control
-            pv = self.imu.get_current_angular_velocity()
             control, error, integral = self.pid_controller(
                 setpoint, kp, ki, kd, previous_error, integral, dt
             )
 
-            output = control * dt
+            # Calculate new satellite and wheel angles
+            new_pv = pv + control * dt
+            angle_delta_sat = new_pv - pv
+            angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
 
-            output = min(output, 100)
-            output = max(output, 0)
+            # Update angular velocities
+            new_omega_wheel = angle_delta_wheel / dt
+            alpha_wheel = (new_omega_wheel - omega_wheel) / dt
+            omega_wheel = -new_omega_wheel
+
+            rpm = omega_wheel * 60 / (2 * math.pi)
+
+            rpm = np.clip(rpm, -250, 250)  # Cap RPM to a reasonable range
+
+            duty_cycle = rpm / 2.5  # Assuming 250 RPM is 100% duty cycle
             
-            # Cap output to motor's operational range and convert to duty cycle (0-100%)
-            duty_cycle = (output / 100) * 100
+            # Ensure duty cycle stays within 0-100%
+            duty_cycle = np.clip(duty_cycle, -100, 100)
             
             # Update motor speed
             self.motor.set_speed(duty_cycle)
-            
-            # Logging (optional)
-            print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+            last_wheel_percentage = duty_cycle
+
             previous_error = error
 
+            if setpoint > pv + 200 or setpoint < pv - 200:
+                print("Setpoint is too far from current yaw, adjusting to next turn.")
+                turns = pv // 360
+                setpoint = turns * 360 + initial_setpoint
+
+            if abs(self.imu.get_current_angular_velocity()) < 2:
+                if abs(duty_cycle) == 100 and abs(pv - setpoint) > tolerance:
+                    print("Wheel may be saturated!")
+                    saturated_attempts += 1
+                if abs(pv - setpoint) < tolerance:
+                    target_achieved_attempts += 1
+                
+            if saturated_attempts > 3:
+                print("WHEEL SATURATION")
+                setpoint = setpoint - 360 * duty_cycle / 100
+                saturated_attempts = 0  # Reset after handling saturation
+            if target_achieved_attempts > 3:
+                print("Target achieved, stopping wheel.")
+                break
+
+            
+            # Logging
+            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, Current Velocity: {self.imu.get_current_angular_velocity():.1f}, IN_TARGET: {abs(pv - setpoint) < tolerance}")
+            
             time.sleep(dt)
         self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
+
+    # def activate_wheel_brushless_phase2(self, pipe, setpoint, kp=2, ki=0, kd=0.1, tolerance=0):
+    #     """
+    #     Activate the reaction wheel to adjust the satellite's orientation.
+    #     Parameters: 
+    #         - setpoint: Target yaw angle (degrees/radians).
+    #     """
+    #     # Initialize PID variables
+    #     previous_error = 0
+    #     integral = 0
+    #     dt = 0.1  # Time step in seconds
+    #     omega_wheel = 0  # Initialize angular velocity
+    #     last_wheel_percentage = 0  # Track last duty cycle
+
+    #     initial_yaw = self.imu.get_current_yaw()
+    #     turns = initial_yaw // 360
+    #     setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
+    #     if abs(setpoint) < abs(initial_yaw):
+    #         setpoint + 360
+
+    #     self.set_state("ROTATING")  # Set state to rotating
+
+    #     while abs(self.imu.get_current_yaw()) < initial_yaw + 360:
+    #         yaw = self.imu.get_current_yaw()
+    #         if abs(yaw) > last_yaw + 10:
+    #             pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
+    #             last_yaw = abs(yaw)
+
+    #         pv = self.imu.get_current_yaw()
+    #         gyro = self.imu.get_current_angular_velocity()
+
+    #         if self.motor.get_current_speed == 0 and setpoint + tolerance < pv and (gyro > 0 and gyro < 5):
+    #             print("REVERSE not possible. going to next turn")
+    #             setpoint = initial_yaw + setpoint
+
+    #         # Get current yaw and compute PID control
+    #         control, error, integral = self.pid_controller(
+    #             setpoint, kp, ki, kd, previous_error, integral, dt
+    #         )
+
+    #         # Calculate new satellite and wheel angles
+    #         new_pv = pv + control * dt
+    #         angle_delta_sat = new_pv - pv
+    #         angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
+
+    #         # Update angular velocities
+    #         new_omega_wheel = angle_delta_wheel / dt
+    #         alpha_wheel = (new_omega_wheel - omega_wheel) / dt
+    #         omega_wheel = new_omega_wheel
+
+    #         rpm = omega_wheel * 60 / (2 * math.pi)
+    #         rpm = np.clip(rpm, 0, 7000)  # Cap RPM to a reasonable range
+            
+    #         duty_cycle = rpm / 70  # Assuming 7000 RPM is 100% duty cycle
+            
+    #         # Apply duty cycle limits
+    #         if duty_cycle < 5 and last_wheel_percentage < 5:
+    #             # Initial boost when below 5% and was previously below 5%
+    #             duty_cycle = 10  # Set initial higher percentage
+    #         else:
+    #             # Normal operation with 15% limit
+    #             duty_cycle = np.clip(duty_cycle, 0, 15)
+            
+    #         # Update motor speed
+    #         self.motor.set_speed(duty_cycle)
+    #         last_wheel_percentage = duty_cycle
+
+    #         previous_error = error
+            
+    #         # Logging (optional)
+    #         print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, kp: {kp}, ki: {ki}, kd: {kd}, State: {self.get_state()}")
+            
+    #         time.sleep(dt)
+    #     self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
+
+    # def activate_wheel_with_speed_desired(self, pipe, setpoint = 20,):
+    #     """
+    #     Activate the reaction wheel to rotate the satellite at a specified speed.
+    #     Parameters:
+    #         - speed: Speed in deg/s
+    #     """
+        
+    #     # Initialize PID variables
+    #     previous_error = 0
+    #     integral = 0
+    #     dt = 0.1  # Time step in seconds
+
+    #     # PID Parameters
+    #     kp = 2  # Proportional gain
+    #     ki = 0.1  # Integral gain
+    #     kd = 0.05  # Derivative gain
+
+    #     initial_yaw = abs(self.imu.get_current_yaw())
+    #     last_yaw = initial_yaw
+
+    #     self.set_state("ROTATING")  # Set state to rotating
+
+    #     while abs(self.imu.get_current_yaw()) < initial_yaw + 360:
+    #         yaw = self.imu.get_current_yaw()
+    #         if abs(yaw) > last_yaw + 10 or abs(yaw) < last_yaw - 10:
+    #             pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
+    #             last_yaw = abs(yaw)
+
+    #         # Get current yaw and compute PID control
+    #         pv = self.imu.get_current_yaw()
+    #         control, error, integral = self.pid_controller(
+    #             setpoint, kp, ki, kd, previous_error, integral, dt
+    #         )
+
+    #         output = control * dt
+
+    #         output = min(output, 100)
+    #         output = max(output, -100)
+            
+    #         # Cap output to motor's operational range and convert to duty cycle (0-100%)
+    #         duty_cycle = (output / 100) * 100
+            
+    #         # Update motor speed
+    #         self.motor.set_speed(duty_cycle)
+            
+    #         # Logging (optional)
+    #         #print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+    #         print(f"initial_yaw: {initial_yaw:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+    #         previous_error = error
+
+    #         time.sleep(dt)
+    #     self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
+        
+    # def activate_wheel(self, setpoint, kp=2, ki=0.02, kd=0.1, t=60, tolerance=30):
+    #     """
+    #     Activate the reaction wheel to adjust the satellite's orientation.
+    #     Parameters: 
+    #         - setpoint: Target yaw angle (degrees/radians).
+    #     """
+    #     # Initialize PID variables
+    #     previous_error = 0
+    #     integral = 0
+    #     dt = 0.1  # Time step in seconds
+    #     omega_wheel = 0  # Initialize angular velocity
+
+    #     initial_yaw = self.imu.get_current_yaw()
+    #     turns = initial_yaw // 360
+    #     setpoint = setpoint + (turns * 360)  # Adjust setpoint to the same turn as initial_yaw
+    #     if abs(setpoint) < abs(initial_yaw):
+    #         setpoint + 360
+
+    #     self.set_state("ROTATING")  # Set state to rotating
+
+    #     while self.get_state() == "ROTATING" or not self.stop_event.is_set():
+    #         pv = self.imu.get_current_yaw()
+    #         gyro = self.imu.get_current_angular_velocity()
+
+    #         if self.motor.get_current_speed == 0 and setpoint + tolerance < pv and (gyro > 0 and gyro < 1):
+    #             print("REVERSE not possible. going to next turn")
+    #             setpoint = initial_yaw + setpoint
+
+    #         # Get current yaw and compute PID control
+    #         control, error, integral = self.pid_controller(
+    #             setpoint, kp, ki, kd, previous_error, integral, dt
+    #         )
+
+    #         # Calculate new satellite and wheel angles
+    #         new_pv = pv + control * dt
+    #         angle_delta_sat = new_pv - pv
+    #         angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
+
+    #         # Update angular velocities
+    #         new_omega_wheel = angle_delta_wheel / dt
+    #         alpha_wheel = (new_omega_wheel - omega_wheel) / dt
+    #         omega_wheel = new_omega_wheel
+
+    #         rpm = omega_wheel * 60 / (2 * math.pi)
+
+    #         rpm = np.clip(rpm, 0, 7000)  # Cap RPM to a reasonable range
+
+    #         # # Convert to motor voltage (simplified for unidirectional ESC)
+    #         # voltage = (R * self.I_wheel * alpha_wheel) / self.kt + self.ke * omega_wheel
+            
+    #         # # Cap voltage to motor's operational range and convert to duty cycle (0-100%)
+    #         # voltage = np.clip(voltage, 0, self.motor.v)  # Force positive voltage
+
+    #         # duty_cycle = (voltage / self.motor.v) * 100  # 0-100% range
+    #         duty_cycle = rpm / 70  # Assuming 7000 RPM is 100% duty cycle
+            
+    #         # Apply duty cycle limits
+    #         if duty_cycle < 5 and last_wheel_percentage < 5:
+    #             # Initial boost when below 5% and was previously below 5%
+    #             duty_cycle = 10  # Set initial higher percentage
+    #         else:
+    #             # Normal operation with 15% limit
+    #             duty_cycle = np.clip(duty_cycle, 0, 15)
+
+    #         # Update motor speed
+    #         self.motor.set_speed(duty_cycle)
+    #         last_wheel_percentage = duty_cycle
+
+    #         previous_error = error
+            
+    #         # Logging (optional)
+    #         print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, kp: {kp}, ki: {ki}, kd: {kd}, State: {self.get_state()}")
+            
+    #         time.sleep(dt)
+    #     self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
+
+    # def old_activate_wheel_with_speed_desired(self, setpoint = 20):
+    #     """
+    #     Activate the reaction wheel to rotate the satellite at a specified speed.
+    #     Parameters:
+    #         - speed: Speed in deg/s
+    #     """
+        
+    #     # Initialize PID variables
+    #     previous_error = 0
+    #     integral = 0
+    #     dt = 0.1  # Time step in seconds
+
+    #     # PID Parameters
+    #     kp = 2  # Proportional gain
+    #     ki = 0.1  # Integral gain
+    #     kd = 0.05  # Derivative gain
+
+    #     self.set_state("ROTATING")  # Set state to rotating
+
+    #     while self.get_state() == "ROTATING" or not self.stop_event.is_set():
+    #         # Get current yaw and compute PID control
+    #         pv = self.imu.get_current_angular_velocity()
+    #         control, error, integral = self.pid_controller(
+    #             setpoint, kp, ki, kd, previous_error, integral, dt
+    #         )
+
+    #         output = control * dt
+
+    #         output = min(output, 100)
+    #         output = max(output, 0)
+            
+    #         # Cap output to motor's operational range and convert to duty cycle (0-100%)
+    #         duty_cycle = (output / 100) * 100
+            
+    #         # Update motor speed
+    #         self.motor.set_speed(duty_cycle)
+            
+    #         # Logging (optional)
+    #         print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+    #         previous_error = error
+
+    #         time.sleep(dt)
+    #     self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
 
     def activate_wheel_to_align(self, last_speed):
         """
@@ -500,11 +595,11 @@ class ReactionWheel:
     def calibration_rotation(self):
         """Perform a calibration rotation."""
         # Test motor from 50% to 100% throttle
-        for percent in range(0, 10, 1):
+        for percent in range(0, -101, -10):
             self.motor.set_speed(percent)
             time.sleep(1)
         
-        for percent in range(10, 0, -1):
+        for percent in range(-100, 0, 10):
             self.motor.set_speed(percent)
             time.sleep(1)
 
@@ -515,6 +610,8 @@ class ReactionWheel:
         Stop the reaction wheel.
         """
         self.motor.stop()
+        self.set_state("STANDBY")
+        self.stop_event.set()
 
     def brushless_compensation(self):
         while True:

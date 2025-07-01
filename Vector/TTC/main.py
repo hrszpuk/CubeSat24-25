@@ -8,6 +8,7 @@ import base64
 from enums import TTCState, MessageType
 from datetime import datetime
 from TTC.utils import get_connection_info
+import time
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -64,6 +65,8 @@ class TTC:
                     case "health_check":
                         health = self.health_check()
                         self.pipe.send(health)
+                    case "imu_data":
+                        asyncio.run_coroutine_threadsafe(self.send_message(args["imu_data"]), self.event_loop)
                     case "stop":
                         self.log("OBDH listener shutting down...")
                         self.event_loop.call_soon_threadsafe(self.event_loop.stop)
@@ -162,9 +165,20 @@ class TTC:
                 kp = arguments[0]
                 ki = arguments[1]
                 kd = arguments[2]
-                #time = arguments[3]
-                self.pipe.send(("test_wheel", [kp, ki, kd]))
+                time = arguments[3]
+                degree = arguments[4]
+                self.pipe.send(("test_wheel", [kp, ki, kd, time, degree]))
                 await self.send_message("Testing wheel...")
+            case "stop_wheel":
+                self.pipe.send(("stop_wheel", []))
+                await self.send_message("Stopping wheel...")
+            case "calibrate_sun_sensors":
+                self.pipe.send(("calibrate_sun_sensors", []))
+                await self.send_message("Calibrating sun sensors...")
+            case "imu":
+                initial_time = time.time()
+                while (time.time() - initial_time) < 30:
+                    self.pipe.send(("imu", []))
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
@@ -173,11 +187,7 @@ class TTC:
                             self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-<<<<<<< HEAD
                             sequence = arguments[1] if len(arguments) >= 2 else None
-=======
-                            sequence = arguments[1] if len(arguments) == 2 else None
->>>>>>> 5e271578ff6ccfa71012798bdd0339fd5079c514
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]

@@ -54,7 +54,18 @@ class OBDH:
                             "kp": args[0],
                             "ki": args[1],
                             "kd": args[2],
+                            "time": int(args[3]),
+                            "degree": int(args[4]),
                         })
+                    case "stop_wheel":
+                        self.manager.send("ADCS", "stop_reaction_wheel", {})
+                    case "calibrate_sun_sensors":
+                        self.manager.send("ADCS", "calibrate_sun_sensors", {})
+                    case "imu":
+                        self.manager.send("ADCS", "imu", {})
+                        result = self.manager.receive("ADCS")
+                        self.logger.info(f"IMU data: {result}")
+                        self.manager.send("TTC", "imu_data", args={"imu_data": result})
                     case "shutdown":
                         self.manager.shutdown()
                         self.logger.info(len(self.manager.processes))

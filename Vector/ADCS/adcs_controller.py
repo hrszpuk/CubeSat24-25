@@ -28,8 +28,8 @@ class AdcsController:
         self.imu = Imu()
         self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
-        #self.current_reaction_wheel = self.backup_reaction_wheel
-        self.current_reaction_wheel = self.main_reaction_wheel
+        self.current_reaction_wheel = self.backup_reaction_wheel
+        #self.current_reaction_wheel = self.main_reaction_wheel
 
         #brushless_thread = threading.Thread(target=self.main_reaction_wheel.brushless_compensation)
         #brushless_thread.start()
@@ -129,8 +129,6 @@ class AdcsController:
         if imu_status["status"] == "ACTIVE" and self.current_reaction_wheel is not None:
             self.log("IMU initialized successfully.")
             self.calibrating_orientation_system = True
-            readings_queue = queue.Queue()
-
             self.log("Starting orientation system calibration...")
 
             calibration_rotation_thread = threading.Thread(target=self.current_reaction_wheel.calibration_rotation)
@@ -139,21 +137,7 @@ class AdcsController:
             calibration_rotation_thread.join()
 
             if result:
-                sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
-                sun_sensor_measurement_thread.start()
-                self.current_reaction_wheel.calibration_rotation()
-                self.calibrating_orientation_system = False
-                sun_sensor_measurement_thread.join()
-            
-                readings = readings_queue.get()
-
-                if readings is not None and len(readings) > 0:
-                    max_index = np.argmax(readings)
-                    max_value = readings[max_index]
-                    self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {max_index}°")
-                    self.imu.set_calibration_offset(max_index)
-                else:
-                    self.log("No sun sensor readings available to determine offset.")
+                self.calibrate_sun_sensors()
             else:
                 self.log("Orientation system calibration failed: IMU did not respond.")
         else:
@@ -163,8 +147,8 @@ class AdcsController:
         # Initialize the four sun sensors
         self.sun_sensors = [
             SunSensor(id=0, i2c_address=0x23, bus=1),
-            SunSensor(id=1, i2c_address=0x5c, bus=1),
-            SunSensor(id=2, i2c_address=0x23, bus=3),
+            SunSensor(id=2, i2c_address=0x5c, bus=1),
+            SunSensor(id=1, i2c_address=0x23, bus=3),
         ]
         
     def get_sun_sensors_status(self):
@@ -203,6 +187,27 @@ class AdcsController:
         health_check_text += f"Backup Reaction Wheel RPM: {self.backup_reaction_wheel.get_current_speed():.2f}\n"
         return health_check_text
 
+    def calibrate_sun_sensors(self):
+        readings_queue = queue.Queue()
+
+        if not self.calibrating_orientation_system:
+            self.calibrating_orientation_system = True
+        sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
+        sun_sensor_measurement_thread.start()
+        self.current_reaction_wheel.calibration_rotation()
+        self.calibrating_orientation_system = False
+        sun_sensor_measurement_thread.join()
+    
+        readings = readings_queue.get()
+
+        if readings is not None and len(readings) > 0:
+            max_index = np.argmax(readings)
+            max_value = readings[max_index]
+            self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {max_index}°")
+            self.imu.set_calibration_offset(max_index)
+        else:
+            self.log("No sun sensor readings available to determine offset.")
+
     def sun_sensor_calibration_measurement(self, readings_queue):
         #TODO: handle sensor not available
         #if not sensor.is_available():
@@ -240,19 +245,10 @@ class AdcsController:
 
         readings_queue.put(readings)
 
-    def test_reaction_wheel(self, kp, ki, kd, t=60):
-        # if type(self.current_reaction_wheel.motor) == BrushedMotor:
-        #     rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(0, kp, ki, kd))
-        #     self.log("Testing brushed motor reaction wheel Time:", t)
-        # else:
-        #     rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(0, kp, ki, kd))
-        #     self.log("Testing brushless motor reaction wheel Time:", t)
-
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(0, kp, ki, kd))
-
-        #rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(30,))
+    def test_reaction_wheel(self, kp, ki, kd, t=60, degree=0):
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(degree, kp, ki, kd))
         rotation_thread.start()
-        time.sleep(10)
+        time.sleep(t)
         print("Stopping reaction wheel after test duration")
         self.stop_reaction_wheel()
 
@@ -260,9 +256,18 @@ class AdcsController:
         self.current_reaction_wheel.stop_event.clear()
 
     def phase2_rotate(self, pipe):
-        self.log("ADCS phase 2 rotation started")  
-        self.current_reaction_wheel.activate_wheel_with_speed_desired(pipe, 30)  # Start rotating at 30 RPM
-
+        self.log("ADCS phase 2 rotation started")
+        initial_yaw = self.imu.get_current_yaw()
+        target_yaw = initial_yaw
+        pictures_taken = 0
+        while pictures_taken <= 18 or not self.current_reaction_wheel.stop_event.is_set():
+            self.current_reaction_wheel.activate_wheel_brushed_phase2(target_yaw) 
+            yaw = self.imu.get_current_yaw()
+            pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
+            last_yaw = abs(yaw)
+            target_yaw += 20
+            pictures_taken += 1
+        self.stop_reaction_wheel()
 
     def phase2_sequence_rotation(self, pipe, sequence, numbers):
         numbers = {v: k for k, v in numbers.items()}

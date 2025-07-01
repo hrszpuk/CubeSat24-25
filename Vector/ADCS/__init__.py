@@ -16,7 +16,9 @@ def start(pipe, log_queue):
             kp = args["kp"]
             ki = args["ki"]
             kd = args["kd"]
-            variable = adcs_controller.test_reaction_wheel(kp, ki, kd, t=60)
+            t = args["time"]
+            degree = args["degree"]
+            variable = adcs_controller.test_reaction_wheel(kp, ki, kd, t, degree)
             pipe.send(variable)
         elif line == "eps_health_check":
             variable = adcs_controller.get_eps_health_check()
@@ -54,5 +56,10 @@ def start(pipe, log_queue):
             adcs_controller.phase3b_read_target(pipe)
         elif line == "stop_reaction_wheel":
             adcs_controller.stop_reaction_wheel()
+        elif line == "calibrate_sun_sensors":
+            adcs_controller.calibrate_sun_sensors()
+        elif line == "imu":
+            imu_data = adcs_controller.imu.get_imu_data()
+            pipe.send(imu_data)
         elif line == "stop":
             running = False
