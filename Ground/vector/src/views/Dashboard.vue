@@ -174,7 +174,7 @@
                 <template #content>
                     <ScrollPanel style="width: 100%; height: 210px">
                         <Message v-if="!messages.length" variant="simple" severity="secondary">No messages</Message>
-                        <Message v-else v-for="message in messages" variant="simple" severity="secondary"><Tag :value="message.timestamp"></Tag> {{ message.data }}</Message>
+                        <Message v-else v-for="message in messages" variant="simple" :severity="message.includes('ERROR') ? 'error': 'secondary'"><Tag :value="message.timestamp"></Tag> {{ message.data }}</Message>
                     </ScrollPanel>
                 </template>
             </Card>

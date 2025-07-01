@@ -79,6 +79,15 @@ class TestTTC:
         except Exception as err:
             self.log(f"[ERROR] Failed to send {data}: {err}")
 
+    async def send_error(self, message):
+        self.log(f"Sending \"{message}\" to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": "message", "data": f"[ERROR] {message}"}))
+            self.log(f"Sent \"{message}\" to Ground")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
 
@@ -103,7 +112,7 @@ class TestTTC:
                     path = arguments[0]
                     await self.send_file(path)
                 else:
-                    await self.send_message("No file path provided!")
+                    await self.send_error("No file path provided!")
             case "health_check":
                 await self.send_message(f"'{self.health_check()}'")
             case "start_phase":
@@ -122,7 +131,7 @@ class TestTTC:
                                 self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
                                 await self.send_message(f"Starting phase {phase}...")
                             else:
-                                await self.send_message("No sequence provided!")
+                                await self.send_error("No sequence provided!")
                         case 3:
                             subphase = arguments[1] if len(arguments) == 2 else None
 
@@ -130,16 +139,16 @@ class TestTTC:
                                 self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
-                                await self.send_message("No subphase provided!")
+                                await self.send_error("No subphase provided!")
                         case _:
-                            await self.send_message(f"{phase} is not a valid phase!")
+                            await self.send_error(f"{phase} is not a valid phase!")
                 else:
-                    await self.send_message("No phase provided!")
+                    await self.send_error("No phase provided!")
             case "shutdown":
                 await self.send_message("Shutting down...")
             case _:
                 self.log(f"[ERROR] Invalid command received: {command}")
-                await self.send_message(f"{command} is not a valid command!")
+                await self.send_error(f"{command} is not a valid command!")
 
     async def send_file(self, file_path):
         retries = 0
@@ -168,16 +177,7 @@ class TestTTC:
                     self.log("Sent file data")
                     await self.connection.send("File transfer complete")
 
-                break                
-            except OSError as err:
-                # Handle operating system error
-                self.log(f"[ERROR] OS error: {err}, retrying...")
-            except ConnectionError as err:
-                # Handle connection-related error
-                self.log(f"[ERROR] Connection error: {err}, retrying...")
-            except TimeoutError as err:
-                # Handle timeout-related error
-                self.log(f"[ERROR] Timeout error: {err}, retrying...")
+                break
             except Exception as err:
                 # Handle other general errors
                 self.log(f"[ERROR] {err}, retrying...")
@@ -189,12 +189,6 @@ class TestTTC:
 
         if retries >= self.MAX_RETRIES:
             self.log(f"[ERROR] Failed to send file {file_path} after {self.MAX_RETRIES} retries!")
-    
-    def get_state(self):
-        return self.state
-    
-    def get_connection(self):
-        return self.connection
     
     def health_check(self):
         self.log("Performing subsystem health check...")
