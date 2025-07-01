@@ -12,21 +12,28 @@ def run_phase2(obdh, manager, logger, sequence):
     rotating = True
 
     while rotating:
-        adcs_response = manager.receive("ADCS")
-        cmd = adcs_response["command"]
-        args = adcs_response["arguments"]
+        if manager.pipes["ADCS"].poll():
+            adcs_response = manager.receive("ADCS")
+            print(adcs_response)
+            cmd = adcs_response["command"]
+            args = adcs_response["arguments"]
 
-        if cmd == "take_picture":
-            logger.info("ADCS instructed to take picture")
-            manager.send("Payload", "take_picture", args={"current_yaw": args["current_yaw"]})
-        elif cmd == "rotation_complete":
-            logger.info("ADCS rotation complete, proceeding to image processing")
-            rotating = False
+            if cmd == "take_picture":
+                logger.info("ADCS instructed to take picture")
+                manager.send("Payload", "take_picture", args={"current_yaw": args["current_yaw"]})
+            elif cmd == "rotation_complete":
+                logger.info("ADCS rotation complete, proceeding to image processing")
+                rotating = False
 
     # 3- Process images
+    processing_images = True
     manager.send("Payload", "get_numbers")
-    numbers = manager.receive(name="Payload")["response"]
-    logger.info(f"Payload numbers: {numbers}")
+    
+    while processing_images:
+        if manager.pipes["ADCS"].poll():
+            numbers = manager.receive(name="Payload")["response"]
+            logger.info(f"Payload numbers: {numbers}")
+            processing_images = False
 
     # 4- send the sequence number to ADCS
 

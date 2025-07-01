@@ -7,16 +7,9 @@
             order: 1;
         }
 
-        .layout__header-nav {
+        .layout__header-toolbar {
             display: flex;
             flex-grow: 0;
-        }
-
-        .layout__header-buttons {
-            order: 2;
-            background-color: var(--surface-overlay);
-            -webkit-animation: scalein 0.15s linear;
-            animation: scalein 0.15s linear;        
         }
     }
 }

@@ -5,13 +5,11 @@ import { useAudio } from './audio.js';
 
 const toast = useToast();
 const {playConnectSfx, playErrorSfx, playMessageSfx, playDisconnectSfx} = useAudio();
-
 const connection = reactive({
     ip: "172.20.10.9",
     port: 8000, 
     url: "ws://172.20.10.9:8000"
 });
-
 const { ws, status, data, send, open, close } = useWebSocket(computed(() => connection.url), {
     immediate: false,
     autoConnect: false,
@@ -39,13 +37,23 @@ const { ws, status, data, send, open, close } = useWebSocket(computed(() => conn
         toast.add({severity: "error", summary: "WebSocket Error", detail: `Error connecting to CubeSat on ${connection.ip}:${connection.port}`, life: 3000});
     },
     onMessage(ws, event) {
-        // playMessageSfx()
-        let obj = JSON.parse(event.data)
-        
-        if (obj.type.localeCompare("message") === 0) {
-            console.log(`Message from CubeSat: ${obj.data}`);
+        if (typeof event.data === "string") {
+            try {
+                let obj = JSON.parse(event.data);
+                
+                switch(obj.type) {
+                    case "message":
+                        playMessageSfx()
+                        console.log(`Message from CubeSat: ${obj.data}`);
+                        break;
+                }
+            } catch(err) {
+                console.log(`Message from CubeSat: ${event.data}`);
+                console.log(event.data);
+            }
+        } else if (event.data instanceof Blob) {
+            console.log(`Received data from CubeSat: ${event.data}`);
         }
-
     }
 });
 
@@ -77,5 +85,5 @@ export function useSocket() {
         close()
     }
 
-    return {connection, getStatus, establishConnection, sendMessage, message: data, dropConnection}
+    return {connection, getStatus, establishConnection, sendMessage, data, dropConnection}
 }

@@ -86,7 +86,7 @@ class ProcessManager:
                         return {"response": result}
                 else:
                     self.logger.warning(f"Timeout waiting for response from {name}.")
-                    return {"response": "Timed out waiting for response."}
+                    return None
             else:
                 result = conn.recv()
                 
@@ -97,7 +97,7 @@ class ProcessManager:
                     return {"response": result}
         except (EOFError, OSError) as e:
             self.logger.error(f"Error receiving from {name}: {e}")
-            return {"response": "Error receiving"}
+            return None
         
     def poll(self, name):
         conn = self.pipes[name]

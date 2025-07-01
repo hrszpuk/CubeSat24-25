@@ -2,8 +2,8 @@ import os
 import socket
 import websockets
 import json
-import base64
 from datetime import datetime
+from TTC.utils import zip_file
 
 class TestTTC:
     def __init__(self, event_loop, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -79,6 +79,15 @@ class TestTTC:
         except Exception as err:
             self.log(f"[ERROR] Failed to send {data}: {err}")
 
+    async def send_error(self, message):
+        self.log(f"Sending \"{message}\" to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": "message", "data": f"[ERROR] {message}"}))
+            self.log(f"Sent \"{message}\" to Ground")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
 
@@ -101,36 +110,45 @@ class TestTTC:
             case "get_file":
                 if arguments:
                     path = arguments[0]
-                    await self.send_message(f"Sending file {path}...")
                     await self.send_file(path)
                 else:
-                    await self.send_message("No file path provided!")
+                    await self.send_error("No file path provided!")
             case "health_check":
                 await self.send_message(f"'{self.health_check()}'")
             case "start_phase":
                 if arguments:
                     phase = int(arguments[0])
-                    subphase = arguments[1] if len(arguments) == 2 else None
                     
                     match phase:
-                        case 1 | 2:
-                            self.pipe.send(msg)
+                        case 1:
+                            self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
+                        case 2:
+                            sequence = arguments[1] if len(arguments) == 2 else None
+
+                            if sequence:
+                                sequence_list = [int(number) for number in sequence.split(",")]
+                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
+                                await self.send_message(f"Starting phase {phase}...")
+                            else:
+                                await self.send_error("No sequence provided!")
                         case 3:
+                            subphase = arguments[1] if len(arguments) == 2 else None
+
                             if subphase:
-                                self.pipe.send(msg)
+                                self.pipe.send(("start_phase", {"phase": phase, "subphase": subphase}))
                                 await self.send_message(f"Starting phase {phase} subphase {subphase}...")
                             else:
-                                await self.send_message("No subphase provided!")
+                                await self.send_error("No subphase provided!")
                         case _:
-                            await self.send_message(f"{phase} is not a valid phase!")
+                            await self.send_error(f"{phase} is not a valid phase!")
                 else:
-                    await self.send_message("No phase provided!")
+                    await self.send_error("No phase provided!")
             case "shutdown":
                 await self.send_message("Shutting down...")
             case _:
                 self.log(f"[ERROR] Invalid command received: {command}")
-                await self.send_message(f"{command} is not a valid command!")
+                await self.send_error(f"{command} is not a valid command!")
 
     async def send_file(self, file_path):
         retries = 0
@@ -143,45 +161,34 @@ class TestTTC:
                     self.log(f"[ERROR] {file_path} does not exist!")
                     break
 
-                file_base_name = os.path.basename(file_path)
-                file_size = os.path.getsize(file_path)
+                zip_path = zip_file(file_path)
+                zip_file_size = os.path.getsize(zip_path)
                 self.log("Sending file metadata...")
-                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "filemetadata", "data": {"size": file_size, "name": file_base_name}}))
+                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "filemetadata", "data": {"size": zip_file_size, "name": f"{os.path.basename(file_path)}.zip"}}))
                 self.log("Sent file metadata")
 
-                with open(file_path, "rb") as f:
+                with open(zip_path, "rb") as f:
                     self.log("Sending file data...")
+                    await self.connection.send("File transfer started")
 
                     while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "filedata", "data": base64.b64encode(chunk).decode("ascii")}))
+                        await self.connection.send(chunk)
 
-                    await self.send_message("File send complete")
                     self.log("Sent file data")
+                    await self.connection.send("File transfer complete")
 
-                break                
-            except OSError as err:
-                # Handle operating system error
-                self.log(f"[ERROR] OS error: {err}, retrying...")
-            except ConnectionError as err:
-                # Handle connection-related error
-                self.log(f"[ERROR] Connection error: {err}, retrying...")
-            except TimeoutError as err:
-                # Handle timeout-related error
-                self.log(f"[ERROR] Timeout error: {err}, retrying...")
+                break
             except Exception as err:
                 # Handle other general errors
                 self.log(f"[ERROR] {err}, retrying...")
+            finally:
+                if zip_path and os.path.exists(zip_path):
+                    os.unlink(zip_path)
 
             retries += 1
 
         if retries >= self.MAX_RETRIES:
             self.log(f"[ERROR] Failed to send file {file_path} after {self.MAX_RETRIES} retries!")
-    
-    def get_state(self):
-        return self.state
-    
-    def get_connection(self):
-        return self.connection
     
     def health_check(self):
         self.log("Performing subsystem health check...")

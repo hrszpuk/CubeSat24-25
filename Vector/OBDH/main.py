@@ -188,8 +188,8 @@ class OBDH:
 
     def reset_state(self, timer=None):
         # Reset the state to IDLE
-        if self.state != OBDHState.IDLE:
-            self.state = OBDHState.IDLE
+        if self.state != OBDHState.READY:
+            self.state = OBDHState.READY
             self.phase = None
             self.subphase = None
             self.start_time = None
