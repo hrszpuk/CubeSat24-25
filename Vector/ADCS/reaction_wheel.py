@@ -130,7 +130,7 @@ class ReactionWheel:
     def normalize_angle(self, angle):
         return (angle % 360) - 180  # Ensures angle is within [-180, 180)
 
-    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.1, kd=0.3, t=60, tolerance=10, break_on_target=True):
+    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.5, kd=0.3, t=60, tolerance=10, break_on_target=True):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 

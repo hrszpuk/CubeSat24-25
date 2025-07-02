@@ -268,15 +268,8 @@ class AdcsController:
             pictures_taken += 1
         self.stop_reaction_wheel()
 
-    def phase2_sequence_rotation(self, pipe, sequence, numbers):
+    def phase2_sequence_rotation(self, pipe, sequence, targets):
         degree_distances = [0]
-
-        targets = {}
-        keys = list(numbers.keys())
-
-        for n in sequence:
-            if n in keys:
-                targets[n] = numbers[n]
 
         degree_distances.extend([abs(targets[sequence[i]] - targets[sequence[i-1]]) % 360 for i in range(1, len(sequence))])
 

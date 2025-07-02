@@ -1,27 +1,27 @@
 --- Vector CubeSat Health Check Report ---
 Date: 02-07-2025
-Time: 12:52 GMT
+Time: 15:58 GMT
 
 --- Power Subsystem ---
-Battery Voltage: 1.942253 V
-Battery Current: 15.96182 A
-Battery Temperature: 62.83498 °C (NOMINAL)
+Battery Voltage: 2.01 V
+Battery Current: 14.77 A
+Battery Temperature: 61.20 °C (NOMINAL)
 
 
 --- Thermal Subsystem ---
-Internal Temperature: 59.50 °C (NOMINAL)
+Internal Temperature: 49.60 °C (NOMINAL)
 Status: OK
 
 
 --- Communication Subsystem ---
-Downlink Frequency: 5.22 GHz (NOMINAL)
-Uplink Frequency: 5.22 GHz (NOMINAL)
-Signal Strength: 56 dBm (NOMINAL)
-Data Transmission Rate: 390.0 Mb/s (NOMINAL)
+Downlink Frequency: 5.18 GHz (NOMINAL)
+Uplink Frequency: 5.18 GHz (NOMINAL)
+Signal Strength: 48 dBm (NOMINAL)
+Data Transmission Rate: 78.0 Mb/s (NOMINAL)
 
 --- ADCS Subsystem ---
-Gyroscope: X: -1.72 °/s, Y: 0.57 °/s, Z: 19.48 °/s
-Orientation: X: 87.29000000000002 °, Y: 2.58 °, Z: 357.5 °
+Gyroscope: X: -1.72 °/s, Y: 0.57 °/s, Z: 20.05 °/s
+Orientation: X: 316.39 °, Y: 3.01 °, Z: 357.49 °
 Sun Sensor 0: ACTIVE
 Sun Sensor 1: ACTIVE
 Sun Sensor 2: ACTIVE
@@ -36,9 +36,9 @@ Distance Sensor: ACTIVE
 STATUS: OK
 
 --- Command and Data Handling Subsystem ---
-Memory Usage: 12.7%
-Last Command Received: 02-07-2025 13:52 GMT
-Uptime: 7 minutes
+Memory Usage: 13.4%
+Last Command Received: 02-07-2025 16:58 GMT
+Uptime: 6 minutes
 
 
 --- Error Log ---

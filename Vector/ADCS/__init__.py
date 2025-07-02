@@ -41,7 +41,8 @@ def start(pipe, log_queue):
             else:
                 print(f"Received sequence: {sequence}, numbers: {numbers}")
                 degree_distances = adcs_controller.phase2_sequence_rotation(pipe, sequence, numbers)
-            pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
+            print(f"INIT Degree distances: {degree_distances}")
+            pipe.send(("sequence_rotation_complete", None))  # notify OBDH that sequence rotation is complete
             time.sleep(1)  # wait for a second before sending the response
             pipe.send(("phase2_sequence_response", {"degree_distances": degree_distances}))
         elif line == "phase3_search_target":
