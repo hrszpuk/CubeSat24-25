@@ -1,8 +1,21 @@
+import psutil
+import datetime
 import subprocess
 import re
 import os
 import tempfile
 import zipfile
+
+def get_command_and_data_handling_status():
+    memory = psutil.virtual_memory()
+    boot_time_timestamp = psutil.boot_time()
+    boot_time_datetime = datetime.datetime.fromtimestamp(boot_time_timestamp)
+    current_time = datetime.datetime.now()
+    uptime_delta = current_time - boot_time_datetime
+    total_seconds = int(uptime_delta.total_seconds())
+    minutes = total_seconds // 60
+
+    return {"Memory Usage": memory.percent, "Uptime": minutes}
 
 def get_connection_info(interface="wlan0"):
     try:

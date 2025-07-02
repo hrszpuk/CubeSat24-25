@@ -7,7 +7,7 @@ import json
 import time
 from enums import TTCState, MessageType
 from datetime import datetime
-from TTC.utils import get_connection_info, zip_folder, zip_file
+from TTC.utils import get_command_and_data_handling_status, get_connection_info, zip_folder, zip_file
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -88,7 +88,7 @@ class TTC:
                             self.log("[ERROR] No message provided!")
                     case "send_data":
                         if args["data"]:
-                            asyncio.run_coroutine_threadsafe(self.send_data(args["data"]), self.event_loop)
+                            asyncio.run_coroutine_threadsafe(self.send_data(args["subsystem"], args["data"]), self.event_loop)
                         else:
                             self.log("[ERROR] No message provided!")
                     case "send_file":
@@ -133,6 +133,7 @@ class TTC:
 
         while self.state == TTCState.CONNECTED:
             try:
+                await self.send_status()
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
@@ -157,6 +158,15 @@ class TTC:
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"pong\": {err}")
 
+    async def send_status(self):
+        health = self.health_check()
+        status = get_command_and_data_handling_status()
+
+        for key, value in health:
+            status[key] = value
+
+        await self.send_data("TTC", status)
+
     async def send_log(self, message):
         if (self.state == TTCState.CONNECTED):
             self.log(f"Sending \"{message}\" to Ground...")
@@ -169,14 +179,14 @@ class TTC:
         else:
             self.log("Not connected to ground, log not sent")
 
-    async def send_data(self, data):
-        self.log(f"Sending {data} to Ground...")
+    async def send_data(self, subsystem, data):
+        self.log(f"Sending data from {subsystem} ({data}) to Ground...")
 
         try:
-            await self.connection.send(json.dumps({"type": MessageType.DATA.name.lower(), "data": data}))
-            self.log(f"Sent {data} to Ground")
+            await self.connection.send(json.dumps({"type": MessageType.DATA.name.lower(), "subsystem": subsystem, "data": data}))
+            self.log(f"Sent data from {subsystem} ({data}) to Ground")
         except Exception as err:
-            self.log(f"[ERROR] Failed to send {data}: {err}")    
+            self.log(f"[ERROR] Failed to send data from {subsystem} ({data}): {err}")    
     
     async def send_message(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
