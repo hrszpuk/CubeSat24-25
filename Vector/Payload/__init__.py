@@ -1,9 +1,27 @@
 from Payload.payload_controller import PayloadController
+from datetime import datetime
+import threading
+import time
+
+TELEMETRY_INTERVAL = 1
 
 
-def start(pipe, log_queue):
+def log_payload_data(controller, telemetry_queue, telemetry_stop_event):
+    log_data = lambda origin, data: telemetry_queue.put((origin, datetime.now().strftime("%H:%M:%S.%f"), data))
+
+    while not telemetry_stop_event.is_set():
+
+        time.sleep(TELEMETRY_INTERVAL)
+
+
+def start(pipe, log_queue, telemetry_queue):
     log_queue.put(("Payload", "Starting Subsystem"))
     payload_controller = PayloadController(log_queue)
+
+    telemetry_stop_event = threading.Event()
+
+    t = threading.Thread(target=log_payload_data, args=(payload_controller, telemetry_queue, telemetry_stop_event))
+    t.start()
 
     running = True
     while running:
@@ -35,3 +53,8 @@ def start(pipe, log_queue):
             pipe.send(path)
         elif line == "stop":
             running = False
+
+    telemetry_stop_event.set()
+    t.join()
+
+

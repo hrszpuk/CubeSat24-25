@@ -2,14 +2,27 @@ import importlib
 import multiprocessing as mp
 from OBDH.logger import Logger
 
+
 class ProcessManager:
     def __init__(self, logger):
         self.logger = logger
         self.processes = {}
         self.pipes = {}
+
         self.log_queue = mp.Queue()
         self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue,))
         self.log_listener.start()
+
+        self.telemetry_queue = mp.Queue()
+        self.telemetry_listener = mp.Process(target=self.telemetry_listener_process, args=(self.telemetry_queue,))
+        self.telemetry_listener.start()
+
+    def telemetry_listener_process(self, log_queue):
+        # NOTE(remy): telemetry data bypasses the logger and just uses queue + pipes because I've stopped caring at this point
+        while True:
+            origin, data, timestamp = log_queue.get()
+            # NOTE(remy): origin = what it is (gyroscope, temperature, rpm, etc)
+            self.pipes["TTC"].send(("data", {"origin": origin, "timestamp": timestamp, "data": data}))
 
     def log_listener_process(self, log_queue):
         logger = Logger(log_to_console=True).get_logger()
@@ -19,10 +32,10 @@ class ProcessManager:
                 break
             logger.info(f"[{name}] {msg}")
 
-    def _run_subsystem(self, module_name, pipe, log_queue):
+    def _run_subsystem(self, module_name, pipe, log_queue, telemetry):
         try:
             subsystem = importlib.import_module(module_name)
-            subsystem.start(pipe, log_queue)
+            subsystem.start(pipe, log_queue, telemetry=telemetry)
         except Exception as e:
             log_queue.put((module_name.upper(), f"Error starting subsystem: {e}"))
 
@@ -32,9 +45,9 @@ class ProcessManager:
         if name in self.processes:
             self.logger.warning(f"{name} already running.")
             return
-        
+
         parent_conn, child_conn = mp.Pipe()
-        proc = mp.Process(target=self._run_subsystem, args=(module_name, child_conn, self.log_queue), name=name)
+        proc = mp.Process(target=self._run_subsystem, args=(module_name, child_conn, self.log_queue, self.telemetry_queue), name=name)
 
         try:
             proc.start()
@@ -48,7 +61,7 @@ class ProcessManager:
         if name not in self.pipes:
             self.logger.warning(f"{name} is not running.")
             return
-        
+
         self.pipes[name].send((msg, args))
 
         if log:
@@ -72,7 +85,7 @@ class ProcessManager:
                     return None
             else:
                 result = conn.recv()
-                
+
                 if isinstance(result, tuple) and len(result) == 2:
                     cmd, args = result
                     return {"response": result, "command": cmd, "arguments": args}
