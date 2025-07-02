@@ -28,11 +28,8 @@ class AdcsController:
         self.imu = Imu()
         self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
-        #self.current_reaction_wheel = self.backup_reaction_wheel
-        self.current_reaction_wheel = self.main_reaction_wheel
-
-        #brushless_thread = threading.Thread(target=self.main_reaction_wheel.brushless_compensation)
-        #brushless_thread.start()
+        self.current_reaction_wheel = self.backup_reaction_wheel
+        #self.current_reaction_wheel = self.main_reaction_wheel
         self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
@@ -79,13 +76,13 @@ class AdcsController:
             gyroscope_text = "No data available"
             errors.append("Gyroscope data not available")
         else:
-            gyroscope_text = f"X: {gyroscope_data[0]} º/s, Y: {gyroscope_data[1]} º/s, Z: {gyroscope_data[2]} º/s"
+            gyroscope_text = f"X: {gyroscope_data[0]} °/s, Y: {gyroscope_data[1]} °/s, Z: {gyroscope_data[2]} °/s"
 
         if not orientation_data:
             orientation_text = "No data available"
             errors.append("Orientation data not available")
         else:
-            orientation_text = f"X: {orientation_data[0]} º, Y: {orientation_data[1]} º, Z: {orientation_data[2]} º"
+            orientation_text = f"X: {orientation_data[0]:.2f} °, Y: {orientation_data[1]:.2f} °, Z: {orientation_data[2]:.2f} °"
 
         health_check_text += f"Gyroscope: {gyroscope_text}\n"
         health_check_text += f"Orientation: {orientation_text}\n"
@@ -102,26 +99,26 @@ class AdcsController:
             health_check_text += f"Battery Voltage: NOT AVAILABLE\n"
             self.log("Battery voltage not available.\n")
         else:
-            health_check_text += f"Battery Voltage: {voltage} V\n"
+            health_check_text += f"Battery Voltage: {voltage:.2f} V\n"
 
         if current is None:
             health_check_text += f"Battery Current: NOT AVAILABLE\n"
             self.log("Battery current not available.\n")
         else:
-            health_check_text += f"Battery Current: {current} A\n"
+            health_check_text += f"Battery Current: {current:.2f} A\n"
         
         if temp is None:
             health_check_text += f"Battery Temperature: NOT AVAILABLE\n"
             self.log("Battery temperature not available.\n")
         else:
             if temp > 75:
-                health_check_text += f"Battery Temperature: {temp} ºC (CRITICAL)\n"
+                health_check_text += f"Battery Temperature: {temp:.2f} °C (CRITICAL)\n"
                 self.log("Battery temperature is critical!")
             elif temp > 65:
-                health_check_text += f"Battery Temperature: {temp} ºC (WARNING)\n"
+                health_check_text += f"Battery Temperature: {temp:.2f} °C (WARNING)\n"
                 self.log("Battery temperature is high.")
             else:
-                health_check_text += f"Battery Temperature: {temp} ºC (NOMINAL)\n"
+                health_check_text += f"Battery Temperature: {temp:.2f} °C (NOMINAL)\n"
         return health_check_text
 
     def calibrate_orientation_system(self):
@@ -129,8 +126,6 @@ class AdcsController:
         if imu_status["status"] == "ACTIVE" and self.current_reaction_wheel is not None:
             self.log("IMU initialized successfully.")
             self.calibrating_orientation_system = True
-            readings_queue = queue.Queue()
-
             self.log("Starting orientation system calibration...")
 
             calibration_rotation_thread = threading.Thread(target=self.current_reaction_wheel.calibration_rotation)
@@ -139,21 +134,7 @@ class AdcsController:
             calibration_rotation_thread.join()
 
             if result:
-                sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
-                sun_sensor_measurement_thread.start()
-                self.current_reaction_wheel.calibration_rotation()
-                self.calibrating_orientation_system = False
-                sun_sensor_measurement_thread.join()
-            
-                readings = readings_queue.get()
-
-                if readings is not None and len(readings) > 0:
-                    max_index = np.argmax(readings)
-                    max_value = readings[max_index]
-                    self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {max_index}°")
-                    self.imu.set_calibration_offset(max_index)
-                else:
-                    self.log("No sun sensor readings available to determine offset.")
+                self.calibrate_sun_sensors()
             else:
                 self.log("Orientation system calibration failed: IMU did not respond.")
         else:
@@ -163,8 +144,8 @@ class AdcsController:
         # Initialize the four sun sensors
         self.sun_sensors = [
             SunSensor(id=0, i2c_address=0x23, bus=1),
-            SunSensor(id=1, i2c_address=0x5c, bus=1),
-            SunSensor(id=2, i2c_address=0x23, bus=3),
+            SunSensor(id=1, i2c_address=0x23, bus=3),
+            SunSensor(id=2, i2c_address=0x5c, bus=1),
         ]
         
     def get_sun_sensors_status(self):
@@ -203,6 +184,27 @@ class AdcsController:
         health_check_text += f"Backup Reaction Wheel RPM: {self.backup_reaction_wheel.get_current_speed():.2f}\n"
         return health_check_text
 
+    def calibrate_sun_sensors(self):
+        readings_queue = queue.Queue()
+
+        if not self.calibrating_orientation_system:
+            self.calibrating_orientation_system = True
+        sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
+        sun_sensor_measurement_thread.start()
+        self.current_reaction_wheel.calibration_rotation()
+        self.calibrating_orientation_system = False
+        sun_sensor_measurement_thread.join()
+    
+        readings = readings_queue.get()
+
+        if readings is not None and len(readings) > 0:
+            max_index = np.argmax(readings)
+            max_value = readings[max_index]
+            self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {max_index}°")
+            self.imu.set_calibration_offset(max_index)
+        else:
+            self.log("No sun sensor readings available to determine offset.")
+
     def sun_sensor_calibration_measurement(self, readings_queue):
         #TODO: handle sensor not available
         #if not sensor.is_available():
@@ -240,19 +242,10 @@ class AdcsController:
 
         readings_queue.put(readings)
 
-    def test_reaction_wheel(self, kp, ki, kd, t=60):
-        # if type(self.current_reaction_wheel.motor) == BrushedMotor:
-        #     rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(0, kp, ki, kd))
-        #     self.log("Testing brushed motor reaction wheel Time:", t)
-        # else:
-        #     rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(0, kp, ki, kd))
-        #     self.log("Testing brushless motor reaction wheel Time:", t)
-
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel, args=(0, kp, ki, kd))
-
-        #rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(30,))
+    def test_reaction_wheel(self, kp, ki, kd, t=60, degree=0):
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(degree, kp, ki, kd))
         rotation_thread.start()
-        time.sleep(10)
+        time.sleep(t)
         print("Stopping reaction wheel after test duration")
         self.stop_reaction_wheel()
 
@@ -260,32 +253,46 @@ class AdcsController:
         self.current_reaction_wheel.stop_event.clear()
 
     def phase2_rotate(self, pipe):
-        self.log("ADCS phase 2 rotation started")  
-        self.current_reaction_wheel.activate_wheel_with_speed_desired(pipe, 30)  # Start rotating at 30 RPM
-
+        self.log("ADCS phase 2 rotation started")
+        initial_yaw = self.imu.get_current_yaw()
+        target_yaw = initial_yaw
+        pictures_taken = 0
+        timeout = 120
+        start_time = time.time()
+        while (pictures_taken <= 18 or not self.current_reaction_wheel.stop_event.is_set()) and (time.time() - start_time < timeout):
+            self.current_reaction_wheel.activate_wheel_brushed(target_yaw) 
+            yaw = self.imu.get_current_yaw()
+            pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
+            last_yaw = abs(yaw)
+            target_yaw += 20
+            pictures_taken += 1
+        self.stop_reaction_wheel()
 
     def phase2_sequence_rotation(self, pipe, sequence, numbers):
-        numbers = {v: k for k, v in numbers.items()}
-        degree_distances = [abs(numbers[sequence[i]] - numbers[sequence[i-1]]) % 360 for i in range(1, len(sequence))]
+        degree_distances = [0]
+
+        targets = {}
+        keys = list(numbers.keys())
+
+        for n in sequence:
+            if n in keys:
+                targets[n] = numbers[n]
+
+        degree_distances.extend([abs(targets[sequence[i]] - targets[sequence[i-1]]) % 360 for i in range(1, len(sequence))])
 
         current_target = None
         current_target_yaw = None
         
         for i in range(len(sequence)):
             current_target = sequence[i]
-            current_target_yaw = numbers[current_target]
-            rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushless_phase2, args=(pipe, current_target_yaw))
-            rotation_thread.start()
-            time.sleep(20) # wait 10 seconds
+            current_target_yaw = targets.get(current_target, None)
+            if current_target_yaw is None:
+                self.log(f"Target {current_target} not found in numbers mapping.")
+                continue
+            self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw)
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
-            pipe.send(("take_distance", {}))  # send to Payload to measure distance
-            self.stop_reaction_wheel()
-            rotation_thread.join()
-            self.current_reaction_wheel.stop_event.clear()
-
+            pipe.send(("take_distance", None))  # send to Payload to measure distance
         
-        pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
-
         return degree_distances
 
     
@@ -293,14 +300,15 @@ class AdcsController:
         # Start rotating at specific speed
         # if apriltag is detected, stop rotating and record pose of target
         # if not, continue rotating until a timeout is reached
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_with_speed_desired, args=(10,))
+        current_yaw = self.get_current_yaw()
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(current_yaw - 360,))
         rotation_thread.start()
 
         target_found = False
         timeout = 30  # seconds
         start_time = time.time()
         while (time.time() - start_time < timeout) and self.is_reaction_wheel_rotating():
-            pipe.send(("detect_apriltag", {}))
+            pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
                 last_speed = self.current_reaction_wheel.get_current_speed()
@@ -315,7 +323,7 @@ class AdcsController:
             pipe.send(("target_found", {"last_speed": last_speed}))
         else:
             self.log("Target not found within timeout period")
-            pipe.send(("timeout", {}))
+            pipe.send(("timeout", None))
 
 
     def phase3_reacquire_target(self, pipe):
@@ -331,10 +339,10 @@ class AdcsController:
             initial_time = time.time()
             timeout = 10  # seconds
             while not target_found and (time.time() - initial_time < timeout) and self.is_reaction_wheel_rotating():
-                pipe.send(("detect_apriltag", {}))
+                pipe.send(("detect_apriltag", None))
                 line, args = pipe.recv()
                 if line == "apriltag_detected":
-                    last_speed = self.current_reaction_wheel.get_current_speed()
+                    last_speed = self.current_reaction_wheel.get_current_speed(return_percentage=True)
                     target_found = True
                     break
             self.stop_reaction_wheel()
@@ -354,7 +362,7 @@ class AdcsController:
     def phase3_align_target(self, pipe, last_speed=0, break_on_target_aligned=True):
         # Rotate according to april tag rotation until the satellite is aligned with the target
         self.log("Aligning with target...")
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_to_align, args=(last_speed,))
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed_to_align, args=(last_speed,))
         rotation_thread.start()
 
         self.log("Alignment complete.")
@@ -362,7 +370,7 @@ class AdcsController:
         target_found = True
 
         while target_found is True and self.is_reaction_wheel_rotating():
-            pipe.send(("detect_apriltag", {}))
+            pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
                 target_pose = args.get("pose", None)
@@ -385,7 +393,7 @@ class AdcsController:
         rotation_thread.join()
 
         self.log("Target lost during alignment")
-        pipe.send(("target_lost", {}))
+        pipe.send(("target_lost", None))
 
     def phase3b_read_target(self, pipe):
         # Lock target yaw and get any april tag pose
@@ -393,7 +401,7 @@ class AdcsController:
         rotation_thread.start()
 
         while self.is_reaction_wheel_rotating():
-            pipe.send(("detect_apriltag", {}))
+            pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
                 target_pose = args.get("pose", None)
@@ -404,7 +412,9 @@ class AdcsController:
 
     def stop_reaction_wheel(self):
         self.current_reaction_wheel.set_state("STANDBY")
-        self.current_reaction_wheel.stop_event.set()
+        if not self.current_reaction_wheel.stop_event.is_set():
+            self.current_reaction_wheel.stop_event.set()
+        self.current_reaction_wheel.stop_event.clear()
 
     def is_reaction_wheel_rotating(self):
         return self.current_reaction_wheel.get_state() == "ROTATING" or self.current_reaction_wheel.get_state() == "ALIGNING"

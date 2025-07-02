@@ -34,8 +34,8 @@ class OBDH:
         self.logger.info("All subsystems are ready")
 
     def start_mission(self):
-        print("Automatic mode")
-
+        self.start_phase(1)
+        
     def handle_input(self):
         while True:
             if self.state == OBDHState.READY:
@@ -51,11 +51,22 @@ class OBDH:
                         phase = args["phase"]
                         self.start_phase(phase, args)
                     case "test_wheel":
-                        self.manager.send("ADCS", "test_wheel", args={
+                        self.manager.send("ADCS", "test_wheel", {
                             "kp": args[0],
                             "ki": args[1],
                             "kd": args[2],
+                            "time": int(args[3]),
+                            "degree": int(args[4]),
                         })
+                    case "stop_wheel":
+                        self.manager.send("ADCS", "stop_reaction_wheel")
+                    case "calibrate_sun_sensors":
+                        self.manager.send("ADCS", "calibrate_sun_sensors")
+                    case "imu":
+                        self.manager.send("ADCS", "imu")
+                        result = self.manager.receive("ADCS")
+                        self.logger.info(f"IMU data: {result}")
+                        self.manager.send("TTC", "imu_data", {"imu_data": result})
                     case "shutdown":
                         self.manager.shutdown()
                         self.logger.info(len(self.manager.processes))
@@ -67,11 +78,12 @@ class OBDH:
                         self.logger.info(f"Payload health check result: {result}")
                     case "payload_take_picture":
                         path = "images/manual/"
-                        self.manager.send("Payload", "take_picture_raw", args={"dir": path, "name": "manual"})
-                        if os.path.exists(path + "manual_left.jpg") and os.path.exists(path + "manual_right.jpg"):
+                        self.manager.send("Payload", "take_picture_raw", {"dir": path, "name": "manual"})
+
+                        if os.path.exists(path+"manual_left.jpg") and os.path.exists(path+"manual_right.jpg"):
                             self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
-                            self.manager.send("TTC", "send_file", args={"path": path + "manual_left.jpg.jpg"})
-                            self.manager.send("TTC", "send_file", args={"path": path + "manual_right.jpg"})
+                            self.manager.send("TTC", "send_file", {"path": path+"manual_left.jpg.jpg"})
+                            self.manager.send("TTC", "send_file", {"path": path+"manual_right.jpg"}
                         else:
                             self.logger.error(
                                 "(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
@@ -94,6 +106,7 @@ class OBDH:
                     case "payload_detect_apriltag":
                         self.manager.send("Payload", "detect_apriltag")
                         result = self.manager.receive("Payload")
+
                         if result is None:
                             self.logger.error("(payload_detect_apriltag) could not detect apriltag")
                         else:
@@ -104,13 +117,12 @@ class OBDH:
                     case _:
                         self.logger.error(f"{cmd} couldn't be matched! It is likely invalid.")
 
-    def start_phase(self, phase, args):
+    def start_phase(self, phase, args=None):
         match phase:
             case 1:
                 self.state = OBDHState.BUSY
                 self.phase = Phase.FIRST
                 self.start_time = time.time()
-
                 self.manager.send("TTC", "health_check")
                 ttc_health_check = self.manager.receive("TTC")["response"]
                 self.manager.send("ADCS", "health_check")
@@ -153,30 +165,28 @@ class OBDH:
                         timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.a
                         distance_data, distance_data_backup = run_phase3a(self, self.manager, logger=self.logger)
-
                         self.manager.send("ADCS", "phase3a_complete")
                         adcs_rcv = self.manager.receive("ADCS")
+
                         if adcs_rcv["command"] != "readings_phase3a":
                             args = adcs_rcv["arguments"]
 
                         # Send data to TTC
                         self.manager.send("TTC", "send_data", {
-                            "current_wheel_velocity": args[
-                                                          "current_wheel_velocity"] + " RPM" if "current_wheel_velocity" in args else None,
-                            "current_satellite_velocity": args[
-                                                              "current_satellite_velocity"] + " º/s" if "current_satellite_velocity" in args else None,
-                            "distance_data": distance_data,
-                            "distance_data_backup": distance_data_backup
+                            "subsystem": "ADCS",
+                            "data": {
+                                "current_wheel_velocity": args["current_wheel_velocity"] + " RPM" if "current_wheel_velocity" in args else None,
+                                "current_satellite_velocity": args["current_satellite_velocity"] + " °/s" if "current_satellite_velocity" in args else None,
+                                "distance_data": distance_data,
+                                "distance_data_backup": distance_data_backup
+                            }
                         })
-
                         self.reset_timer(timer)
                         self.reset_state()
-
                     case 'b':
                         timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.b
                         run_phase3b(self, self.manager, logger=self.logger)
-
                         self.reset_timer(timer)
                         self.reset_state()
                     case 'c':
@@ -196,7 +206,6 @@ class OBDH:
             self.state = OBDHState.READY
             self.phase = None
             self.subphase = None
-            self.start_time = None
             self.start_time = None
 
     def reset_timer(self, timer):

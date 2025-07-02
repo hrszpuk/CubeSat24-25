@@ -29,8 +29,8 @@ def extract_digits(img):
         area = stats[i, cv2.CC_STAT_AREA]
         (cX, cY) = centroids[i]
 
-        # filter out small connected components
-        if area > 3000 and area < output.shape[0] * output.shape[1] // 50 and w/h > 0.3 and w/h < 5:
+        # filter out too small and too big connected components
+        if area > 500 and area < output.shape[0] * output.shape[1] // 50 and w/h > 0.3 and w/h < 5:
             extent = area / (w * h)
             if extent > 0.1 and extent < 0.9:
                 connected_components.append((x, y, w, h, cX, cY, i))
@@ -39,6 +39,8 @@ def extract_digits(img):
 
     # Sort digits from left to right, then top to bottom
     connected_components.sort(key=lambda x: (x[0], x[1]))
+
+    print(f"Found {len(connected_components)} connected components.")
 
     # Process components to group nearby ones
     i = 0
@@ -132,6 +134,8 @@ def get_numbers(image_path, show_output=False):
     
 def clean_numbers_orientations(numbers_orientations):
     # Keep only entries where digits are two digits long
+    if numbers_orientations is None or not isinstance(numbers_orientations, dict) or len(numbers_orientations) == 0:
+        return {}
     cleaned = {degree: (digits, offset) for degree, (digits, offset) in numbers_orientations.items() if len(str(digits)) == 2}
 
     # For each unique digits value, keep the entry with the smallest offset (closest to center)
@@ -141,10 +145,10 @@ def clean_numbers_orientations(numbers_orientations):
             best_orientations[digits] = (degree, digits)
 
     # Build the final dict with degree as key
-    final_orientations = {degree: digits for digits, (degree, digits) in best_orientations.items()}
+    final_orientations = {digits: degree for digits, (degree, digits) in best_orientations.items()}
 
     # Return sorted by degree
-    return dict(sorted(final_orientations.items()))
+    return dict(sorted(final_orientations.items())) if final_orientations else {}
 
 def identify_numbers_from_files(image_paths):
     try:
@@ -153,6 +157,7 @@ def identify_numbers_from_files(image_paths):
         numbers_orientations = {}  # Store orientations
 
         for image_path in image_paths:
+            print(f"Processing image: {image_path}")
             numbers, width_in_pixels = (get_numbers(image_path))
 
             for number in numbers:
@@ -168,9 +173,10 @@ def identify_numbers_from_files(image_paths):
                 degree = (ground_truth + angular_offset) % 360  # Normalize to [0, 360)
                 numbers_orientations[(round(degree))] = (digits, offset)
 
+        print(f"Found {len(numbers_orientations)} orientations.")
+
         cleaned_numbers_orientations = clean_numbers_orientations(numbers_orientations)
+        return cleaned_numbers_orientations
     except Exception as e:
         print(f"Error processing images: {e}")
-        cleaned_numbers_orientations = {}
-
-    return cleaned_numbers_orientations
+        return {}

@@ -19,7 +19,9 @@ class BrushedMotor:
         self.current_speed = 0
         self.start()
 
-    def get_current_speed(self):
+    def get_current_speed(self, return_percentage=False):
+        if return_percentage:
+            return (self.current_speed / MAX_RPM) * 100
         return self.current_speed
     
     def start(self):

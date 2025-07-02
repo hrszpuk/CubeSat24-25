@@ -61,7 +61,7 @@ def start(pipe, log_queue, telemetry_queue):
             payload_controller.take_picture_phase_2(args["current_yaw"])
         elif line == "get_numbers":
             variable = payload_controller.identify_numbers_from_files()
-            pipe.send(variable)
+            pipe.send(("numbers_identified", {"numbers_identified": variable}))
         elif line == "take_distance":
             variable = payload_controller.take_distance()
             pipe.send(variable)

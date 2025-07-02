@@ -3,7 +3,7 @@ import socket
 import websockets
 import json
 from datetime import datetime
-from TTC.utils import zip_file
+from TTC.utils import get_command_and_data_handling_status, zip_file
 
 class TestTTC:
     def __init__(self, event_loop, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -37,11 +37,11 @@ class TestTTC:
 
     async def handle_connection(self, connection):
         self.connection = connection
-        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
         while True:
             try:
+                await self.send_status()
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
@@ -52,7 +52,7 @@ class TestTTC:
 
     async def handle_message(self):
         message = await self.connection.recv()
-        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
+        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
         await self.process_command(message)
 
@@ -62,6 +62,11 @@ class TestTTC:
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"pong\": {err}")
 
+    async def send_status(self):
+        status = get_command_and_data_handling_status()
+        status["Last Command Received"] = self.last_command_received
+        await self.send_data("TTC", status)
+    
     async def send_log(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
 
@@ -70,14 +75,14 @@ class TestTTC:
         except Exception as err:
             self.log(f"[ERROR] Failed to send \"{message}\": {err}")
 
-    async def send_data(self, data):
-        self.log(f"Sending {data} to Ground...")
+    async def send_data(self, subsystem, data):
+        self.log(f"Sending data from {subsystem} ({data}) to Ground...")
 
         try:
-            await self.connection.send(json.dumps({"type": "data", "data": data}))
-            self.log(f"Sent {data} to Ground")
+            await self.connection.send(json.dumps({"type": "data", "subsystem": subsystem, "data": data}))
+            self.log(f"Sent data from {subsystem} ({data}) to Ground")
         except Exception as err:
-            self.log(f"[ERROR] Failed to send {data}: {err}")
+            self.log(f"[ERROR] Failed to send data from {subsystem} ({data}): {err}")
 
     async def send_error(self, message):
         self.log(f"Sending \"{message}\" to Ground...")
@@ -124,11 +129,13 @@ class TestTTC:
                             self.pipe.send(("start_phase", {"phase": phase}))
                             await self.send_message(f"Starting phase {phase}...")
                         case 2:
-                            sequence = arguments[1] if len(arguments) == 2 else None
+                            if len(arguments) > 2:
+                                sequence = ','.join(arguments[1:])
+                            else:
+                                sequence = arguments[1] if len(arguments) == 2 else None
 
                             if sequence:
                                 sequence_list = [int(number) for number in sequence.split(",")]
-                                self.pipe.send(("start_phase", {"phase": phase, "sequence": sequence_list}))
                                 await self.send_message(f"Starting phase {phase}...")
                             else:
                                 await self.send_error("No sequence provided!")
