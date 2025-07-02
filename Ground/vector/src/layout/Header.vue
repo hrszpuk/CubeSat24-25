@@ -9,7 +9,7 @@
     import Tag from 'primevue/tag';
 
     const { connection, getStatus, establishConnection, dropConnection, sendMessage } = useSocket();
-    const { playShutdownSfx } = useAudio;
+    const { playShutdownSfx } = useAudio();
 
     const connectionButtonClick = () => {
         if (getStatus() === "OPEN") {
