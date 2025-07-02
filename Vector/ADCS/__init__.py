@@ -8,7 +8,6 @@ def start(pipe, log_queue):
     
     running = True
     while running:
-        print(pipe.recv())
         line, args = pipe.recv()
         if line == "health_check":
             variable = adcs_controller.health_check()
