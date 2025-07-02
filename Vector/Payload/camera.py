@@ -77,7 +77,9 @@ class Camera:
         if not self.is_initialized or self.picam2 is None:
             return None
         try:
-            return self.picam2.capture_array()
+            img = self.picam2.capture_array()
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            return img
         except Exception as e:
             print(f"Error capturing frame from camera {self.camera_index}: {e}")
             return None

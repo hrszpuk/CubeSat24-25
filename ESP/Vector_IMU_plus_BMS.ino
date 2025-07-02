@@ -26,8 +26,8 @@ bool imu_found = false;
 
 
 // BMS
-#define BMS_thermistor_pin 3  // ADC Pin
-#define BMS_voltage_pin 0  // Voltage Reference Pin
+#define BMS_thermistor_pin 0  // ADC Pin
+#define BMS_voltage_pin 3  // Voltage Reference Pin
 #define BMS_current_pin 1  // Current Sensor Pin
 
 const float series_thermistor_resistor = 10000.0; // 22kΩ Change for thermistor series resistance
@@ -57,7 +57,7 @@ float get_bms_voltage() {
   int adc_value = analogReadMilliVolts(BMS_voltage_pin); // can be floating and settle around 1-1.25V when ungrounded, make sure there is a stable ground source here
   float voltage = adc_value * adc_scaler;
 
-  float battery_voltage = voltage * 3.2 ; // using the midpoint of an identical resistance potential divider to step down voltage to readable range
+  float battery_voltage = voltage * 3.205 ; // using the midpoint of a 10k 22k resistance potential divider to step down voltage to readable range
 
   return battery_voltage;
 };
@@ -67,7 +67,7 @@ float get_bms_current() { // using theoretical calcs with ACS712 current sensor
   int adc_value = analogReadMilliVolts(BMS_current_pin);
   float voltage = adc_value * adc_scaler;
 
-  float battery_current = voltage * current_sensor_coefficient; // 1 / coefficient
+  float battery_current = abs(voltage - 2.5) * current_sensor_coefficient; // 1 / coefficient
 
   return battery_current;
 };
@@ -123,6 +123,10 @@ float roundToTwoDecimalPlaces(float value) {
 
 void setup() {
   analogReadResolution(12); // Set ADC resolution to 12 bits
+  pinMode(BMS_thermistor_pin, INPUT);
+  pinMode(BMS_voltage_pin, INPUT);
+  pinMode(BMS_current_pin, INPUT);
+  
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, 20, 21);
 

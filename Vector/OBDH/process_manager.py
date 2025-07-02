@@ -1,6 +1,6 @@
+import importlib
 import multiprocessing as mp
 from OBDH.logger import Logger
-import importlib
 
 
 class ProcessManager:
@@ -57,21 +57,7 @@ class ProcessManager:
         except Exception as e:
             self.logger.error((module_name.upper(), f"Error starting subsystem: {e}"))
 
-    def stop(self, name):
-        if name not in self.processes:
-            self.logger.warning(f"{name} is not running.")
-            return
-        try:
-            print("TEST", name)
-            self.pipes[name].send(("stop", {}))
-        except (BrokenPipeError, EOFError, OSError) as e:
-            self.logger.warning(f"Could not send stop to {name}: {e}")
-        self.processes[name].join()
-        self.logger.info(f"Stopped {name} subsystem.")
-        del self.processes[name]
-        del self.pipes[name]
-
-    def send(self, name, msg, args={}, log=True):
+    def send(self, name, msg, args=None, log=True):
         if name not in self.pipes:
             self.logger.warning(f"{name} is not running.")
             return
@@ -79,10 +65,7 @@ class ProcessManager:
         self.pipes[name].send((msg, args))
 
         if log:
-            if args:
-                self.logger.info(f"Sent message to {name}: {msg} with args {args}")
-            else:
-                self.logger.info(f"Sent message to {name}: {msg}")
+            self.logger.info(f"Sent instruction to {name}: {msg} with args {args}")
 
     def receive(self, name, timeout=None):
         conn = self.pipes[name]
@@ -93,8 +76,8 @@ class ProcessManager:
                     result = conn.recv()
 
                     if isinstance(result, tuple) and len(result) == 2:
-                        msg, args = result
-                        return {"response": result, "command": msg, "arguments": args}
+                        cmd, args = result
+                        return {"response": result, "command": cmd, "arguments": args}
                     else:
                         return {"response": result}
                 else:
@@ -104,25 +87,32 @@ class ProcessManager:
                 result = conn.recv()
 
                 if isinstance(result, tuple) and len(result) == 2:
-                    msg, args = result
-                    return {"response": result, "command": msg, "arguments": args}
+                    cmd, args = result
+                    return {"response": result, "command": cmd, "arguments": args}
                 else:
                     return {"response": result}
         except (EOFError, OSError) as e:
             self.logger.error(f"Error receiving from {name}: {e}")
             return None
-
-    def poll(self, name):
-        conn = self.pipes[name]
-
-        if conn.poll():
-            response = conn.recv()
-            cmd, args = response
-
-            return {"response": response, "command": cmd, "arguments": args}
-
+        
+    def stop(self, name):
+        if name not in self.processes:
+            self.logger.warning(f"{name} is not running.")
+            return
+        
+        try:
+            self.pipes[name].send(("stop", None))
+        except (BrokenPipeError, EOFError, OSError) as e:
+            self.logger.warning(f"Could not send stop to {name}: {e}")
+        
+        self.processes[name].join()
+        self.logger.info(f"Stopped {name} subsystem.")
+        del self.processes[name]
+        del self.pipes[name]
+        
     def shutdown(self):
         self.logger.info("Shutting down ProcessManager...")
+
         for name in list(self.processes.keys()):
             self.stop(name)
 

@@ -1,8 +1,7 @@
 import logging
 import sys
-from OBDH.ttc_handler import TTCHandler
 from datetime import datetime
-
+from OBDH.ttc_handler import TTCHandler
 
 class Logger:
     def __init__(self, log_to_console=True, log_file="vector", ttc_pipe=None):
@@ -13,8 +12,8 @@ class Logger:
         if not self.logger.handlers:
             self.formatter = logging.Formatter('%(asctime)s - %(processName)s - %(levelname)s - %(message)s')
 
-            timestamp = datetime.utcnow().strftime("%Y-%m%-d-T%H-%M-%S")
-            filename = f"vector-{timestamp}.log"
+            timestamp = datetime.now().strftime("%Y-%m%-d-T%H-%M-%S")
+            filename = f"vector_{timestamp}.log"
 
             # File handler
             file_handler = logging.FileHandler(filename)

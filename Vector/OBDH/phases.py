@@ -1,5 +1,8 @@
+import glob
+import os
 from time import time
 from scipy import stats
+from enums import OBDHState, Phase, SubPhase
 
 def run_phase2(obdh, manager, logger, sequence):
     logger.info("Starting Phase 2")
@@ -12,27 +15,26 @@ def run_phase2(obdh, manager, logger, sequence):
     rotating = True
 
     while rotating:
-        if manager.pipes["ADCS"].poll():
-            adcs_response = manager.receive("ADCS")
-            print(adcs_response)
-            cmd = adcs_response["command"]
-            args = adcs_response["arguments"]
+        adcs_response = manager.receive("ADCS")
+        print(adcs_response)
+        cmd = adcs_response["command"]
+        args = adcs_response["arguments"]
 
-            if cmd == "take_picture":
-                logger.info("ADCS instructed to take picture")
-                manager.send("Payload", "take_picture", args={"current_yaw": args["current_yaw"]})
-            elif cmd == "rotation_complete":
-                logger.info("ADCS rotation complete, proceeding to image processing")
-                rotating = False
+        if cmd == "take_picture":
+            logger.info("ADCS instructed to take picture")
+            manager.send("Payload", "take_picture", args={"current_yaw": args["current_yaw"]})
+        elif cmd == "rotation_complete":
+            logger.info("ADCS rotation complete, proceeding to image processing")
+            rotating = False
 
     # 3- Process images
     processing_images = True
     manager.send("Payload", "get_numbers")
     
     while processing_images:
-        if manager.pipes["ADCS"].poll():
-            numbers = manager.receive(name="Payload")["response"]
-            logger.info(f"Payload numbers: {numbers}")
+        if manager.pipes["Payload"].poll():
+            numbers = manager.receive(name="Payload")["arguments"]["numbers_identified"]
+            logger.info(f"Numbers Identified: {numbers}")
             processing_images = False
 
     # 4- send the sequence number to ADCS
@@ -43,8 +45,9 @@ def run_phase2(obdh, manager, logger, sequence):
 
     waiting_for_completion = True
     manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
-    while waiting_for_completion and obdh.phase == OBDH.Phase.SECOND:
+    while waiting_for_completion and obdh.phase == Phase.SECOND:
         adcs_response = manager.receive("ADCS")
+        logger.info(f"ADCS response: {adcs_response}")
         cmd = adcs_response["command"]
 
         if cmd == "take_distance":
@@ -59,15 +62,22 @@ def run_phase2(obdh, manager, logger, sequence):
     adcs_response = manager.receive(name="ADCS")
     if adcs_response["command"] != "phase2_sequence_response":
         logger.error("Unexpected command from ADCS during phase 2 sequence")
-    degree_distances = adcs_response["response"]
+    degree_distances = adcs_response["arguments"]["degree_distances"]
+
+    print(f"Number distances: {number_distances}")
 
     for i, distance in enumerate(number_distances):
-        data[sequence[i]] = {
+        data.append({
+            "number": sequence[i] if i < len(sequence) else None,
             "angle_degree": numbers[sequence[i] if i < len(numbers) else None],
             "distance to number in cm": distance,
             "angle_variation": degree_distances[i] if i < len(degree_distances) else None
-        }
-    manager.send(name="TTC", msg="send_message", message={"data": data})
+        })
+
+    image_paths = glob.glob("images/phase2/*.jpg")
+    for path in image_paths:
+        os.remove(path)  # Clean up images after processing
+    manager.send("TTC", "send_message", {"message": data if data else "No data collected"})
 
 def run_phase3a(obdh, manager, logger):
     # Search for target, if timeout occurs, return to OBDH
@@ -79,7 +89,7 @@ def run_phase3a(obdh, manager, logger):
     distance_data_backup = {}
     read_target = False 
 
-    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.A:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.A:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -163,7 +173,7 @@ def run_phase3b(obdh, manager, logger):
     initial_time = None
     spin_data = {}
 
-    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.B:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.B:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -223,7 +233,7 @@ def run_phase3c(obdh, manager, logger):
 
     distance = 200
 
-    while obdh.phase == OBDH.Phase.THIRD and obdh.subphase == OBDH.SubPhase.C and distance > 4:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.C and distance > 4:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]

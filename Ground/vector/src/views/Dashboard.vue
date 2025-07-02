@@ -27,6 +27,15 @@
     const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
     const logs = ref([]);
     const messages = ref([]);
+    const cdhData = reactive({
+        "Downlink Frequency": "0 GHz",
+        "Uplink Frequency": "0 GHz",
+        "Signal Strength": "0 dBm",
+        "Data Transmission Rate": "0 Mb/s",
+        "Memory Usage": 0, 
+        "Last Command Received": "Never", 
+        "Uptime": 0
+    });
     const cubeSatData = ref([]);
     const fileMetadata = reactive({
         size: null,
@@ -117,11 +126,23 @@
                             logs.value.unshift(obj.data);
                             break;
                         case "data":
-                            cubeSatData.value.unshift(obj.data);
+                            switch(obj.subsystem) {
+                                case "TTC":
+                                    for (let [name, value] of Object.entries(obj.data)) {
+                                        if (value) {
+                                            cdhData[name] = value;
+                                        }
+                                    }
+
+                                    break;
+                                case _:
+                                    cubeSatData.value.unshift(obj.data);
+                            }
+
                             break;
                         case "message":
                             messages.value.unshift(obj);
-                            toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000})
+                            toast.add({severity: "info", summary: "Message from CubeSat", detail: obj.data, life: 3000});
                             break;
                         case "filemetadata":
                             fileMetadata.size = obj.data.size;
@@ -153,7 +174,7 @@
                 </section>
             </template>
         </Toolbar>        
-        <section class="col-span-12 xl:col-span-3">
+        <section class="col-span-12 xl:col-span-4">
             <Card>
                 <template #title>Status</template>
                 <template #content>
@@ -161,20 +182,51 @@
                         <code class="block">Date: {{ dateToday }}</code>
                         <code class="block">Time: {{ timeNow }}</code>
                         <code class="block">Connection: <Tag :severity="getStatus() === 'CONNECTING'  ? 'info' : getStatus() === 'OPEN' ? 'success' : 'danger'" :value="getStatus() === 'CONNECTING'  ? 'CONNECTING' : getStatus() === 'OPEN' ? 'ONLINE' : 'OFFLINE'"></Tag></code>
+                        <hr>
+                        <code class="block">--- Power Subsystem ---</code>
+                        <code class="block">Battery Voltage: </code>
+                        <code class="block">Battery Current: </code>
+                        <code class="block">Battery Temperature: </code>
+                        <hr>
+                        <code class="block">--- Thermal Subsystem ---</code>
+                        <code class="block">Internal Temperature: </code>
+                        <hr>
+                        <code class="block">--- Communication Subsystem ---</code>
+                        <code class="block">Downlink Frequency: {{ cdhData["Downlink Frequency"] }}</code>
+                        <code class="block">Uplink Frequency: {{ cdhData["Uplink Frequency"] }}</code>
+                        <code class="block">Signal Strength: {{ cdhData["Signal Strength"] }}</code>
+                        <code class="block">Data Transmission Rate: {{ cdhData["Data Transmission Rate"] }}</code>
+                        <hr>
+                        <code class="block">--- ADCS Subsystem ---</code>
+                        <code class="block">Gyroscope: </code>
+                        <code class="block">Orientation: </code>
+                        <code class="block">Sun Sensor 1: </code>
+                        <code class="block">Sun Sensor 2: </code>
+                        <code class="block">Sun Sensor 3: </code>
+                        <code class="block">Main Reaction Wheel RPM: </code>
+                        <code class="block">Backup Reaction Wheel RPM: </code>
+                        <hr>
+                        <code class="block">--- Payload Subsystem ---</code>
+                        <code class="block">Camera: </code>
+                        <hr>
+                        <code class="block">--- Command and Data Handling Subsystem ---</code>
+                        <code class="block">Memory Usage: {{ cdhData["Memory Usage"] }}%</code>
+                        <code class="block">Last Command Received: {{ cdhData["Last Command Received"]  }}</code>
+                        <code class="block">Uptime: {{ cdhData["Uptime"] }} {{ cdhData["Uptime"] === 1 ? "minute" : "minutes" }}</code>
                     </ScrollPanel>
                 </template>
             </Card>
         </section>
-        <section class="col-span-12 xl:col-span-6">
+        <section class="col-span-12 xl:col-span-4">
             <Terminal welcomeMessage="Vector Terminal" prompt=">"></Terminal>
         </section>
-        <section class="col-span-12 xl:col-span-3">
+        <section class="col-span-12 xl:col-span-4">
             <Card>
                 <template #title>Messages</template>
                 <template #content>
                     <ScrollPanel style="width: 100%; height: 210px">
                         <Message v-if="!messages.length" variant="simple" severity="secondary">No messages</Message>
-                        <Message v-else v-for="message in messages" variant="simple" :severity="message.includes('ERROR') ? 'error': 'secondary'"><Tag :value="message.timestamp"></Tag> {{ message.data }}</Message>
+                        <Message v-else v-for="message in messages" variant="simple" :severity="message.data.includes('ERROR') ? 'error': 'secondary'"><Tag :value="message.timestamp"></Tag> {{ message.data }}</Message>
                     </ScrollPanel>
                 </template>
             </Card>
@@ -185,8 +237,18 @@
                 <template #content>
                     <ScrollPanel style="width: 100%; height: 210px">
                         <Message v-if="!logs.length" variant="simple">No logs</Message>
-                        <Message v-else v-for="log in logs" variant="simple" :severity="log.toLowerCase().includes('error') ? 'error': 'info'">{{ log }}</Message>
+                        <Message v-else v-for="log in logs" variant="simple" :severity="log.toLowerCase().includes('error') ? 'error': log.toLowerCase().includes('warning') ? 'warn' : 'info'">{{ log }}</Message>
                     </ScrollPanel>
+                </template>
+            </Card>
+        </section>                
+        <section class="col-span-12">
+            <Card>
+                <template #title>Data</template>
+                <template #content>
+                    <article v-for="record in cubeSatData">
+                        <code>{{ record }}</code>
+                    </article>
                 </template>
             </Card>
         </section>
