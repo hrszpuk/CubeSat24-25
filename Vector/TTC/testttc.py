@@ -38,10 +38,10 @@ class TestTTC:
     async def handle_connection(self, connection):
         self.connection = connection
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
-        await self.send_status()
 
         while True:
             try:
+                await self.send_status()
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
@@ -54,7 +54,6 @@ class TestTTC:
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
-        await self.send_status()
         await self.process_command(message)
 
     async def pong(self):

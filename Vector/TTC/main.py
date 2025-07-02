@@ -130,10 +130,10 @@ class TTC:
         self.connection = connection
         self.state = TTCState.CONNECTED
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
-        await self.send_status()
 
         while self.state == TTCState.CONNECTED:
             try:
+                await self.send_status()
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
@@ -148,7 +148,6 @@ class TTC:
             message = await self.connection.recv()
             self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
             self.log(f"({self.last_command_received}) TT&C received: {message}")
-            await self.send_status()
             await self.process_command(message)
         except Exception as e:
             self.log(f"[ERROR] WebScoket message handler failed: {e}")
