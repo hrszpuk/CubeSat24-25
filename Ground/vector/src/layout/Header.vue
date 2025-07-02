@@ -8,7 +8,7 @@
     import Toolbar from 'primevue/toolbar';
     import Tag from 'primevue/tag';
 
-    const { connection, getStatus, establishConnection, dropConnection } = useSocket();
+    const { connection, getStatus, establishConnection, dropConnection, sendMessage } = useSocket();
     const { playShutdownSfx } = useAudio;
 
     const connectionButtonClick = () => {
