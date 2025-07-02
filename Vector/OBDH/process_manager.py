@@ -20,9 +20,10 @@ class ProcessManager:
     def telemetry_listener_process(self, log_queue):
         # NOTE(remy): telemetry data bypasses the logger and just uses queue + pipes because I've stopped caring at this point
         while True:
-            origin, data, timestamp = log_queue.get()
+            subsystem, origin, data, timestamp = log_queue.get()
             # NOTE(remy): origin = what it is (gyroscope, temperature, rpm, etc)
-            self.pipes["TTC"].send(("data", {"origin": origin, "timestamp": timestamp, "data": data}))
+            self.pipes["TTC"].send(("send_data", {"subsystem": subsystem, origin: data, "timestamp": timestamp}))
+            #print("data", {"subsystem": subsystem, "label": origin, "timestamp": timestamp, "data": data})
 
     def log_listener_process(self, log_queue):
         logger = Logger(log_to_console=True).get_logger()
