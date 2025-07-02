@@ -28,7 +28,6 @@ class OBDH:
 
                 is_ready = self.manager.receive(name)["response"]
 
-
         self._logger.set_ttc_handler(self.manager.pipes["TTC"])
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")

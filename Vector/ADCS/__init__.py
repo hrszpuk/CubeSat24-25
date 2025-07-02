@@ -35,11 +35,15 @@ def start(pipe, log_queue):
         elif line == "phase2_sequence":
             sequence = args.get("sequence", None)
             numbers = args.get("numbers", None)
-            if sequence is None or numbers is None:
+            degree_distances = {}
+            if sequence is None or numbers is None or len(sequence) == 0 or len(numbers) == 0:
                 log_queue.put(("ADCS", "Error: Sequence or numbers not provided. Phase 2 Failed."))
             else:
+                print(f"Received sequence: {sequence}, numbers: {numbers}")
                 degree_distances = adcs_controller.phase2_sequence_rotation(pipe, sequence, numbers)
-                pipe.send(("phase2_sequence_response", degree_distances))
+            pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
+            time.sleep(1)  # wait for a second before sending the response
+            pipe.send(("phase2_sequence_response", {"degree_distances": degree_distances}))
         elif line == "phase3_search_target":
             adcs_controller.phase3_search_target(pipe)
         elif line == "phase3_reacquire_target":

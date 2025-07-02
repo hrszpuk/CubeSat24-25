@@ -135,9 +135,10 @@ class StereoCamera:
             raise RuntimeError("Right camera is not available")
         
         try:
-            img = self.left_camera.get_frame()
-            # Rotate the image 90 degrees anticlockwise
+            img = self.right_camera.get_frame()
+            # Rotate the image 90 degrees clockwise
             img = cv.rotate(img, cv.ROTATE_90_CLOCKWISE)
+            return img
         except Exception as e:
             print(f"Error getting right camera frame: {e}")
             # Mark camera as unavailable if it fails

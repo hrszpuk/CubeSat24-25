@@ -84,6 +84,7 @@ class PayloadController:
     def identify_numbers_from_files(self):
         image_paths = glob.glob("images/phase2/*.jpg")
         self.numbers_identified = identify_numbers_from_files(image_paths)
+        print(f"Identified numbers: {self.numbers_identified}")
         return self.numbers_identified
 
     def take_picture(self, directory, filename):
