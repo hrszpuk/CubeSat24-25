@@ -102,26 +102,26 @@ class AdcsController:
             health_check_text += f"Battery Voltage: NOT AVAILABLE\n"
             self.log("Battery voltage not available.\n")
         else:
-            health_check_text += f"Battery Voltage: {voltage} V\n"
+            health_check_text += f"Battery Voltage: {voltage:.2f} V\n"
 
         if current is None:
             health_check_text += f"Battery Current: NOT AVAILABLE\n"
             self.log("Battery current not available.\n")
         else:
-            health_check_text += f"Battery Current: {current} A\n"
+            health_check_text += f"Battery Current: {current:.2f} A\n"
         
         if temp is None:
             health_check_text += f"Battery Temperature: NOT AVAILABLE\n"
             self.log("Battery temperature not available.\n")
         else:
             if temp > 75:
-                health_check_text += f"Battery Temperature: {temp} °C (CRITICAL)\n"
+                health_check_text += f"Battery Temperature: {temp:.2f} °C (CRITICAL)\n"
                 self.log("Battery temperature is critical!")
             elif temp > 65:
-                health_check_text += f"Battery Temperature: {temp} °C (WARNING)\n"
+                health_check_text += f"Battery Temperature: {temp:.2f} °C (WARNING)\n"
                 self.log("Battery temperature is high.")
             else:
-                health_check_text += f"Battery Temperature: {temp} °C (NOMINAL)\n"
+                health_check_text += f"Battery Temperature: {temp:.2f} °C (NOMINAL)\n"
         return health_check_text
 
     def calibrate_orientation_system(self):
@@ -283,9 +283,9 @@ class AdcsController:
             current_target_yaw = numbers[current_target]
             self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw)
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
-            pipe.send(("take_distance", {}))  # send to Payload to measure distance
+            pipe.send(("take_distance", None))  # send to Payload to measure distance
         
-        pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
+        pipe.send(("sequence_rotation_complete", None))  # notify OBDH that sequence rotation is complete
 
         return degree_distances
 
@@ -302,7 +302,7 @@ class AdcsController:
         timeout = 30  # seconds
         start_time = time.time()
         while (time.time() - start_time < timeout) and self.is_reaction_wheel_rotating():
-            pipe.send(("detect_apriltag", {}))
+            pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
                 last_speed = self.current_reaction_wheel.get_current_speed()
@@ -317,7 +317,7 @@ class AdcsController:
             pipe.send(("target_found", {"last_speed": last_speed}))
         else:
             self.log("Target not found within timeout period")
-            pipe.send(("timeout", {}))
+            pipe.send(("timeout", None))
 
 
     def phase3_reacquire_target(self, pipe):
@@ -333,7 +333,7 @@ class AdcsController:
             initial_time = time.time()
             timeout = 10  # seconds
             while not target_found and (time.time() - initial_time < timeout) and self.is_reaction_wheel_rotating():
-                pipe.send(("detect_apriltag", {}))
+                pipe.send(("detect_apriltag", None))
                 line, args = pipe.recv()
                 if line == "apriltag_detected":
                     last_speed = self.current_reaction_wheel.get_current_speed(return_percentage=True)
@@ -364,7 +364,7 @@ class AdcsController:
         target_found = True
 
         while target_found is True and self.is_reaction_wheel_rotating():
-            pipe.send(("detect_apriltag", {}))
+            pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
                 target_pose = args.get("pose", None)
@@ -387,7 +387,7 @@ class AdcsController:
         rotation_thread.join()
 
         self.log("Target lost during alignment")
-        pipe.send(("target_lost", {}))
+        pipe.send(("target_lost", None))
 
     def phase3b_read_target(self, pipe):
         # Lock target yaw and get any april tag pose
@@ -395,7 +395,7 @@ class AdcsController:
         rotation_thread.start()
 
         while self.is_reaction_wheel_rotating():
-            pipe.send(("detect_apriltag", {}))
+            pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
                 target_pose = args.get("pose", None)
