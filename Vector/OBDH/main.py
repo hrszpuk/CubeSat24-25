@@ -26,7 +26,7 @@ class OBDH:
                 if name != "TTC":
                     self.manager.send(name, "is_ready")
 
-                is_ready = self.manager.receive(name)
+                is_ready = self.manager.receive(name)["response"]
 
         self._logger.set_ttc_handler(self.manager.pipes["TTC"])
         self.state = OBDHState.READY
@@ -50,7 +50,7 @@ class OBDH:
                         phase = args["phase"]
                         self.start_phase(phase, args)
                     case "test_wheel":
-                        self.manager.send("ADCS", "test_wheel", args={
+                        self.manager.send("ADCS", "test_wheel", {
                             "kp": args[0],
                             "ki": args[1],
                             "kd": args[2],
@@ -58,14 +58,14 @@ class OBDH:
                             "degree": int(args[4]),
                         })
                     case "stop_wheel":
-                        self.manager.send_command("ADCS", "stop_reaction_wheel")
+                        self.manager.send("ADCS", "stop_reaction_wheel")
                     case "calibrate_sun_sensors":
-                        self.manager.send_command("ADCS", "calibrate_sun_sensors")
+                        self.manager.send("ADCS", "calibrate_sun_sensors")
                     case "imu":
-                        self.manager.send_command("ADCS", "imu")
+                        self.manager.send("ADCS", "imu")
                         result = self.manager.receive("ADCS")
                         self.logger.info(f"IMU data: {result}")
-                        self.manager.send_command("TTC", "imu_data", {"imu_data": result})
+                        self.manager.send("TTC", "imu_data", {"imu_data": result})
                     case "shutdown":
                         self.manager.shutdown()
                         self.logger.info(len(self.manager.processes))
@@ -77,12 +77,12 @@ class OBDH:
                         self.logger.info(f"Payload health check result: {result}")
                     case "payload_take_picture":
                         path = "images/manual/"
-                        self.manager.send("Payload", "take_picture_raw", args={"dir": path, "name": "manual"})
+                        self.manager.send("Payload", "take_picture_raw", {"dir": path, "name": "manual"})
 
                         if os.path.exists(path+"manual_left.jpg") and os.path.exists(path+"manual_right.jpg"):
                             self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
-                            self.manager.send("TTC", "send_file", args={"path": path+"manual_left.jpg.jpg"})
-                            self.manager.send("TTC", "send_file", args={"path": path+"manual_right.jpg"})
+                            self.manager.send("TTC", "send_file", {"path": path+"manual_left.jpg.jpg"})
+                            self.manager.send("TTC", "send_file", {"path": path+"manual_right.jpg"})
                         else:
                             self.logger.error("(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
                     case "payload_get_state":
