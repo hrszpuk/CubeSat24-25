@@ -14,8 +14,11 @@ class PayloadController:
         self.state = "READY"
         self.numbers_indentified = []
 
-    def get_telemetry(self) -> list[tuple]:
-        pass
+    def get_payload_state(self):
+        return self.state
+
+    def get_camera_status(self):
+        return self.stereo_camera.get_camera_status()
 
     def get_state(self):
         return self.state
