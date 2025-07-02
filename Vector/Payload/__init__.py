@@ -3,14 +3,34 @@ from datetime import datetime
 import threading
 import time
 
-TELEMETRY_INTERVAL = 1
+TELEMETRY_INTERVAL = 3
 
 
 def log_payload_data(controller, telemetry_queue, telemetry_stop_event):
-    log_data = lambda origin, data: telemetry_queue.put((origin, datetime.now().strftime("%H:%M:%S.%f"), data))
+    # NOTE(remy): since this is just statuses, the interval is higher
+    # # and it'll only log to the queue if the status actually changes
+    log_data = lambda label, data: telemetry_queue.put(("Payload", label, None, data))
+    payload_status = controller.get_payload_status()
+    log_data("status", payload_status)
+
+    camera_status = controller.get_camera_status()
+    for k, v in camera_status.items():
+        log_data(k, v)
 
     while not telemetry_stop_event.is_set():
+        payload_status_new = controller.get_payload_status()
+        if payload_status != payload_status_new:
+            payload_status = payload_status_new
+            log_data(payload_status, telemetry_queue)
 
+        camera_status_new = controller.get_camera_status()
+        for k, v in camera_status.items():
+            v2 = camera_status_new[k]
+            if v != v2:
+                camera_status[k] = v2
+                log_data(k, v2)
+
+        log_data(controller.get_payload_status(), telemetry_queue)
         time.sleep(TELEMETRY_INTERVAL)
 
 
