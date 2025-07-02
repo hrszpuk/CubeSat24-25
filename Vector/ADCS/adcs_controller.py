@@ -82,7 +82,7 @@ class AdcsController:
             orientation_text = "No data available"
             errors.append("Orientation data not available")
         else:
-            orientation_text = f"X: {orientation_data[0]} °, Y: {orientation_data[1]} °, Z: {orientation_data[2]} °"
+            orientation_text = f"X: {orientation_data[0]:.2f} °, Y: {orientation_data[1]:.2f} °, Z: {orientation_data[2]:.2f} °"
 
         health_check_text += f"Gyroscope: {gyroscope_text}\n"
         health_check_text += f"Orientation: {orientation_text}\n"
