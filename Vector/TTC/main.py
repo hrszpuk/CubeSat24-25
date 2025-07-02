@@ -70,12 +70,10 @@ class TTC:
     def handle_instructions(self):
         while True:
             if self.pipe.poll():
-                instruction = self.pipe.recv()
-                command = instruction[0]
-                args = instruction[1] if len(instruction) == 2 else None
-                self.log(f"Received instruction: {command} with args: {args}")
+                cmd, args = self.pipe.recv()
+                self.log(f"Received instruction: {cmd} with arguments: {args}")
 
-                match command:                    
+                match cmd:                    
                     case "get_state":
                         self.pipe.send(self.state)
                     case "log":
@@ -113,7 +111,7 @@ class TTC:
                         self.event_loop.call_soon_threadsafe(self.event_loop.stop)
                         break
                     case _:
-                        self.log(f"Invalid instruction received from OBDH: {command}")
+                        self.log(f"Invalid instruction received from OBDH: {cmd}")
 
     def send_command(self, input, arguments=None):
         self.pipe.send((input, arguments))
@@ -131,7 +129,6 @@ class TTC:
     async def handle_connection(self, connection):
         self.connection = connection
         self.state = TTCState.CONNECTED
-        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT")
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
         while self.state == TTCState.CONNECTED:
@@ -146,10 +143,13 @@ class TTC:
                 self.log(f"[ERROR] WebSocket connection handler failed: {e}")
 
     async def handle_message(self):
-        message = await self.connection.recv()
-        self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
-        self.log(f"({self.last_command_received}) TT&C received: {message}")
-        await self.process_command(message)
+        try:
+            message = await self.connection.recv()
+            self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
+            self.log(f"({self.last_command_received}) TT&C received: {message}")
+            await self.process_command(message)
+        except Exception as e:
+            self.log(f"[ERROR] WebScoket message handler failed: {e}")
 
     async def pong(self):
         try:
