@@ -27,8 +27,6 @@ class OBDH:
                     self.manager.send(name, "is_ready")
 
                 is_ready = self.manager.receive(name)
-                print(is_ready)
-
 
         self._logger.set_ttc_handler(self.manager.pipes["TTC"])
         self.state = OBDHState.READY

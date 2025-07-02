@@ -130,7 +130,7 @@ class ReactionWheel:
     def normalize_angle(self, angle):
         return (angle % 360) - 180  # Ensures angle is within [-180, 180)
 
-    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.2, kd=0.2, t=60, tolerance=10, break_on_target=True):
+    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.1, kd=0.3, t=60, tolerance=10, break_on_target=True):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -191,14 +191,14 @@ class ReactionWheel:
                 if abs(duty_cycle) == 100 and abs(pv - setpoint) > tolerance:
                     print("Wheel may be saturated!")
                     saturated_attempts += 1
-                if abs(pv - setpoint) < tolerance:
-                    target_achieved_attempts += 1
+            if abs(pv - setpoint) < tolerance:
+                target_achieved_attempts += 1
                 
-            if saturated_attempts > 3:
+            if saturated_attempts > 2:
                 print("WHEEL SATURATION")
                 setpoint = setpoint - 360 * duty_cycle / 100
                 saturated_attempts = 0  # Reset after handling saturation
-            if target_achieved_attempts > 2 and break_on_target:
+            if target_achieved_attempts > 1 and break_on_target:
                 print("Target achieved, stopping wheel.")
                 break
 

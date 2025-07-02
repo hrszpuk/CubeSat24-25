@@ -30,10 +30,7 @@ class AdcsController:
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
         self.current_reaction_wheel = self.backup_reaction_wheel
         #self.current_reaction_wheel = self.main_reaction_wheel
-
-        #brushless_thread = threading.Thread(target=self.main_reaction_wheel.brushless_compensation)
-        #brushless_thread.start()
-        #self.calibrate_orientation_system()
+        self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
         health_check_text = ""
@@ -263,7 +260,7 @@ class AdcsController:
         timeout = 120
         start_time = time.time()
         while (pictures_taken <= 18 or not self.current_reaction_wheel.stop_event.is_set()) and (time.time() - start_time < timeout):
-            self.current_reaction_wheel.activate_wheel_brushed_phase2(target_yaw) 
+            self.current_reaction_wheel.activate_wheel_brushed(target_yaw) 
             yaw = self.imu.get_current_yaw()
             pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
             last_yaw = abs(yaw)
@@ -272,21 +269,30 @@ class AdcsController:
         self.stop_reaction_wheel()
 
     def phase2_sequence_rotation(self, pipe, sequence, numbers):
-        numbers = {v: k for k, v in numbers.items()}
-        degree_distances = [abs(numbers[sequence[i]] - numbers[sequence[i-1]]) % 360 for i in range(1, len(sequence))]
+        degree_distances = [0]
+
+        targets = {}
+        keys = list(numbers.keys())
+
+        for n in sequence:
+            if n in keys:
+                targets[n] = numbers[n]
+
+        degree_distances.extend([abs(targets[sequence[i]] - targets[sequence[i-1]]) % 360 for i in range(1, len(sequence))])
 
         current_target = None
         current_target_yaw = None
         
         for i in range(len(sequence)):
             current_target = sequence[i]
-            current_target_yaw = numbers[current_target]
+            current_target_yaw = targets.get(current_target, None)
+            if current_target_yaw is None:
+                self.log(f"Target {current_target} not found in numbers mapping.")
+                continue
             self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw)
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
             pipe.send(("take_distance", {}))  # send to Payload to measure distance
         
-        pipe.send(("sequence_rotation_complete", {}))  # notify OBDH that sequence rotation is complete
-
         return degree_distances
 
     
