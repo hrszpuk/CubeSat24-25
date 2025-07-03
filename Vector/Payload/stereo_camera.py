@@ -36,9 +36,7 @@ class StereoCamera:
     
     def _initialize_cameras(self):
         self._cleanup_cameras()
-
-        time.sleep(2)
-            
+        time.sleep(2)            
         self._initialize_left_camera()
         self._initialize_right_camera()
 
@@ -52,17 +50,18 @@ class StereoCamera:
             if self.left_camera.is_initialized:
                 self.left_camera_available = True
                 self.log_queue.put(("Payload", "Left camera (index 0) initialised successfully"))
-                self.telemetry_queue.put(("Payload", "Left Camera", "OPERATIONAL", None))
-                return True
+                self.telemetry_queue.put(("Payload", "Left Camera", "OPERATIONAL", None))                
             else:
-                self.log_queue.put(("Payload", "Left camera (index 0) initialisation failed"))
                 self.left_camera = None
-                return False
+                self.log_queue.put(("Payload", "Left camera (index 0) initialisation failed"))
+                self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))                
         except Exception as e:
-            self.log_queue.put(("Payload", f"Failed to initialise left camera (index 0): {e}"))
             self.left_camera_available = False
             self.left_camera = None
-            return False
+            self.log_queue.put(("Payload", f"Failed to initialise left camera (index 0): {e}"))
+            self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))
+        finally:
+            return self.left_camera_available
     
     def _initialize_right_camera(self):
         """Initialize right camera with error handling"""
@@ -73,17 +72,18 @@ class StereoCamera:
             if self.right_camera.is_initialized:
                 self.right_camera_available = True
                 self.log_queue.put(("Payload","Right camera (index 1) initialised successfully"))
-                self.telemetry_queue.put(("Payload", "Right Camera", "OPERATIONAL", None))
-                return True
+                self.telemetry_queue.put(("Payload", "Right Camera", "OPERATIONAL", None))                
             else:
-                self.log_queue.put(("Payload", "Right camera (index 1) initialisation failed"))
                 self.right_camera = None
-                return False
+                self.log_queue.put(("Payload", "Right camera (index 1) initialisation failed"))
+                self.telemetry_queue.put(("Payload", "Right Camera", "INOPERATIVE", None))
         except Exception as e:
-            self.log_queue.put(("Payload", f"Failed to initialise right camera (index 1): {e}"))
             self.right_camera_available = False
             self.right_camera = None
-            return False
+            self.log_queue.put(("Payload", f"Failed to initialise right camera (index 1): {e}"))
+            self.telemetry_queue.put(("Payload", "Right Camera", "INOPERATIVE", None))
+        finally:
+            return self.right_camera_available
     
     def _cleanup_cameras(self):
         """Clean up camera resources"""
@@ -105,7 +105,7 @@ class StereoCamera:
             finally:
                 self.right_camera = None
                 self.right_camera_available = False
-                self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))
+                self.telemetry_queue.put(("Payload", "Right Camera", "INOPERATIVE", None))
     
     def is_stereo_available(self):
         """Check if both cameras are available for stereo processing"""

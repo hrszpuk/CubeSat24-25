@@ -18,6 +18,7 @@ def get_command_and_data_handling_status():
     minutes = total_seconds // 60
 
     return {"Internal Temperature": cpu.temperature, "Memory Usage": memory.percent, "Uptime": minutes}
+    # return {"Memory Usage": memory.percent, "Uptime": minutes}
 
 def get_connection_info(interface="wlan0"):
     try:

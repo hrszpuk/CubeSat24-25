@@ -13,6 +13,7 @@ class TestTTC:
         # module configuration
         self.pipe = None
         self.event_loop = event_loop
+        self.backlog = []
         self.BUFFER_SIZE = buffer_size
         self.FORMAT = format
         self.BYTEORDER_LENGTH = byteorder_length
@@ -39,22 +40,31 @@ class TestTTC:
         self.connection = connection
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
-        while True:
+        while self.connection:
             try:
-                await self.handle_message()
-                await self.send_status()
+                if len(self.backlog):
+                    await self.process_backlog()
+                
+                await self.handle_message()                
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
                 self.connection = None
-                break
             except Exception as e:
                 self.log(f"[ERROR] WebSocket connection handler failed: {e}")
 
     async def handle_message(self):
+        await self.send_status()
         message = await self.connection.recv()
         self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
         self.log(f"({self.last_command_received}) CubeSat received: {message}")
         await self.process_command(message)
+
+    async def process_backlog(self):
+        for item in self.backlog:
+            for instruction, arguments in item.items():
+                match instruction:
+                    case "send_log":
+                        await self.send_log(arguments[0])
 
     async def pong(self):
         try:
@@ -68,12 +78,17 @@ class TestTTC:
         await self.send_data("TTC", status)
     
     async def send_log(self, message):
-        self.log(f"Sending \"{message}\" to Ground...")
+        if self.connection:
+            self.log(f"Sending \"{message}\" to Ground...")
 
-        try:
-            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S GMT"), "type": "log", "data": message}))
-        except Exception as err:
-            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+            try:
+                await self.connection.send(json.dumps({"type": "log", "data": message}))
+                self.log(f"Sent \"{message}\" to Ground")
+            except Exception as err:
+                self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+        else:
+            self.backlog.append({"instruction": "send_log", "arguments": [message]})
+            self.log(f"Not connected to Ground, send_log instruction added to backlog with arguments: {[message]}")
 
     async def send_data(self, subsystem, data):
         self.log(f"Sending data from {subsystem} ({data}) to Ground...")
