@@ -130,7 +130,7 @@ class ReactionWheel:
     def normalize_angle(self, angle):
         return (angle % 360) - 180  # Ensures angle is within [-180, 180)
 
-    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.5, kd=0.3, t=60, tolerance=10, break_on_target=True):
+    def activate_wheel_brushed(self, setpoint, kp=2, ki=0.5, kd=0.3, t=5, tolerance=10, break_on_target=True):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -147,6 +147,7 @@ class ReactionWheel:
         initial_setpoint = setpoint % 360
         saturated_attempts = 0
         target_achieved_attempts = 0
+        stop_t = None  # Initialize stop time
 
         self.set_state("ROTATING")  # Set state to rotating
 
@@ -198,9 +199,16 @@ class ReactionWheel:
                 print("WHEEL SATURATION")
                 setpoint = setpoint - 360 * duty_cycle / 100
                 saturated_attempts = 0  # Reset after handling saturation
-            if target_achieved_attempts > 1 and break_on_target:
-                print("Target achieved, stopping wheel.")
-                break
+            if target_achieved_attempts > 1:
+                if stop_t is None:
+                    stop_t = time.time()
+                if break_on_target:
+                    print("Target achieved, stopping wheel.")
+                    break
+                else:
+                    if abs(time.time() - stop_t) > t:
+                        print("Target achieved, stopping wheel after time limit.")
+                        break
 
             # Logging
             print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, Current Velocity: {self.imu.get_current_angular_velocity():.1f}, IN_TARGET: {abs(pv - setpoint) < tolerance}")

@@ -10,7 +10,7 @@ from datetime import datetime
 from TTC.utils import get_command_and_data_handling_status, get_connection_info, zip_folder, zip_file
 
 class TTC:
-    def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+    def __init__(self, pipe, event_loop, log_queue, port=8080, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
         log_queue.put(("TT&C", "Initialising..."))
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))
@@ -132,6 +132,7 @@ class TTC:
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
         while self.state == TTCState.CONNECTED:
+            
             try:
                 await self.send_status()
                 await self.handle_message()
@@ -162,7 +163,7 @@ class TTC:
         health = self.health_check()
         status = get_command_and_data_handling_status()
 
-        for key, value in health:
+        for key, value in health.items():
             status[key] = value
 
         await self.send_data("TTC", status)

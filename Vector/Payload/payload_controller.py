@@ -1,4 +1,5 @@
 import glob
+import random
 from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
 from Payload.number_identifier import identify_numbers_from_files
@@ -99,6 +100,17 @@ class PayloadController:
         # NOTE(remy): added support for passing "yaw" as a string for manual mode
         self.stereo_camera.save_images("images/phase2/", round(yaw))
         self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
+
+    def take_picture_phase2_rotation(self):
+        # Get the current working directory
+        current_path = os.getcwd()
+        directory = "images/rotation/"
+        os.makedirs(directory, exist_ok=True)
+        r = random.randint(0, 1000)
+        self.stereo_camera.save_images("images/rotation/", r)
+        self.log_queue.put(("Payload", f"Image taken and saved in {current_path}/{directory}"))
+
+        return 
 
     def take_picture_phase_3(self):
         # Get the current working directory

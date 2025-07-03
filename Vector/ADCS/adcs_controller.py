@@ -282,9 +282,10 @@ class AdcsController:
             if current_target_yaw is None:
                 self.log(f"Target {current_target} not found in numbers mapping.")
                 continue
-            self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw)
+            self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw, break_on_target=False)
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
             pipe.send(("take_distance", None))  # send to Payload to measure distance
+            pipe.send(("take_picture_rotation", None))  # send to Payload to measure distance
         
         return degree_distances
 

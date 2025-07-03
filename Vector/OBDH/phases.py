@@ -66,6 +66,8 @@ def run_phase2(obdh, manager, logger, sequence):
             manager.send("Payload", "take_distance")
             number_distance = manager.receive(name="Payload")["response"]
             number_distances.append(number_distance)
+        elif cmd == "take_picture_rotation":
+            manager.send("Payload", "take_distance_rotation")
         elif cmd == "sequence_rotation_complete":
             logger.info("ADCS sequence rotation complete")
             waiting_for_completion = False

@@ -21,6 +21,8 @@ def start(pipe, log_queue):
             payload_controller.take_picture(args["dir"], args["name"])
         elif line == "take_picture":
             payload_controller.take_picture_phase_2(args["current_yaw"])
+        elif line == "take_picture_rotation":
+            payload_controller.take_picture_phase_2_rotation()
         elif line == "get_numbers":
             variable = payload_controller.identify_numbers_from_files()
             pipe.send(("numbers_identified", {"numbers_identified": variable}))
