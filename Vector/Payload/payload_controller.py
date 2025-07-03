@@ -15,6 +15,9 @@ class PayloadController:
         self.state = "READY"
         self.numbers_indentified = []
 
+    def get_telemetry(self) -> list[tuple]:
+        pass
+
     def get_state(self):
         return self.state
 

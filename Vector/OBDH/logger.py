@@ -29,7 +29,7 @@ class Logger:
     def get_logger(self):
         return self.logger
 
-    def set_ttc_handler(self, ttc_pipe):
-        ttc_handler = TTCHandler(ttc_pipe)
+    def set_ttc_handler(self, ttc_pipe, command):
+        ttc_handler = TTCHandler(ttc_pipe, command)
         ttc_handler.setFormatter(self.formatter)
         self.logger.addHandler(ttc_handler)

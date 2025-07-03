@@ -7,6 +7,7 @@ from OBDH.logger import Logger
 from OBDH.health_check import construct_file
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 
+
 class OBDH:
     def __init__(self):
         self.state = OBDHState.INITIALISING
@@ -28,13 +29,13 @@ class OBDH:
 
                 is_ready = self.manager.receive(name)["response"]
 
-        self._logger.set_ttc_handler(self.manager.pipes["TTC"])
+        self._logger.set_ttc_handler(self.manager.pipes["TTC"], "logger")
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")
 
     def start_mission(self):
         self.start_phase(1)
-    
+        
     def handle_input(self):
         while True:
             if self.state == OBDHState.READY:
@@ -82,9 +83,10 @@ class OBDH:
                         if os.path.exists(path+"manual_left.jpg") and os.path.exists(path+"manual_right.jpg"):
                             self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
                             self.manager.send("TTC", "send_file", {"path": path+"manual_left.jpg.jpg"})
-                            self.manager.send("TTC", "send_file", {"path": path+"manual_right.jpg"})
+                            self.manager.send("TTC", "send_file", {"path": path+"manual_right.jpg"}
                         else:
-                            self.logger.error("(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
+                            self.logger.error(
+                                "(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")
                     case "payload_get_state":
                         self.manager.send("Payload", "get_state")
                         result = self.manager.receive("Payload")
@@ -194,7 +196,7 @@ class OBDH:
                         self.reset_timer(timer)
                         self.reset_state()
                     case _:
-                        self.logger.error("Invalid subphase")        
+                        self.logger.error("Invalid subphase")
             case _:
                 self.logger.error("Invalid phase")
 
