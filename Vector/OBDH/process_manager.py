@@ -22,7 +22,7 @@ class ProcessManager:
         while True:
             subsystem, origin, data, timestamp = log_queue.get()
             # NOTE(remy): origin = what it is (gyroscope, temperature, rpm, etc)
-            self.pipes["TTC"].send(("send_data", {"subsystem": subsystem, origin: data, "timestamp": timestamp}))
+            self.pipes["TTC"].send(("send_data", {"subsystem": subsystem, "label": origin, "data": data, "timestamp": timestamp}))
             #print("data", {"subsystem": subsystem, "label": origin, "timestamp": timestamp, "data": data})
 
     def log_listener_process(self, log_queue):

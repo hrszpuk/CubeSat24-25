@@ -5,11 +5,11 @@ import time
 
 TELEMETRY_INTERVAL = 3
 
-
+# TODO: Move to payload controller and set up event-driven updates instead of intervals for status data
 def log_payload_data(controller, telemetry_queue, telemetry_stop_event):
     # NOTE(remy): since this is just statuses, the interval is higher
     # # and it'll only log to the queue if the status actually changes
-    log_data = lambda label, data: telemetry_queue.put(("Payload", label, None, data))
+    log_data = lambda label, data: telemetry_queue.put(("Payload", label, data, None))
     payload_status = controller.get_payload_status()
     log_data("status", payload_status)
 
@@ -19,20 +19,22 @@ def log_payload_data(controller, telemetry_queue, telemetry_stop_event):
 
     while not telemetry_stop_event.is_set():
         payload_status_new = controller.get_payload_status()
+
         if payload_status != payload_status_new:
             payload_status = payload_status_new
-            log_data(payload_status, telemetry_queue)
+            log_data("State", payload_status)
 
         camera_status_new = controller.get_camera_status()
+
         for k, v in camera_status.items():
             v2 = camera_status_new[k]
+
             if v != v2:
                 camera_status[k] = v2
                 log_data(k, v2)
 
         log_data(controller.get_payload_status(), telemetry_queue)
         time.sleep(TELEMETRY_INTERVAL)
-
 
 def start(pipe, log_queue, telemetry_queue):
     log_queue.put(("Payload", "Starting Subsystem"))
