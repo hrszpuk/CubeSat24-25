@@ -7,10 +7,10 @@ import json
 import time
 from enums import TTCState, MessageType
 from datetime import datetime
-from TTC.utils import get_command_and_data_handling_status, get_connection_info, zip_folder, zip_file
+from TTC.utils import get_command_and_data_handling_status, get_connection_info, zip_file, zip_folder
 
 class TTC:
-    def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+    def __init__(self, pipe, event_loop, log_queue, port=8080, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
         log_queue.put(("TT&C", "Initialising..."))
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))

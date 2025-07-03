@@ -271,7 +271,7 @@ class TestTTC:
                     zip_path = zip_folder(path)
                     zip_file_size = os.path.getsize(zip_path)
                     self.log("Sending folder metadata...")
-                    await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
+                    await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": "filemetadata", "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
                     self.log("Sent folder metadata")
 
                     with open(zip_path, "rb") as f:

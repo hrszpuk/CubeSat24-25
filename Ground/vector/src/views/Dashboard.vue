@@ -265,6 +265,16 @@
                     </ScrollPanel>
                 </template>
             </Card>
+        </section>                
+        <section class="col-span-12">
+            <Card>
+                <template #title>Data</template>
+                <template #content>
+                    <article v-for="record in cubeSatData">
+                        <code>{{ record }}</code>
+                    </article>
+                </template>
+            </Card>
         </section>
     </section>
 </template>

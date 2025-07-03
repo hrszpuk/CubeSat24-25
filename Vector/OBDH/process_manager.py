@@ -1,6 +1,10 @@
 import importlib
 import multiprocessing as mp
 from OBDH.logger import Logger
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4e1b97e889b4291e963f48467d3a1d5d99e4e555
 
 class ProcessManager:
     def __init__(self, logger):

@@ -43,8 +43,23 @@ def run_phase2(obdh, manager, logger, sequence):
     number_distances = []
     degree_distances = []
 
+    targets = {}
+    keys = list(numbers.keys())
+    found_sequence = []
+
+    for n in sequence:
+        if n in keys:
+            targets[n] = numbers[n]
+            found_sequence.append(n)
+
+    logger.info(f"Original sequence: {sequence}, Found numbers: {found_sequence}")
+    
     waiting_for_completion = True
+<<<<<<< HEAD
     manager.send("ADCS", "phase2_sequence", {"sequence" : sequence, "numbers" : numbers})
+=======
+    manager.send("ADCS", "phase2_sequence", {"sequence" : found_sequence, "numbers" : targets})
+>>>>>>> 4e1b97e889b4291e963f48467d3a1d5d99e4e555
     while waiting_for_completion and obdh.phase == Phase.SECOND:
         adcs_response = manager.receive("ADCS")
         logger.info(f"ADCS response: {adcs_response}")
@@ -55,6 +70,8 @@ def run_phase2(obdh, manager, logger, sequence):
             manager.send("Payload", "take_distance")
             number_distance = manager.receive(name="Payload")["response"]
             number_distances.append(number_distance)
+        elif cmd == "take_picture_rotation":
+            manager.send("Payload", "take_distance_rotation")
         elif cmd == "sequence_rotation_complete":
             logger.info("ADCS sequence rotation complete")
             waiting_for_completion = False
@@ -68,8 +85,13 @@ def run_phase2(obdh, manager, logger, sequence):
 
     for i, distance in enumerate(number_distances):
         data.append({
+<<<<<<< HEAD
             "number": sequence[i] if i < len(sequence) else None,
             "angle_degree": numbers[sequence[i] if i < len(numbers) else None],
+=======
+            "number": found_sequence[i] if i < len(found_sequence) else None,
+            "angle_degree": numbers[found_sequence[i]] if i < len(found_sequence) and found_sequence[i] in numbers else None,
+>>>>>>> 4e1b97e889b4291e963f48467d3a1d5d99e4e555
             "distance to number in cm": distance,
             "angle_variation": degree_distances[i] if i < len(degree_distances) else None
         })

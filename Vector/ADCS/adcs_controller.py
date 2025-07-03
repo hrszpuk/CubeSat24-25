@@ -267,6 +267,7 @@ class AdcsController:
             target_yaw += 20
             pictures_taken += 1
         self.stop_reaction_wheel()
+<<<<<<< HEAD
 
     def phase2_sequence_rotation(self, pipe, sequence, numbers):
         degree_distances = [0]
@@ -278,6 +279,12 @@ class AdcsController:
             if n in keys:
                 targets[n] = numbers[n]
 
+=======
+
+    def phase2_sequence_rotation(self, pipe, sequence, targets):
+        degree_distances = [0]
+
+>>>>>>> 4e1b97e889b4291e963f48467d3a1d5d99e4e555
         degree_distances.extend([abs(targets[sequence[i]] - targets[sequence[i-1]]) % 360 for i in range(1, len(sequence))])
 
         current_target = None
@@ -289,9 +296,16 @@ class AdcsController:
             if current_target_yaw is None:
                 self.log(f"Target {current_target} not found in numbers mapping.")
                 continue
+<<<<<<< HEAD
             self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw)
             self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
             pipe.send(("take_distance", None))  # send to Payload to measure distance
+=======
+            self.current_reaction_wheel.activate_wheel_brushed(current_target_yaw, break_on_target=False)
+            self.log(f"Rotated to target {current_target} with yaw {current_target_yaw}")
+            pipe.send(("take_distance", None))  # send to Payload to measure distance
+            pipe.send(("take_picture_rotation", None))  # send to Payload to measure distance
+>>>>>>> 4e1b97e889b4291e963f48467d3a1d5d99e4e555
         
         return degree_distances
 
