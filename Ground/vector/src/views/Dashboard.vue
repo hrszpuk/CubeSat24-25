@@ -52,7 +52,9 @@
         "Backup Reaction Wheel RPM": "Not Available"
     });
     const payloadData = reactive({
-        "Camera": "Not Available"
+        "Left Camera": "Not Available",
+        "Right Camera": "Not Available",
+        "Distance Sensor": "Not Available"
     });
     const fileMetadata = reactive({
         size: null,
@@ -152,6 +154,8 @@
                                     }
 
                                     break;
+                                case "Payload":
+                                    payloadData[obj.label] = obj.data;
                                 case _:
                                     console.log(obj.data);
                             }
@@ -224,7 +228,8 @@
                         <code class="block">Backup Reaction Wheel RPM: {{ adcsData["Backup Reaction Wheel RPM"] }}</code>
                         <hr>
                         <code class="block">--- Payload Subsystem ---</code>
-                        <code class="block">Camera: {{ payloadData["Camera"] }}</code>
+                        <code class="block">Left Camera: {{ payloadData["Left Camera"] }}</code>
+                        <code class="block">Right Camera: {{ payloadData["Right Camera"] }}</code>
                         <hr>
                         <code class="block">--- Command and Data Handling Subsystem ---</code>
                         <code class="block">Memory Usage: {{ cdhData["Memory Usage"] }}{{ cdhData["Memory Usage"] === "Not Available" ? '' : '%' }}</code>
