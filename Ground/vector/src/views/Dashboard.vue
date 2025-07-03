@@ -230,6 +230,7 @@
                         <code class="block">--- Payload Subsystem ---</code>
                         <code class="block">Left Camera: {{ payloadData["Left Camera"] }}</code>
                         <code class="block">Right Camera: {{ payloadData["Right Camera"] }}</code>
+                        <code class="block">Distance Sensor: {{ payloadData["Distance Sensor"] }}</code>
                         <hr>
                         <code class="block">--- Command and Data Handling Subsystem ---</code>
                         <code class="block">Memory Usage: {{ cdhData["Memory Usage"] }}{{ cdhData["Memory Usage"] === "Not Available" ? '' : '%' }}</code>
