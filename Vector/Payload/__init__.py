@@ -2,7 +2,7 @@ from Payload.payload_controller import PayloadController
 
 def start(pipe, log_queue, telemetry_queue):
     log_queue.put(("Payload", "Starting Subsystem"))
-    payload_controller = PayloadController(log_queue)
+    payload_controller = PayloadController(log_queue, telemetry_queue)
 
     running = True
 

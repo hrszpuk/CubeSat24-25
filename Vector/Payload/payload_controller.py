@@ -10,8 +10,8 @@ class PayloadController:
         self.state = "INITIALISING"
         self.log_queue = log_queue
         self.telemetry_queue = telemetry_queue
-        self.stereo_camera = StereoCamera(self.log_queue, telemetry_queue)
-        self.distance_sensor = DistanceSensor(self.log_queue, telemetry_queue)
+        self.stereo_camera = StereoCamera()
+        self.distance_sensor = DistanceSensor(self.log_queue, self.telemetry_queue)
         self.state = "READY"
         self.numbers_identified = []
 
@@ -53,14 +53,19 @@ class PayloadController:
         status = self.stereo_camera.get_camera_status()
 
         if status["left_camera_available"] is False:
+            self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))
             health_check_text += "Left camera: INACTIVE\n"
             errors.append("Left camera not available")
         else:
+            self.telemetry_queue.put(("Payload", "Left Camera", "OPERATIONAL", None))
             health_check_text += "Left camera: ACTIVE\n"
+
         if status["right_camera_available"] is False:
+            self.telemetry_queue.put(("Payload", "Right Camera", "INOPERATIVE", None))
             health_check_text += "Right camera: INACTIVE\n"
             errors.append("Right camera not available")
         else:
+            self.telemetry_queue.put(("Payload", "Right Camera", "OPERATIONAL", None))
             health_check_text += "Right camera: ACTIVE\n"
         
         if errors:

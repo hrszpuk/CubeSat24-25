@@ -2,7 +2,6 @@ import importlib
 import multiprocessing as mp
 from OBDH.logger import Logger
 
-
 class ProcessManager:
     def __init__(self, logger):
         self.logger = logger
@@ -36,7 +35,7 @@ class ProcessManager:
     def _run_subsystem(self, module_name, pipe, log_queue, telemetry):
         try:
             subsystem = importlib.import_module(module_name)
-            subsystem.start(pipe, log_queue, telemetry=telemetry)
+            subsystem.start(pipe, log_queue, telemetry)
         except Exception as e:
             log_queue.put((module_name.upper(), f"Error starting subsystem: {e}"))
 

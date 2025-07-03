@@ -41,7 +41,7 @@ class TTC:
     def health_check(self):
         self.log("Performing subsystem health check...")
         health_check = {}
-        connection_info = get_connection_info()        
+        connection_info = get_connection_info()
 
         for metric, value in connection_info.items():
             if value is not None:
@@ -146,7 +146,7 @@ class TTC:
 
     async def handle_message(self):
         try:
-            self.send_status()            
+            await self.send_status()            
             message = await self.connection.recv()
             self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
             self.log(f"({self.last_command_received}) TT&C received: {message}")
