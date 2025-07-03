@@ -141,6 +141,7 @@ class TTC:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
                 self.connection = None
                 self.state = TTCState.READY
+                break
             except Exception as e:
                 self.log(f"[ERROR] WebSocket connection handler failed: {e}")
 
@@ -151,27 +152,36 @@ class TTC:
             self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
             self.log(f"({self.last_command_received}) TT&C received: {message}")
             await self.process_command(message)
+        except websockets.exceptions.ConnectionClosed:
+            self.connection = None
+            self.state = TTCState.READY
         except Exception as e:
             self.log(f"[ERROR] WebScoket message handler failed: {e}")
 
     async def process_backlog(self):
+        self.log(f"Processing backlog... ({len(self.backlog)} items)")
+        
         for item in self.backlog:
-            for instruction, arguments in item.items():
-                try:
-                    match instruction:
-                        case "send_log":
-                            await self.send_log(arguments[0])
-                        case "send_data":
-                            await self.send_data(arguments[0], arguments[1])
-                        case "send_message":
-                            await self.send_message(arguments[0])
-                        case "send_file":
-                            await self.send_file(arguments[0])
-                        case "send_folder":                        
-                            await self.send_folder(arguments[0])
-                except Exception as err:
-                    self.log(f"[ERROR] Failed to process instruction {instruction} in backlog")
-                    
+            instruction = item["instruction"]
+            arguments = item["arguments"]
+            self.log(f"Processing instruction {instruction} with arguments {arguments}")
+
+            try:
+                match instruction:
+                    case "send_log":
+                        await self.send_log(arguments[0])
+                    case "send_data":
+                        await self.send_data(arguments[0], arguments[1])
+                    case "send_message":
+                        await self.send_message(arguments[0])
+                    case "send_file":
+                        await self.send_file(arguments[0])
+                    case "send_folder":
+                        await self.send_folder(arguments[0])
+            except Exception as err:
+                self.log(f"[ERROR] Failed to process instruction {instruction} in backlog: {err}")
+            finally:
+                self.backlog.pop(0)
 
     async def process_command(self, msg):
         self.log("Processing command...")

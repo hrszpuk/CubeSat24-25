@@ -155,7 +155,8 @@
 
                                     break;
                                 case "Payload":
-                                    payloadData[obj.label] = obj.data;
+                                    payloadData[obj.data.label] = obj.data.data;
+                                    break;
                                 case _:
                                     console.log(obj.data);
                             }
