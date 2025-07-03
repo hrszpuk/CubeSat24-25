@@ -179,9 +179,9 @@ class TTC:
                     case "send_folder":
                         await self.send_folder(arguments[0])
             except Exception as err:
-                self.log(f"[ERROR] Failed to process instruction {instruction} in backlog: {err}")
-            finally:
-                self.backlog.pop(0)
+                self.log(f"[ERROR] Failed to process instruction {instruction} in backlog")
+
+        self.backlog = []
 
     async def process_command(self, msg):
         self.log("Processing command...")
