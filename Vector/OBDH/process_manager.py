@@ -7,22 +7,23 @@ class ProcessManager:
         self.logger = logger
         self.processes = {}
         self.pipes = {}
-
         self.log_queue = mp.Queue()
         self.log_listener = mp.Process(target=self.log_listener_process, args=(self.log_queue,))
         self.log_listener.start()
-
         self.telemetry_queue = mp.Queue()
-        self.telemetry_listener = mp.Process(target=self.telemetry_listener_process, args=(self.telemetry_queue,))
-        self.telemetry_listener.start()
+        self.telemetry_listener = mp.Process(target=self.telemetry_listener_process, args=(self.telemetry_queue,))        
 
     def telemetry_listener_process(self, log_queue):
         # NOTE(remy): telemetry data bypasses the logger and just uses queue + pipes because I've stopped caring at this point
         while True:
-            subsystem, origin, data, timestamp = log_queue.get()
-            # NOTE(remy): origin = what it is (gyroscope, temperature, rpm, etc)
-            self.pipes["TTC"].send(("send_data", {"subsystem": subsystem, "label": origin, "data": data, "timestamp": timestamp}))
-            #print("data", {"subsystem": subsystem, "label": origin, "timestamp": timestamp, "data": data})
+            if "TTC" in list(self.pipes.keys()):
+                subsystem, origin, data, timestamp = log_queue.get()
+                # NOTE(remy): origin = what it is (gyroscope, temperature, rpm, etc)
+                self.pipes["TTC"].send(("send_data", {"subsystem": subsystem, "data": {"label": origin, "data": data, "timestamp": timestamp}}))
+                #print("data", {"subsystem": subsystem, "label": origin, "timestamp": timestamp, "data": data})
+
+    def start_telemetry_listener(self):
+        self.telemetry_listener.start()
 
     def log_listener_process(self, log_queue):
         logger = Logger(log_to_console=True).get_logger()

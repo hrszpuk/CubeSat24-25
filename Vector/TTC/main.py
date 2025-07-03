@@ -309,7 +309,7 @@ class TTC:
                 self.log(f"[ERROR] Failed to send data from {subsystem} ({data}): {err}")
         else:
             self.backlog.append({"instruction": "send_data", "arguments": [subsystem, data]})
-            self.log(f"Not connected to Ground, send_data instruction added to backlog  with arguments: {[subsystem, data]}")
+            self.log(f"Not connected to Ground, send_data instruction added to backlog with arguments: {[subsystem, data]}")
     
     async def send_message(self, message):
         if self.connection:
