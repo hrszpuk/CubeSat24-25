@@ -5,8 +5,10 @@ import re
 import os
 import tempfile
 import zipfile
+from gpiozero import CPUTemperature
 
 def get_command_and_data_handling_status():
+    cpu = CPUTemperature()
     memory = psutil.virtual_memory()
     boot_time_timestamp = psutil.boot_time()
     boot_time_datetime = datetime.datetime.fromtimestamp(boot_time_timestamp)
@@ -15,7 +17,7 @@ def get_command_and_data_handling_status():
     total_seconds = int(uptime_delta.total_seconds())
     minutes = total_seconds // 60
 
-    return {"Memory Usage": memory.percent, "Uptime": minutes}
+    return {"Internal Temperature": cpu.temperature, "Memory Usage": memory.percent, "Uptime": minutes}
 
 def get_connection_info(interface="wlan0"):
     try:

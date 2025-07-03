@@ -41,8 +41,8 @@ class TestTTC:
 
         while True:
             try:
-                await self.send_status()
                 await self.handle_message()
+                await self.send_status()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
                 self.connection = None
@@ -152,7 +152,7 @@ class TestTTC:
                 else:
                     await self.send_error("No phase provided!")
             case "shutdown":
-                await self.send_message("Shutting down...")
+                await self.shutdown()
             case _:
                 self.log(f"[ERROR] Invalid command received: {command}")
                 await self.send_error(f"{command} is not a valid command!")
@@ -226,3 +226,12 @@ class TestTTC:
         self.log(f"Subsystem health check: {health_check}")
 
         return health_check
+    
+    async def shutdown(self):
+        self.log("Shutting down...")
+
+        if self.connection:
+            await self.connection.close(1001, "Server shutting down")
+            
+        self.event_loop.stop()
+        self.event_loop.close()

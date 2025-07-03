@@ -10,7 +10,7 @@ from datetime import datetime
 from TTC.utils import get_command_and_data_handling_status, get_connection_info, zip_folder, zip_file
 
 class TTC:
-    def __init__(self, pipe, event_loop, log_queue, port=8080, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
+    def __init__(self, pipe, event_loop, log_queue, port=8000, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
         log_queue.put(("TT&C", "Initialising..."))
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 0))
@@ -107,8 +107,7 @@ class TTC:
                     case "imu_data":
                         asyncio.run_coroutine_threadsafe(self.send_message(args["imu_data"]), self.event_loop)
                     case "stop":
-                        self.log("OBDH listener shutting down...")
-                        self.event_loop.call_soon_threadsafe(self.event_loop.stop)
+                        self.event_loop.call_soon_threadsafe(self.shutdown)
                         break
                     case _:
                         self.log(f"Invalid instruction received from OBDH: {cmd}")
@@ -130,12 +129,12 @@ class TTC:
         self.connection = connection
         self.state = TTCState.CONNECTED
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
+        self.send_status()
 
-        while self.state == TTCState.CONNECTED:
-            
+        while self.state == TTCState.CONNECTED:            
             try:
-                await self.send_status()
                 await self.handle_message()
+                await self.send_status()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
                 self.connection = None
@@ -373,3 +372,12 @@ class TTC:
 
         if retries >= self.MAX_RETRIES:
             self.log(f"[ERROR] Failed to send folder {path} after {self.MAX_RETRIES} retries!")
+
+    async def shutdown(self):
+        self.log("Shutting down...")
+
+        if self.connection:
+            await self.connection.close(1001, "Server shutting down")
+            
+        self.event_loop.stop()
+        self.event_loop.close()

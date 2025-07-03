@@ -27,16 +27,33 @@
     const phase3Subphases = [{label: "Start Phase 3a", command: () => sendMessage("start_phase 3 a")}, {label: "Start Phase 3b", command: () => sendMessage("start_phase 3 b")}, {label: "Start Phase 3c", command: () => sendMessage("start_phase 3 c")}]
     const logs = ref([]);
     const messages = ref([]);
-    const cdhData = reactive({
-        "Downlink Frequency": "0 GHz",
-        "Uplink Frequency": "0 GHz",
-        "Signal Strength": "0 dBm",
-        "Data Transmission Rate": "0 Mb/s",
-        "Memory Usage": 0, 
-        "Last Command Received": "Never", 
-        "Uptime": 0
+    const powerData = reactive({
+        "Battery Voltage": "Not Available",
+        "Battery Current": "Not Available",
+        "Battery Temperature": "Not Available"
     });
-    const cubeSatData = ref([]);
+    const cdhData = reactive({
+        "Internal Temperature": "Not Available",
+        "Downlink Frequency": "Not Available",
+        "Uplink Frequency": "Not Available",
+        "Signal Strength": "Not Available",
+        "Data Transmission Rate": "Not Available",
+        "Memory Usage": "Not Available",
+        "Last Command Received": "Not Available",
+        "Uptime": "Not Available"
+    });
+    const adcsData = reactive({
+        "Gyroscope": "Not Available",
+        "Orientation": "Not Available",
+        "Sun Sensor 1": "Not Available",
+        "Sun Sensor 2": "Not Available",
+        "Sun Sensor 3": "Not Available",
+        "Main Reaction Wheel RPM": "Not Available",
+        "Backup Reaction Wheel RPM": "Not Available"
+    });
+    const payloadData = reactive({
+        "Camera": "Not Available"
+    });
     const fileMetadata = reactive({
         size: null,
         name: null,
@@ -56,7 +73,7 @@
                     let ip = args[0];
                     response = establishConnection(ip);
                 } else {
-                    response = "No IP provided!";
+                    response = "[ERROR] No IP provided!";
                 }
 
                 break;
@@ -65,7 +82,7 @@
                 
                 break;        
             default:
-                sendMessage(message)
+                sendMessage(message);
         }
 
         TerminalService.emit("response", response)
@@ -136,7 +153,7 @@
 
                                     break;
                                 case _:
-                                    cubeSatData.value.unshift(obj.data);
+                                    console.log(obj.data);
                             }
 
                             break;
@@ -184,12 +201,12 @@
                         <code class="block">Connection: <Tag :severity="getStatus() === 'CONNECTING'  ? 'info' : getStatus() === 'OPEN' ? 'success' : 'danger'" :value="getStatus() === 'CONNECTING'  ? 'CONNECTING' : getStatus() === 'OPEN' ? 'ONLINE' : 'OFFLINE'"></Tag></code>
                         <hr>
                         <code class="block">--- Power Subsystem ---</code>
-                        <code class="block">Battery Voltage: </code>
-                        <code class="block">Battery Current: </code>
-                        <code class="block">Battery Temperature: </code>
+                        <code class="block">Battery Voltage: {{ powerData["Battery Voltage"] }}</code>
+                        <code class="block">Battery Current: {{ powerData["Battery Current"] }}</code>
+                        <code class="block">Battery Temperature: {{ powerData["Battery Temperature"] }}</code>
                         <hr>
                         <code class="block">--- Thermal Subsystem ---</code>
-                        <code class="block">Internal Temperature: </code>
+                        <code class="block">Internal Temperature: {{ cdhData["Internal Temperature"] }} {{ cdhData["Internal Temperature"] === "Not Available" ? "" : "°C" }}</code>
                         <hr>
                         <code class="block">--- Communication Subsystem ---</code>
                         <code class="block">Downlink Frequency: {{ cdhData["Downlink Frequency"] }}</code>
@@ -198,21 +215,21 @@
                         <code class="block">Data Transmission Rate: {{ cdhData["Data Transmission Rate"] }}</code>
                         <hr>
                         <code class="block">--- ADCS Subsystem ---</code>
-                        <code class="block">Gyroscope: </code>
-                        <code class="block">Orientation: </code>
-                        <code class="block">Sun Sensor 1: </code>
-                        <code class="block">Sun Sensor 2: </code>
-                        <code class="block">Sun Sensor 3: </code>
-                        <code class="block">Main Reaction Wheel RPM: </code>
-                        <code class="block">Backup Reaction Wheel RPM: </code>
+                        <code class="block">Gyroscope: {{ adcsData["Gyroscope"] }}</code>
+                        <code class="block">Orientation: {{ adcsData["Orientation"] }}</code>
+                        <code class="block">Sun Sensor 1: {{ adcsData["Sun Sensor 1"] }}</code>
+                        <code class="block">Sun Sensor 2: {{ adcsData["Sun Sensor 2"] }}</code>
+                        <code class="block">Sun Sensor 3: {{ adcsData["Sun Sensor 3"] }}</code>
+                        <code class="block">Main Reaction Wheel RPM: {{ adcsData["Main Reaction Wheel RPM"] }}</code>
+                        <code class="block">Backup Reaction Wheel RPM: {{ adcsData["Backup Reaction Wheel RPM"] }}</code>
                         <hr>
                         <code class="block">--- Payload Subsystem ---</code>
-                        <code class="block">Camera: </code>
+                        <code class="block">Camera: {{ payloadData["Camera"] }}</code>
                         <hr>
                         <code class="block">--- Command and Data Handling Subsystem ---</code>
-                        <code class="block">Memory Usage: {{ cdhData["Memory Usage"] }}%</code>
+                        <code class="block">Memory Usage: {{ cdhData["Memory Usage"] }}{{ cdhData["Memory Usage"] === "Not Available" ? '' : '%' }}</code>
                         <code class="block">Last Command Received: {{ cdhData["Last Command Received"]  }}</code>
-                        <code class="block">Uptime: {{ cdhData["Uptime"] }} {{ cdhData["Uptime"] === 1 ? "minute" : "minutes" }}</code>
+                        <code class="block">Uptime: {{ cdhData["Uptime"] }} {{ cdhData["Uptime"] === 1 ? "minute" : typeof(cdhData["Uptime"]) === "number" ? "minutes" : "" }}</code>
                     </ScrollPanel>
                 </template>
             </Card>
@@ -236,19 +253,9 @@
                 <template #title>Logs</template>
                 <template #content>
                     <ScrollPanel style="width: 100%; height: 210px">
-                        <Message v-if="!logs.length" variant="simple">No logs</Message>
+                        <Message v-if="!logs.length" variant="simple" severity="contrast">No logs</Message>
                         <Message v-else v-for="log in logs" variant="simple" :severity="log.toLowerCase().includes('error') ? 'error': log.toLowerCase().includes('warning') ? 'warn' : 'info'">{{ log }}</Message>
                     </ScrollPanel>
-                </template>
-            </Card>
-        </section>                
-        <section class="col-span-12">
-            <Card>
-                <template #title>Data</template>
-                <template #content>
-                    <article v-for="record in cubeSatData">
-                        <code>{{ record }}</code>
-                    </article>
                 </template>
             </Card>
         </section>
