@@ -1,21 +1,19 @@
+import os
 import glob
 from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
 from Payload.number_identifier import identify_numbers_from_files
 from Payload import tag_finder
-import os
 
 class PayloadController:
-    def __init__(self, log_queue):
-        self.state = "INITIALIZING"
+    def __init__(self, log_queue, telemetry_queue):
+        self.state = "INITIALISING"
         self.log_queue = log_queue
-        self.stereo_camera = StereoCamera()
-        self.distance_sensor = DistanceSensor()
+        self.telemetry_queue = telemetry_queue
+        self.stereo_camera = StereoCamera(self.log_queue, telemetry_queue)
+        self.distance_sensor = DistanceSensor(self.log_queue, telemetry_queue)
         self.state = "READY"
-        self.numbers_indentified = []
-
-    def get_payload_state(self):
-        return self.state
+        self.numbers_identified = []
 
     def get_camera_status(self):
         return self.stereo_camera.get_camera_status()

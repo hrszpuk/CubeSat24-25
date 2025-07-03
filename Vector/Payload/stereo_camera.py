@@ -1,8 +1,6 @@
-import numpy as np
 import cv2 as cv
 from matplotlib import pyplot as plt
 from Payload.camera import Camera
-import logging
 import time
 import threading
 
@@ -18,11 +16,13 @@ class StereoCamera:
                     cls._instance = super(StereoCamera, cls).__new__(cls)
         return cls._instance
     
-    def __init__(self):
+    def __init__(self, log_queue, telemetry_queue):
         # Prevent re-initialization if already initialized
         if hasattr(self, '_initialized'):
             return
-            
+
+        self.log_queue = log_queue
+        self.telemetry_queue = telemetry_queue
         self.left_camera = None
         self.right_camera = None
         self.left_camera_available = False
@@ -46,18 +46,20 @@ class StereoCamera:
     def _initialize_left_camera(self):
         """Initialize left camera with error handling"""
         try:
-            print("Initializing left camera (index 0)...")
+            self.log_queue.put(("Payload","Initialising left camera (index 0)..."))
             self.left_camera = Camera(camera_index=0)
+
             if self.left_camera.is_initialized:
                 self.left_camera_available = True
-                print("Left camera (index 0) initialized successfully")
+                self.log_queue.put(("Payload", "Left camera (index 0) initialised successfully"))
+                self.telemetry_queue.put(("Payload", "Left Camera", "OPERATIONAL", None))
                 return True
             else:
-                print("Left camera initialization returned False")
+                self.log_queue.put(("Payload", "Left camera (index 0) initialisation failed"))
                 self.left_camera = None
                 return False
         except Exception as e:
-            print(f"Failed to initialize left camera (index 0): {e}")
+            self.log_queue.put(("Payload", f"Failed to initialise left camera (index 0): {e}"))
             self.left_camera_available = False
             self.left_camera = None
             return False
@@ -65,18 +67,20 @@ class StereoCamera:
     def _initialize_right_camera(self):
         """Initialize right camera with error handling"""
         try:
-            print("Initializing right camera (index 1)...")
+            self.log_queue.put(("Payload", "Initialising right camera (index 1)..."))
             self.right_camera = Camera(camera_index=1)
+
             if self.right_camera.is_initialized:
                 self.right_camera_available = True
-                print("Right camera (index 1) initialized successfully")
+                self.log_queue.put(("Payload","Right camera (index 1) initialised successfully"))
+                self.telemetry_queue.put(("Payload", "Right Camera", "OPERATIONAL", None))
                 return True
             else:
-                print("Right camera initialization returned False")
+                self.log_queue.put(("Payload", "Right camera (index 1) initialisation failed"))
                 self.right_camera = None
                 return False
         except Exception as e:
-            print(f"Failed to initialize right camera (index 1): {e}")
+            self.log_queue.put(("Payload", f"Failed to initialise right camera (index 1): {e}"))
             self.right_camera_available = False
             self.right_camera = None
             return False
@@ -87,19 +91,21 @@ class StereoCamera:
             try:
                 self.left_camera.stop()
             except Exception as e:
-                print(f"Error stopping left camera: {e}")
+                self.log_queue.put(("Payload", f"Error stopping left camera: {e}"))
             finally:
                 self.left_camera = None
                 self.left_camera_available = False
+                self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))
         
         if self.right_camera is not None:
             try:
                 self.right_camera.stop()
             except Exception as e:
-                print(f"Error stopping right camera: {e}")
+                self.log_queue.put(("Payload", f"Error stopping right camera: {e}"))
             finally:
                 self.right_camera = None
                 self.right_camera_available = False
+                self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))
     
     def is_stereo_available(self):
         """Check if both cameras are available for stereo processing"""
@@ -124,9 +130,10 @@ class StereoCamera:
             img = cv.rotate(img, cv.ROTATE_90_COUNTERCLOCKWISE)
             return img
         except Exception as e:
-            print(f"Error getting left camera frame: {e}")
+            self.log_queue.put(("Payload", f"Error getting left camera frame: {e}"))
             # Mark camera as unavailable if it fails
             self.left_camera_available = False
+            self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))
             raise RuntimeError(f"Failed to get left camera frame: {e}")
 
     def get_right_image(self):
@@ -140,9 +147,10 @@ class StereoCamera:
             img = cv.rotate(img, cv.ROTATE_90_CLOCKWISE)
             return img
         except Exception as e:
-            print(f"Error getting right camera frame: {e}")
+            self.log_queue.put(("Payload", f"Error getting right camera frame: {e}"))
             # Mark camera as unavailable if it fails
             self.right_camera_available = False
+            self.telemetry_queue.put(("Payload", "Right Camera", "INOPERATIVE", None))
             raise RuntimeError(f"Failed to get right camera frame: {e}")
     
     def get_depth_map(self):
@@ -157,7 +165,7 @@ class StereoCamera:
             depth_map = self.calculate_depth_map(left_image, right_image)
             return depth_map
         except Exception as e:
-            print(f"Error calculating depth map: {e}")
+            self.log_queue.put(("Payload", f"Error calculating depth map: {e}"))
             raise RuntimeError(f"Failed to calculate depth map: {e}")
     
     def calculate_depth_map(self, left_image, right_image):
@@ -165,16 +173,14 @@ class StereoCamera:
         try:
             imgL = cv.cvtColor(left_image, cv.COLOR_BGR2GRAY)
             imgR = cv.cvtColor(right_image, cv.COLOR_BGR2GRAY)
-
             stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
             disparity = stereo.compute(imgL, imgR)
-
             plt.imshow(disparity, 'gray')
             plt.show()
 
             return disparity
         except Exception as e:
-            print(f"Error in depth map calculation: {e}")
+            self.log_queue.put(("Payload", f"Error in depth map calculation: {e}"))
             raise RuntimeError(f"Failed to calculate depth map: {e}")
 
     def save_images(self, path, file_name):
@@ -188,11 +194,11 @@ class StereoCamera:
                 left_path = f"{path}{file_name}_left.jpg"
                 cv.imwrite(left_path, left_image)
                 images_saved.append(left_path)
-                print(f"Left image saved at {left_path}")
+                self.log_queue.put(("Payload", f"Left image saved at {left_path}"))
             except Exception as e:
-                print(f"Failed to save left image: {e}")
+                self.log_queue.put(("Payload", f"Failed to save left image: {e}"))
         else:
-            print("Left camera not available - skipping left image")
+            self.log_queue.put(("Payload", "Left camera not available - skipping left image"))
         
         # Try to save right image
         if self.right_camera_available:
@@ -201,11 +207,11 @@ class StereoCamera:
                 right_path = f"{path}{file_name}_right.jpg"
                 cv.imwrite(right_path, right_image)
                 images_saved.append(right_path)
-                print(f"Right image saved at {right_path}")
+                self.log_queue.put(("Payload", f"Right image saved at {right_path}"))
             except Exception as e:
-                print(f"Failed to save right image: {e}")
+                self.log_queue.put(("Payload", f"Failed to save right image: {e}"))
         else:
-            print("Right camera not available - skipping right image")
+            self.log_queue.put(("Payload", "Right camera not available - skipping right image"))
         
         if not images_saved:
             raise RuntimeError("No images could be saved - no cameras available")
@@ -218,13 +224,13 @@ class StereoCamera:
             try:
                 return self.get_left_image(), "left"
             except Exception as e:
-                print(f"Failed to get left image: {e}")
+                self.log_queue.put(("Payload", f"Failed to get left image: {e}"))
         
         if self.right_camera_available:
             try:
                 return self.get_right_image(), "right"
             except Exception as e:
-                print(f"Failed to get right image: {e}")
+                self.log_queue.put(("Payload", f"Failed to get right image: {e}"))
         
         raise RuntimeError("No cameras available or all cameras failed")
     
