@@ -17,6 +17,7 @@
     import Terminal from 'primevue/terminal';
     import TerminalService from 'primevue/terminalservice';
     import Toolbar from 'primevue/toolbar';
+    import formatBytes from '@/utils.js';
     
     const { getStatus, establishConnection, sendMessage, data, dropConnection } = useSocket();
     const { playLogSfx } = useAudio();
@@ -47,9 +48,7 @@
         "Orientation": "Not Available",
         "Sun Sensor 1": "Not Available",
         "Sun Sensor 2": "Not Available",
-        "Sun Sensor 3": "Not Available",
-        "Main Reaction Wheel RPM": "Not Available",
-        "Backup Reaction Wheel RPM": "Not Available"
+        "Sun Sensor 3": "Not Available"
     });
     const payloadData = reactive({
         "Left Camera": "Not Available",
@@ -135,7 +134,7 @@
                     elem.click();
                     document.body.removeChild(elem);
                     URL.revokeObjectURL(fileURL);
-                    toast.add({severity: "info", summary: "File from CubeSat", detail: `Received file ${fileMetadata.name}`, life: 3000})
+                    toast.add({severity: "info", summary: "File from CubeSat", detail: `Received file ${fileMetadata.name} (${fileMetadata.size} ${["Bytes", "KB", "MB", "GB"][Math.floor(Math.log(total) / Math.log(1024))]})`, life: 3000})
                 } else if (data.localeCompare("pong")) {
                     let obj = JSON.parse(data);
                     
@@ -156,6 +155,9 @@
                                     break;
                                 case "Payload":
                                     payloadData[obj.data.label] = obj.data.data;
+                                    break;
+                                case "Power":
+                                    powerData[obj.data.label] = obj.data.data;
                                     break;
                                 case _:
                                     console.log(obj.data);
@@ -206,6 +208,7 @@
                         <code class="block">Connection: <Tag :severity="getStatus() === 'CONNECTING'  ? 'info' : getStatus() === 'OPEN' ? 'success' : 'danger'" :value="getStatus() === 'CONNECTING'  ? 'CONNECTING' : getStatus() === 'OPEN' ? 'ONLINE' : 'OFFLINE'"></Tag></code>
                         <hr>
                         <code class="block">--- Power Subsystem ---</code>
+                        <code class="block">Battery Percentage: {{ typeof(powerData["Battery Voltage"]) === "number" ? `${(8.4 - powerData["Battery Voltage"])/2.4 * 100}%` : "Not Available" }}</code>
                         <code class="block">Battery Voltage: {{ powerData["Battery Voltage"] }}</code>
                         <code class="block">Battery Current: {{ powerData["Battery Current"] }}</code>
                         <code class="block">Battery Temperature: {{ powerData["Battery Temperature"] }}</code>
@@ -225,8 +228,6 @@
                         <code class="block">Sun Sensor 1: {{ adcsData["Sun Sensor 1"] }}</code>
                         <code class="block">Sun Sensor 2: {{ adcsData["Sun Sensor 2"] }}</code>
                         <code class="block">Sun Sensor 3: {{ adcsData["Sun Sensor 3"] }}</code>
-                        <code class="block">Main Reaction Wheel RPM: {{ adcsData["Main Reaction Wheel RPM"] }}</code>
-                        <code class="block">Backup Reaction Wheel RPM: {{ adcsData["Backup Reaction Wheel RPM"] }}</code>
                         <hr>
                         <code class="block">--- Payload Subsystem ---</code>
                         <code class="block">Left Camera: {{ payloadData["Left Camera"] }}</code>
@@ -263,16 +264,6 @@
                         <Message v-if="!logs.length" variant="simple" severity="contrast">No logs</Message>
                         <Message v-else v-for="log in logs" variant="simple" :severity="log.toLowerCase().includes('error') ? 'error': log.toLowerCase().includes('warning') ? 'warn' : 'info'">{{ log }}</Message>
                     </ScrollPanel>
-                </template>
-            </Card>
-        </section>                
-        <section class="col-span-12">
-            <Card>
-                <template #title>Data</template>
-                <template #content>
-                    <article v-for="record in cubeSatData">
-                        <code>{{ record }}</code>
-                    </article>
                 </template>
             </Card>
         </section>
