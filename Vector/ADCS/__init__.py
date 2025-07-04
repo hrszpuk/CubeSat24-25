@@ -2,7 +2,7 @@ from ADCS.adcs_controller import AdcsController
 
 import time, random
 
-def start(pipe, log_queue):
+def start(pipe, log_queue, telemetry):
     log_queue.put(("ADCS", "Starting Subsystem"))
     adcs_controller = AdcsController(log_queue)
     
@@ -20,6 +20,14 @@ def start(pipe, log_queue):
             degree = args["degree"]
             variable = adcs_controller.test_reaction_wheel(kp, ki, kd, t, degree)
             pipe.send(variable)
+        elif line == "calibrate_orientation_system":
+            result = adcs_controller.imu.calibrate()
+            pipe.send(variable)
+        elif line == "calibrate_sun_sensors":
+            result = adcs_controller.calibrate_sun_sensors()
+            pipe.send(result)
+        elif line == "zero_calibrate_orientation_system":
+            adcs_controller.imu.zero_calibrate()
         elif line == "eps_health_check":
             variable = adcs_controller.get_eps_health_check()
             pipe.send(variable)

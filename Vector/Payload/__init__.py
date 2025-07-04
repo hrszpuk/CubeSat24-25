@@ -14,7 +14,8 @@ def log_payload_data(controller, telemetry_queue, telemetry_stop_event):
         time.sleep(TELEMETRY_INTERVAL)
 
 
-def start(pipe, log_queue, telemetry_queue):
+def start(pipe, log_queue, telemetry):
+    telemetry_queue = telemetry
     log_queue.put(("Payload", "Starting Subsystem"))
     payload_controller = PayloadController(log_queue)
 

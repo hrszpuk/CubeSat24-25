@@ -56,7 +56,7 @@ class Imu:
         try:
             data = json.loads(line)
         except json.JSONDecodeError as e:
-            #print(f"JSON decode error: {e} for line: {line}")
+            print(f"JSON decode error: {e} for line: {line}")
             return [], [], None, None, None
 
         gyroscope = data.get("gyroscope", [])
@@ -83,6 +83,7 @@ class Imu:
                 continue
             
             gyro, orient, bms_voltage, bms_current, bms_temp = self.parse_imu_data(line, cap_rotations)
+
             if gyro or orient:  # At least one dataset is valid
                 return {"gyroscope": gyro, "orientation": orient, "bms_voltage": bms_voltage, "bms_current": bms_current, "bms_temp": bms_temp , "errors": errors}
             else:
@@ -139,6 +140,12 @@ class Imu:
             #else:
                 #attempts += 1
         return complete
+    
+    def zero_calibrate(self) -> None:
+        """Trigger calibration."""
+        self.send_command('ZERO')
+        time.sleep(0.3)
+        return True
 
     def set_calibration_offset(self, offset: float) -> None:
         """Set calibration offset for orientation."""

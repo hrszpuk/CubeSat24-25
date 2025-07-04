@@ -58,6 +58,22 @@ class OBDH:
                             "time": int(args[3]),
                             "degree": int(args[4]),
                         })
+                    case "calibrate":
+                        self.manager.send("ADCS", "calibrate_orientation_system")
+                        result = self.manager.receive("ADCS")["response"]
+                        if result:
+                            self.logger.info("Orientation system calibrated successfully.")
+                        else:
+                            self.logger.error("Orientation system calibration failed.")
+                    case "sun_calibrate":
+                        self.manager.send("ADCS", "calibrate_sun_sensors")
+                        result = self.manager.receive("ADCS")["response"]
+                        if result:
+                            self.logger.info("Sun sensors calibrated successfully.")
+                        else:
+                            self.logger.error("Sun sensors calibration failed.")
+                    case "zero_calibrate":
+                        self.manager.send("ADCS", "zero_calibrate_orientation_system")
                     case "stop_wheel":
                         self.manager.send("ADCS", "stop_reaction_wheel")
                     case "calibrate_sun_sensors":
@@ -83,7 +99,7 @@ class OBDH:
                         if os.path.exists(path+"manual_left.jpg") and os.path.exists(path+"manual_right.jpg"):
                             self.logger.info("(payload_take_photo) files were generated -> sending over TTC")
                             self.manager.send("TTC", "send_file", {"path": path+"manual_left.jpg.jpg"})
-                            self.manager.send("TTC", "send_file", {"path": path+"manual_right.jpg"}
+                            self.manager.send("TTC", "send_file", {"path": path+"manual_right.jpg"})
                         else:
                             self.logger.error(
                                 "(payload_take_picture) jpg files do not exist, did stereo camera fail or images fail to save? Maybe try running a health check on the payload.")

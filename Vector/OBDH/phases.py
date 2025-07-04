@@ -87,9 +87,9 @@ def run_phase2(obdh, manager, logger, sequence):
             "angle_variation": degree_distances[i] if i < len(degree_distances) else None
         })
 
-    image_paths = glob.glob("images/phase2/*.jpg")
-    for path in image_paths:
-        os.remove(path)  # Clean up images after processing
+    # image_paths = glob.glob("images/phase2/*.jpg")
+    # for path in image_paths:
+    #     os.remove(path)  # Clean up images after processing
     manager.send("TTC", "send_message", {"message": data if data else "No data collected"})
 
 def run_phase3a(obdh, manager, logger):

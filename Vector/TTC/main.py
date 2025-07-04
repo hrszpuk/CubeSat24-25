@@ -252,6 +252,15 @@ class TTC:
                 degree = arguments[4]
                 self.send_command("test_wheel", [kp, ki, kd, t, degree])
                 await self.send_message("Testing wheel...")
+            case "calibrate":
+                self.send_command("calibrate")
+                await self.send_message("Calibrating orientation system...")
+            case "sun_calibrate":
+                self.send_command("sun_calibrate")
+                await self.send_message("Calibrating sun sensors...")
+            case "zero_calibrate":
+                self.send_command("zero_calibrate")
+                await self.send_message("Zero calibrating orientation system...")
             case "stop_wheel":
                 self.send_command("stop_wheel")
                 await self.send_message("Stopping wheel...")

@@ -117,7 +117,7 @@ def recognize_number(image):
 
 def get_numbers(image_path, show_output=False):
     img = cv2.imread(image_path)
-    width_in_pixels = img.shape[1] if img is not None else 0
+    height_in_pixels = img.shape[0] if img is not None else 0
 
     if img is None:
         raise FileNotFoundError(f"The image file '{image_path}' was not found or could not be loaded.")
@@ -129,7 +129,7 @@ def get_numbers(image_path, show_output=False):
         cv2.imshow("Output", output)  # Display the output with connected components
         cv2.waitKey(0)
 
-    return numbers, width_in_pixels
+    return numbers, height_in_pixels
 
     
 def clean_numbers_orientations(numbers_orientations):
@@ -158,7 +158,7 @@ def identify_numbers_from_files(image_paths):
 
         for image_path in image_paths:
             print(f"Processing image: {image_path}")
-            numbers, width_in_pixels = (get_numbers(image_path))
+            numbers, height_in_pixels = (get_numbers(image_path))
 
             for number in numbers:
                 x, y, w, h, cX, cY, labels = number[1]
@@ -167,8 +167,8 @@ def identify_numbers_from_files(image_paths):
                     print(f"Invalid ground truth value {ground_truth} in file {image_path}. Skipping this image.")
                     continue
                 digits = int(number[0])
-                offset = cX - (width_in_pixels / 2)
-                degrees_per_pixel = FOV / width_in_pixels
+                offset = cY - (height_in_pixels / 2)
+                degrees_per_pixel = FOV / height_in_pixels
                 angular_offset = offset * degrees_per_pixel
                 degree = (ground_truth + angular_offset) % 360  # Normalize to [0, 360)
                 numbers_orientations[(round(degree))] = (digits, offset)

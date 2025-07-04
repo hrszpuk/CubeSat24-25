@@ -26,11 +26,11 @@ class AdcsController:
 
     def initialize_orientation_system(self):
         self.imu = Imu()
-        self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
+        #self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
         self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
         self.current_reaction_wheel = self.backup_reaction_wheel
         #self.current_reaction_wheel = self.main_reaction_wheel
-        self.calibrate_orientation_system()
+        #self.calibrate_orientation_system()
 
     def health_check(self, calibrate_orientation_system=False):
         health_check_text = ""
@@ -128,10 +128,11 @@ class AdcsController:
             self.calibrating_orientation_system = True
             self.log("Starting orientation system calibration...")
 
-            calibration_rotation_thread = threading.Thread(target=self.current_reaction_wheel.calibration_rotation)
-            calibration_rotation_thread.start()
+            #calibration_rotation_thread = threading.Thread(target=self.current_reaction_wheel.calibration_rotation)
+            #calibration_rotation_thread.start()
             result = self.imu.calibrate()
-            calibration_rotation_thread.join()
+            #result = self.imu.calibrate()
+            #calibration_rotation_thread.join()
 
             if result:
                 self.calibrate_sun_sensors()
@@ -143,9 +144,9 @@ class AdcsController:
     def initialize_sun_sensors(self):
         # Initialize the four sun sensors
         self.sun_sensors = [
-            SunSensor(id=0, i2c_address=0x23, bus=1),
+            SunSensor(id=2, i2c_address=0x23, bus=1),
             SunSensor(id=1, i2c_address=0x23, bus=3),
-            SunSensor(id=2, i2c_address=0x5c, bus=1),
+            SunSensor(id=3, i2c_address=0x5c, bus=1),
         ]
         
     def get_sun_sensors_status(self):
@@ -180,11 +181,11 @@ class AdcsController:
     
     def get_reaction_wheel_health_check(self):
         # Get the status of the reaction wheel
-        health_check_text = f"Main Reaction Wheel RPM: {self.main_reaction_wheel.get_current_speed():.2f}\n"
+        #health_check_text = f"Main Reaction Wheel RPM: {self.main_reaction_wheel.get_current_speed():.2f}\n"
         health_check_text += f"Backup Reaction Wheel RPM: {self.backup_reaction_wheel.get_current_speed():.2f}\n"
         return health_check_text
 
-    def calibrate_sun_sensors(self):
+    def old_calibrate_sun_sensors(self):
         readings_queue = queue.Queue()
 
         if not self.calibrating_orientation_system:
@@ -205,7 +206,69 @@ class AdcsController:
         else:
             self.log("No sun sensor readings available to determine offset.")
 
+    def calibrate_sun_sensors(self):
+        readings_queue = queue.Queue()
+
+        if not self.calibrating_orientation_system:
+            self.calibrating_orientation_system = True
+        sun_sensor_measurement_thread = threading.Thread(target=self.sun_sensor_calibration_measurement, args=(readings_queue,))
+        sun_sensor_measurement_thread.start()
+        self.current_reaction_wheel.calibration_rotation()
+        self.calibrating_orientation_system = False
+        sun_sensor_measurement_thread.join()
+
+        offset = readings_queue.get()
+    
+        self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {offset}°")
+        self.imu.set_calibration_offset(offset)
+
     def sun_sensor_calibration_measurement(self, readings_queue):
+        readings = []
+
+        # Collect readings while calibration is active
+        while self.calibrating_orientation_system:
+            total_irradiance = 0
+            valid_sensors = 0
+            for sensor in self.sun_sensors:
+                data = sensor.get_data()
+                if data is not None:
+                    total_irradiance += data
+                    valid_sensors += 1
+            if valid_sensors > 0:
+                avg_irradiance = total_irradiance / valid_sensors
+                current_yaw = self.imu.get_current_yaw()
+                readings.append((avg_irradiance, current_yaw))
+            time.sleep(0.05)  # Avoid busy loop
+
+        # Find the yaw with the maximum average irradiance
+        if readings:
+            max_reading = max(readings, key=lambda x: x[0])
+            offset_yaw = max_reading[1]
+        else:
+            offset_yaw = 0  # Default if no readings
+
+        readings_queue.put(offset_yaw)
+
+        #     def sun_sensor_calibration_measurement(self, readings_queue):
+        # readings = []
+
+        # while self.calibrating_orientation_system:
+        #     sum = 0
+        #     for sensor in self.sun_sensors:
+        #         sum += sensor.get_data()
+        #     readings.append((sum, self.imu.get_current_yaw()))
+
+        # offset = 0
+        # yaw = 0
+
+        # for reading in readings:
+        #     if reading[0] > offset:
+        #         offset = reading[0]
+        #         yaw = reading[1]
+        
+        # readings_queue.put(offset)
+
+    def old_sun_sensor_calibration_measurement(self, readings_queue):
         #TODO: handle sensor not available
         #if not sensor.is_available():
             #return f"Sun Sensor {sensor.id} not available for calibration."
@@ -243,7 +306,7 @@ class AdcsController:
         readings_queue.put(readings)
 
     def test_reaction_wheel(self, kp, ki, kd, t=60, degree=0):
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(degree, kp, ki, kd))
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(degree, kp, ki, kd, 10, 10, False))
         rotation_thread.start()
         time.sleep(t)
         print("Stopping reaction wheel after test duration")
@@ -255,11 +318,11 @@ class AdcsController:
     def phase2_rotate(self, pipe):
         self.log("ADCS phase 2 rotation started")
         initial_yaw = self.imu.get_current_yaw()
-        target_yaw = initial_yaw
+        target_yaw = initial_yaw - 160
         pictures_taken = 0
-        timeout = 120
+        timeout = 600
         start_time = time.time()
-        while (pictures_taken <= 18 or not self.current_reaction_wheel.stop_event.is_set()) and (time.time() - start_time < timeout):
+        while pictures_taken <= 18: #or not self.current_reaction_wheel.stop_event.is_set()): #and (time.time() - start_time < timeout):
             self.current_reaction_wheel.activate_wheel_brushed(target_yaw) 
             yaw = self.imu.get_current_yaw()
             pipe.send(("take_picture", {"current_yaw": (abs(yaw % 360))}))
