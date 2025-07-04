@@ -57,6 +57,8 @@ def start(pipe, log_queue, telemetry):
             adcs_controller.phase3_search_target(pipe)
         elif line == "phase3_reacquire_target":
             adcs_controller.phase3_reacquire_target(pipe)
+        elif line == "phase3_align_target":
+            adcs_controller.new_phase3_align_target(pipe, args.get("current_tag_yaw", None), args.get("break_on_target_aligned", False))
         elif line == "phase3a_read_target":
             adcs_controller.phase3a_read_target(pipe)
         elif line == "phase3a_complete":

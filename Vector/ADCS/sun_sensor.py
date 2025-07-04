@@ -21,7 +21,7 @@ class SunSensor:
         try:
             data = self.bus.read_i2c_block_data(self.i2c_address, CMD_READ)
             result = (data[1] + (256 * data[0])) / 1.2
-            return format(result,'.0f')
+            return float(format(result,'.0f'))
         except OSError as error:
             if 121 == error.errno:
                 # Device not found, return None

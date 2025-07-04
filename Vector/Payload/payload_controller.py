@@ -135,6 +135,7 @@ class PayloadController:
         return self.distance_sensor.get_distance()
 
     def detect_apriltag(self):
+        print("Detecting AprilTag...")
         tagfinder_obj = tag_finder.Detector(0.049)
         tagfinder_obj.capture_Camera()
         if not tagfinder_obj.getPose(): 

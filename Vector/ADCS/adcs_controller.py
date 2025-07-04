@@ -1,3 +1,4 @@
+import math
 from ADCS.imu import Imu
 from ADCS.reaction_wheel import ReactionWheel
 from ADCS.sun_sensor import SunSensor
@@ -218,55 +219,61 @@ class AdcsController:
         sun_sensor_measurement_thread.join()
 
         offset = readings_queue.get()
+
+        if offset is None:
+            self.log("No sun sensor readings available to determine offset.")
+            return False
     
         self.log(f"ORIENTATION SYSTEM CALIBRATION COMPLETE with offset: {offset}°")
         self.imu.set_calibration_offset(offset)
 
+        return True
+
+    # def sun_sensor_calibration_measurement(self, readings_queue):
+    #     readings = []
+
+    #     # Collect readings while calibration is active
+    #     while self.calibrating_orientation_system:
+    #         total_irradiance = 0
+    #         valid_sensors = 0
+    #         for sensor in self.sun_sensors:
+    #             data = sensor.get_data()
+    #             if data is not None:
+    #                 total_irradiance += data
+    #                 valid_sensors += 1
+    #         if valid_sensors > 0:
+    #             avg_irradiance = total_irradiance / valid_sensors
+    #             current_yaw = self.imu.get_current_yaw()
+    #             readings.append((avg_irradiance, current_yaw))
+    #         time.sleep(0.05)  # Avoid busy loop
+
+    #     # Find the yaw with the maximum average irradiance
+    #     if readings:
+    #         max_reading = max(readings, key=lambda x: x[0])
+    #         offset_yaw = max_reading[1]
+    #     else:
+    #         offset_yaw = 0  # Default if no readings
+
+    #     readings_queue.put(offset_yaw-180)
+
     def sun_sensor_calibration_measurement(self, readings_queue):
         readings = []
 
-        # Collect readings while calibration is active
         while self.calibrating_orientation_system:
-            total_irradiance = 0
-            valid_sensors = 0
+            sum = 0
             for sensor in self.sun_sensors:
-                data = sensor.get_data()
-                if data is not None:
-                    total_irradiance += data
-                    valid_sensors += 1
-            if valid_sensors > 0:
-                avg_irradiance = total_irradiance / valid_sensors
-                current_yaw = self.imu.get_current_yaw()
-                readings.append((avg_irradiance, current_yaw))
-            time.sleep(0.05)  # Avoid busy loop
+                sum += sensor.get_data()
+            readings.append((sum, self.imu.get_current_yaw()))
 
-        # Find the yaw with the maximum average irradiance
-        if readings:
-            max_reading = max(readings, key=lambda x: x[0])
-            offset_yaw = max_reading[1]
-        else:
-            offset_yaw = 0  # Default if no readings
+        offset = 0
+        yaw = 0
 
-        readings_queue.put(offset_yaw-180)
-
-        #     def sun_sensor_calibration_measurement(self, readings_queue):
-        # readings = []
-
-        # while self.calibrating_orientation_system:
-        #     sum = 0
-        #     for sensor in self.sun_sensors:
-        #         sum += sensor.get_data()
-        #     readings.append((sum, self.imu.get_current_yaw()))
-
-        # offset = 0
-        # yaw = 0
-
-        # for reading in readings:
-        #     if reading[0] > offset:
-        #         offset = reading[0]
-        #         yaw = reading[1]
+        for reading in readings:
+            if reading[0] > offset:
+                offset = reading[0]
+                yaw = reading[1]
         
-        # readings_queue.put(offset)
+        readings_queue.put(yaw)
 
     def old_sun_sensor_calibration_measurement(self, readings_queue):
         #TODO: handle sensor not available
@@ -358,28 +365,32 @@ class AdcsController:
         # Start rotating at specific speed
         # if apriltag is detected, stop rotating and record pose of target
         # if not, continue rotating until a timeout is reached
-        current_yaw = self.get_current_yaw()
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed, args=(current_yaw - 360,))
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed_one_rotation)
         rotation_thread.start()
 
         target_found = False
         timeout = 90  # seconds
         start_time = time.time()
-        while (time.time() - start_time < timeout) and self.is_reaction_wheel_rotating():
+        while target_found == False: # and (time.time() - start_time < timeout):
             pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
-                last_speed = self.current_reaction_wheel.get_current_speed()
+                target_pose = args.get("pose", None)
+                pitch,yaw,roll = target_pose['degree']
+                current_tag_yaw = yaw
                 target_found = True
+                pipe.send(("target_found", {"current_tag_yaw": current_tag_yaw}))
                 break
+            elif line == "apriltag_not_detected":
+                # Continue searching
+                pass
+            time.sleep(0.1)  # Avoid busy loop
  
         self.stop_reaction_wheel()
         
         rotation_thread.join()
 
-        if target_found:
-            pipe.send(("target_found", {"last_speed": last_speed}))
-        else:
+        if not target_found:
             self.log("Target not found within timeout period")
             pipe.send(("timeout", None))
 
@@ -400,15 +411,18 @@ class AdcsController:
                 pipe.send(("detect_apriltag", None))
                 line, args = pipe.recv()
                 if line == "apriltag_detected":
-                    last_speed = self.current_reaction_wheel.get_current_speed(return_percentage=True)
+                    
                     target_found = True
                     break
+                elif line == "apriltag_not_detected":
+                    # Continue searching
+                    pass
             self.stop_reaction_wheel()
 
             rotation_thread.join()
 
             if target_found:
-                self.phase3_align_target(pipe, last_speed)
+                self.phase3_align_target(pipe, current_tag_yaw)
             if not target_found:
                 self.log("Target not reacquired within timeout period. Initiating search.")
                 self.phase3_search_target()
@@ -417,17 +431,76 @@ class AdcsController:
             self.log("No target found yet. Initiating search.")
             self.phase3_search_target()
 
-    def phase3_align_target(self, pipe, last_speed=0, break_on_target_aligned=True):
-        # Rotate according to april tag rotation until the satellite is aligned with the target
-        self.log("Aligning with target...")
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed_to_align, args=(last_speed,))
-        rotation_thread.start()
+    def new_phase3_align_target(self, pipe, current_tag_yaw=0, break_on_target_aligned=True):
+        # Initialize PID variables
+        previous_error = 0
+        integral = 0
+        dt = 0.1  # Time step in seconds
 
-        self.log("Alignment complete.")
-        
+        # PID Parameters
+        kp = 2  # Proportional gain
+        ki = 0.05  # Integral gain
+        kd = 0.01  # Derivative gain
+        setpoint = 0
+        self.current_aligment = current_tag_yaw
+
         target_found = True
 
-        while target_found is True and self.is_reaction_wheel_rotating():
+        tag_thread = threading.Thread(target=self.get_tag_yaw, args=(pipe,))
+        tag_thread.start()
+
+        self.current_reaction_wheel.set_state("ALIGNING")  # Set state to aligning
+
+        while self.current_reaction_wheel.get_state() == "ALIGNING" and target_found:# and not self.stop_event.is_set():
+            pv = self.current_aligment
+            control, error, integral = self.current_reaction_wheel.pid_controller(
+                setpoint, kp, ki, kd, previous_error, integral, dt
+            )
+            
+            output = math.tanh(control * dt) * 100
+
+            output = min(output, 100)
+            output = max(output, -100)
+            
+            # Cap output to motor's operational range and convert to duty cycle (0-100%)
+            duty_cycle = (-output / 100) * 100
+            
+            # Update motor speed
+            self.current_reaction_wheel.motor.set_speed(duty_cycle)
+            
+            # Logging (optional)
+            print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
+            previous_error = error
+
+            time.sleep(dt)
+
+        tag_thread.join()
+
+    def get_tag_yaw(self, pipe):
+        while True:
+            print("TAG SENT")
+            pipe.send(("detect_apriltag", None))
+            line, args = pipe.recv()
+            if line == "apriltag_detected":
+                target_pose = args.get("pose", None)
+                pitch,yaw,roll = target_pose['degree']
+                self.current_aligment = yaw
+            elif line == "apriltag_not_detected":
+                # Continue searching
+                pass
+            time.sleep(0.1)
+
+
+    def phase3_align_target(self, pipe, break_on_target_aligned=True):
+        # Rotate according to april tag rotation until the satellite is aligned with the target
+        self.log("Aligning with target...")
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed_to_align,)
+        rotation_thread.start()
+        
+        target_found = True
+        attempts = 0
+
+        while target_found is True: #and self.is_reaction_wheel_rotating():
             pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
@@ -444,16 +517,24 @@ class AdcsController:
                     # target_found = False
                 x, y, z = target_pose['translation']
                 pitch,yaw,roll = target_pose['degree']
+                self.current_reaction_wheel.lock.acquire()
                 self.current_reaction_wheel.desired_aligment = yaw
-                if abs(yaw) < 2:  # Tolerance of 2
+                self.current_reaction_wheel.lock.release()
+                if abs(yaw) < 1:  # Tolerance of 2
                     if self.target_yaw != self.get_current_yaw():
                         self.log(f"Aligned with target at yaw: {self.target_yaw} degrees")
                     self.target_yaw = self.get_current_yaw()
                     self.log(f"Aligned with target at yaw: {self.target_yaw} degrees")
-                    if break_on_target_aligned:
-                        self.log("Target aligned successfully. Stopping rotation.")
-                        pipe.send(("target_aligned", {"yaw": self.target_yaw}))
-                        break
+                    # if break_on_target_aligned:
+                    #     self.log("Target aligned successfully. Stopping rotation.")
+                    #     pipe.send(("target_aligned", {"yaw": self.target_yaw}))
+                    #     break
+            elif line == "apriltag_not_detected":
+                attempts += 1
+                # if attempts > 10:
+                #     self.log("April Tag not detected for too long. Stopping alignment.")
+                #     target_found = False
+                #     break
 
         rotation_thread.join()
 

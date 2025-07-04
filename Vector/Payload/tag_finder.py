@@ -12,16 +12,18 @@ class Detector:
    def __init__(self, tag_size, camera_obj=StereoCamera()):
       self.tag_size = tag_size
       self.camera_obj = camera_obj
-      options = apriltag.DetectorOptions(families="tag25h9") 
+      options = apriltag.DetectorOptions(families="tag36h11") 
       self.detector = apriltag.Detector(options)
-      self.dt_detector = dt_april.Detector(searchpath=['apriltags'],
-                       families='tag25h9',
-                       nthreads=1,
-                       quad_decimate=1.0,
-                       quad_sigma=0.0,
-                       refine_edges=1,
-                       decode_sharpening=0.25,
-                       debug=0)
+      # Initialize the dt_apriltags detector with configurable parameters
+      self.dt_detector = dt_april.Detector(
+         families='tag36h11',
+         nthreads=2, 
+         quad_decimate=2.0,
+         quad_sigma=0.8,
+         refine_edges=1,
+         decode_sharpening=0.65,
+         debug=0
+      )
       self.img, _ = self.camera_obj.get_available_image()
       self.camera_width,self.camera_height = self.img.shape[1],self.img.shape[0]
 

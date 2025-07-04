@@ -105,7 +105,7 @@ def run_phase3a(obdh, manager, logger):
     distance_data_backup = {}
     read_target = False 
 
-    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.A:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.a:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -123,14 +123,16 @@ def run_phase3a(obdh, manager, logger):
                     elapsed_time = int(current_time - initial_time)
                     if elapsed_time not in distance_data_backup.keys():
                         distance_data_backup[elapsed_time] = pose["translation"][2] # Assuming Z-axis is distance
+            else:
+                manager.send("ADCS", "apriltag_not_detected")
         elif cmd == "target_found":
-            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"], "break_on_target_aligned": True})
+            manager.send("ADCS", "phase3_align_target", {"current_tag_yaw": args["current_tag_yaw"], "break_on_target_aligned": True})
         elif cmd == "target_aligned":
             read_target = True
         elif cmd == "timeout":
             logger.warning("Target search timed out. Subphase terminated.")
             obdh.subphase = None
-            return 
+            return None, None
         
         if read_target:
             if initial_time is None:
@@ -189,7 +191,7 @@ def run_phase3b(obdh, manager, logger):
     initial_time = None
     spin_data = {}
 
-    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.B:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.b:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -199,8 +201,10 @@ def run_phase3b(obdh, manager, logger):
             pose = manager.receive("Payload")["response"]
             if pose is not None:
                 manager.send("ADCS", "apriltag_detected", {"pose": pose})
+            else:
+                manager.send("ADCS", "apriltag_not_detected")
         elif cmd == "target_found":
-            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"], "break_on_target_aligned": False})
+            manager.send("ADCS", "phase3_align_target", {"break_on_target_aligned": False})
         elif cmd == "target_aligned":
             manager.send("ADCS", "phase3b_read_target")
         elif cmd == "reading_phase3b":
@@ -249,7 +253,7 @@ def run_phase3c(obdh, manager, logger):
 
     distance = 200
 
-    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.C and distance > 4:
+    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.c and distance > 4:
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -259,8 +263,10 @@ def run_phase3c(obdh, manager, logger):
             pose = manager.receive("Payload")["response"]
             if pose is not None:
                 manager.send("ADCS", "apriltag_detected", {"pose": pose})
+            else:
+                manager.send("ADCS", "apriltag_not_detected")
         elif cmd == "target_found":
-            manager.send("ADCS", "phase3_align_target", {"last_speed": args["last_speed"], "break_on_target_aligned": False})
+            manager.send("ADCS", "phase3_align_target", {"break_on_target_aligned": False})
         elif cmd == "target_aligned":
             manager.send("Payload", "take_distance")
             distance = manager.receive("Payload")["response"]

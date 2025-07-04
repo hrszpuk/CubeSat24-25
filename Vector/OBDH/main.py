@@ -16,8 +16,8 @@ class OBDH:
         self.start_time = None
         self.phase = Phase.INITIALISATION
         self.subphase = None
-        # self.subsystems = ["TTC", "ADCS", "Payload"]
-        self.subsystems = ["TTC", "Payload"]
+        self.subsystems = ["TTC", "ADCS", "Payload"]
+        #self.subsystems = ["TTC", "Payload"]
 
         for name in self.subsystems:
             is_ready = False
@@ -179,7 +179,7 @@ class OBDH:
 
                 match subphase:
                     case 'a':
-                        timer = threading.Timer(300, self.reset_state)
+                        #timer = threading.Timer(300, self.reset_state)
                         self.subphase = SubPhase.a
                         distance_data, distance_data_backup = run_phase3a(self, self.manager, logger=self.logger)
                         self.manager.send("ADCS", "phase3a_complete")
@@ -198,7 +198,7 @@ class OBDH:
                                 "distance_data_backup": distance_data_backup
                             }
                         })
-                        self.reset_timer(timer)
+                        #self.reset_timer(timer)
                         self.reset_state()
                     case 'b':
                         timer = threading.Timer(300, self.reset_state)

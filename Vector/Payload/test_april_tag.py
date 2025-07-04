@@ -1,7 +1,7 @@
 import sys, time
 import tag_finder as tag_finder
-import tag.location as location
-import tag.drawing as drawing
+# import tag.location as location
+# import tag.drawing as drawing
 
 # Code adapted from: https://github.com/suriono/apriltag
 

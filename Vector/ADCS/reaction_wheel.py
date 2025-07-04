@@ -61,6 +61,7 @@ class ReactionWheel:
 
         # Only used for alignment with AprilTag
         self.desired_aligment = 0
+        self.lock = threading.Lock()
 
         # IMU and Motor Initialization
         self.imu = imu
@@ -92,13 +93,14 @@ class ReactionWheel:
         """
         self.state = state    
     
-    def get_current_speed(self):
+    def get_current_speed(self, return_percentage=False):
         """
         Get the current speed of the reaction wheel.
         Returns:
             float: Current speed in RPM.
         """
-        return self.motor.get_current_speed()
+        return self.motor.get_current_speed(return_percentage)
+
     
     def pid_controller(self, setpoint, kp, ki, kd, previous_error=0, integral=0, dt=0.1):
         # Ensure PID gains are floats
@@ -217,7 +219,7 @@ class ReactionWheel:
         self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
         self.stop_event.clear()  # Clear the stop event to allow future operations
 
-    def activate_wheel_brushed_one_rotation(self, kp=1.8, ki=0.05, kd=0.1, t=5, tolerance=10, break_on_target=True):
+    def activate_wheel_brushed_one_rotation(self, kp=0.5, ki=0.05, kd=0.1, t=5, tolerance=10, break_on_target=True):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -230,6 +232,7 @@ class ReactionWheel:
         omega_wheel = 0  # Initialize angular velocity
 
         initial_setpoint = (self.imu.get_current_yaw() % 360) + 360  # Set initial setpoint to current yaw + 360 degrees
+        setpoint = initial_setpoint
         saturated_attempts = 0
         target_achieved_attempts = 0
         stop_t = None  # Initialize stop time
@@ -387,11 +390,9 @@ class ReactionWheel:
         self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
         self.stop_event.clear()  # Clear the stop event to allow future operations
 
-    def activate_wheel_brushed_to_align(self, last_speed):
+    def activate_wheel_brushed_to_align(self):
         """
         Activate the reaction wheel to align the satellite with a target orientation.
-        Parameters:
-            - last_speed: Last known speed of the reaction wheel.
         """
 
         # Initialize PID variables
@@ -403,13 +404,14 @@ class ReactionWheel:
         kp = 2  # Proportional gain
         ki = 0.05  # Integral gain
         kd = 0.01  # Derivative gain
-        setpoint = last_speed + self.desired_aligment
+        setpoint = 0
 
         self.set_state("ALIGNING")  # Set state to aligning
 
-        while self.get_state() == "ALIGNING" and not self.stop_event.is_set():
-            # Get current yaw and compute PID control
-            pv = self.get_current_speed()  # Get current speed from the motor
+        while self.get_state() == "ALIGNING":# and not self.stop_event.is_set():
+            self.lock.acquire()
+            pv = self.desired_aligment
+            self.lock.release()
             control, error, integral = self.pid_controller(
                 setpoint, kp, ki, kd, previous_error, integral, dt
             )
@@ -458,11 +460,11 @@ class ReactionWheel:
         # Test motor from 50% to 100% throttle
         for percent in range(0, -101, -10):
             self.motor.set_speed(percent)
-            time.sleep(1)
+            time.sleep(2)
         
-        for percent in range(-100, 0, 10):
+        for percent in range(0, 100, 10):
             self.motor.set_speed(percent)
-            time.sleep(1)
+            time.sleep(2)
 
         self.motor.stop()  # Stop the motor
 
