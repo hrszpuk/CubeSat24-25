@@ -100,7 +100,7 @@ def run_phase3a(obdh, manager, logger):
     logger.info("Starting Phase 3a: Search for target")
     manager.send("ADCS", "phase3_search_target")
 
-    initial_time = None
+    align_timer = None
     distance_data = {}
     distance_data_backup = {}
     read_target = False 
@@ -116,34 +116,54 @@ def run_phase3a(obdh, manager, logger):
             if pose is not None:
                 manager.send("ADCS", "apriltag_detected", {"pose": pose}, log=False)
                 if read_target:
-                    if initial_time is None:
+                    if align_timer is None:
                         logger.info("Starting distance measurement")
-                        initial_time = time.time()
+                        align_timer = time.time()
                     current_time = time.time()
-                    elapsed_time = int(current_time - initial_time)
+                    elapsed_time = int(current_time - align_timer)
                     if elapsed_time not in distance_data_backup.keys():
                         distance_data_backup[elapsed_time] = pose["translation"][2] # Assuming Z-axis is distance
             else:
                 manager.send("ADCS", "apriltag_not_detected", log=False)
         elif cmd == "target_found":
-            manager.send("ADCS", "phase3_align_target", {"current_tag_yaw": args["current_tag_yaw"], "break_on_target_aligned": True}, log=False)
+            manager.send("ADCS", "phase3_align_target", {"current_tag_yaw": args["current_tag_yaw"], "break_on_target_aligned": True})
         elif cmd == "target_aligned":
             read_target = True
+        elif cmd == "target_lost":
+            read_target = False
+            manager.send("ADCS", "phase3_search_target")
         elif cmd == "timeout":
             logger.warning("Target search timed out. Subphase terminated.")
             obdh.subphase = None
             return None, None
         
+        current_time = time.time()
         if read_target:
-            if initial_time is None:
-                logger.info("Starting distance measurement")
-                initial_time = time.time()
-            current_time = time.time()
-            elapsed_time = int(current_time - initial_time)
-            if elapsed_time not in distance_data.keys():
-                manager.send("Payload", "take_distance")
-                distance = manager.receive("Payload")["response"]
-                distance_data[elapsed_time] = distance
+            if current_time - (align_timer if align_timer else 0) < 30:
+                if align_timer is None:
+                    logger.info("Starting distance measurement")
+                    align_timer = time.time()
+                elapsed_time = int(current_time - align_timer)
+                if elapsed_time not in distance_data.keys():
+                    manager.send("Payload", "take_distance")
+                    distance = manager.receive("Payload")["response"]
+                    distance_data[elapsed_time] = distance
+            else:
+                logger.info("Stopping distance measurement after 30 seconds")
+                read_target = False
+                align_timer = None
+                manager.send("ADCS", "stop_reaction_wheel", log=False)
+
+        # if read_target:
+        #     if initial_time is None:
+        #         logger.info("Starting distance measurement")
+        #         initial_time = time.time()
+        #     current_time = time.time()
+        #     elapsed_time = int(current_time - initial_time)
+        #     if elapsed_time not in distance_data.keys():
+        #         manager.send("Payload", "take_distance")
+        #         distance = manager.receive("Payload")["response"]
+        #         distance_data[elapsed_time] = distance
 
     manager.send("ADCS", "stop_reaction_wheel")
     logger.info("Phase 3a completed, distance data collected")

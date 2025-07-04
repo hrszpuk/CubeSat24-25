@@ -19,7 +19,7 @@ class Camera:
                 controls={
                     "FrameDurationLimits": (1_000_000 // framerate, 1_000_000 // framerate),
                     "ExposureTime": 0,
-                    "AnalogueGain": 5.0,
+                    "AnalogueGain": 16.0,
                     "AwbMode": controls.AwbModeEnum.Auto,
                     "AfMode": controls.AfModeEnum.Continuous
                 }

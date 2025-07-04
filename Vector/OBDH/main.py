@@ -179,7 +179,7 @@ class OBDH:
 
                 match subphase:
                     case 'a':
-                        #timer = threading.Timer(300, self.reset_state)
+                        timer = threading.Timer(30, self.reset_state)
                         self.subphase = SubPhase.a
                         distance_data, distance_data_backup = run_phase3a(self, self.manager, logger=self.logger)
                         self.manager.send("ADCS", "phase3a_complete")
@@ -198,7 +198,7 @@ class OBDH:
                                 "distance_data_backup": distance_data_backup
                             }
                         })
-                        #self.reset_timer(timer)
+                        self.reset_timer(timer)
                         self.reset_state()
                     case 'b':
                         timer = threading.Timer(300, self.reset_state)
@@ -224,6 +224,7 @@ class OBDH:
             self.phase = None
             self.subphase = None
             self.start_time = None
+            self.manager.send("ADCS", "stop_reaction_wheel")
 
     def reset_timer(self, timer):
         if timer is not None and self.state == OBDHState.BUSY:

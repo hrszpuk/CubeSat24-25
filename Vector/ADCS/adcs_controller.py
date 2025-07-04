@@ -18,6 +18,7 @@ class AdcsController:
         self.calibrating_orientation_system = False
         self.state = "READY"
         self.target_yaw = None
+        self.stop_tag_detection_event = threading.Event()
 
     def get_state(self):
         return self.state
@@ -265,11 +266,11 @@ class AdcsController:
                 sum += sensor.get_data()
             readings.append((sum, self.imu.get_current_yaw()))
 
-        offset = 0
+        offset = np.inf
         yaw = 0
 
         for reading in readings:
-            if reading[0] > offset:
+            if reading[0] < offset:
                 offset = reading[0]
                 yaw = reading[1]
         
@@ -474,26 +475,37 @@ class AdcsController:
             if abs(pv) < 1:  # Tolerance of 1
                 self.target_yaw = self.get_current_yaw()
                 self.log(f"Aligned with target at yaw: {self.target_yaw} degrees")
-                break
-
+                pipe.send(("target_aligned", {}))
+                #break
+            
             time.sleep(dt)
 
-        self.current_reaction_wheel.activate_wheel_brushed(self.target_yaw, t=None, break_on_target=False)
+        #while not self.stop_tag_detection_event.is_set():
+        #self.current_reaction_wheel.activate_wheel_brushed(self.target_yaw, t=None, break_on_target=False)
+        #self.stop_tag_detection_event.set()
 
         tag_thread.join()
 
+        self.current_reaction_wheel.stop_reaction_wheel()  # Stop the reaction wheel after rotation
+        self.current_reaction_wheel.stop_event.clear() 
+
     def get_tag_yaw(self, pipe):
-        while True:
+        attempts = 0
+        while not self.current_reaction_wheel.stop_event.is_set():
             print("TAG SENT")
             pipe.send(("detect_apriltag", None))
             line, args = pipe.recv()
             if line == "apriltag_detected":
+                attempts = 0
                 target_pose = args.get("pose", None)
                 pitch,yaw,roll = target_pose['degree']
                 self.current_aligment = yaw
             elif line == "apriltag_not_detected":
-                # Continue searching
-                pass
+                attempts += 1
+            if attempts > 10:
+                self.log("April Tag not detected for too long. Stopping alignment.")
+                pipe.send(("target_lost", None))
+                self.current_reaction_wheel.stop_reaction_wheel() 
             time.sleep(0.1)
 
 
