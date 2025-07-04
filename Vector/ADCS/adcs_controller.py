@@ -365,7 +365,7 @@ class AdcsController:
         # Start rotating at specific speed
         # if apriltag is detected, stop rotating and record pose of target
         # if not, continue rotating until a timeout is reached
-        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed_one_rotation)
+        rotation_thread = threading.Thread(target=self.current_reaction_wheel.activate_wheel_brushed_many_rotations)
         rotation_thread.start()
 
         target_found = False
@@ -393,7 +393,6 @@ class AdcsController:
         if not target_found:
             self.log("Target not found within timeout period")
             pipe.send(("timeout", None))
-
 
     def phase3_reacquire_target(self, pipe):
         # get current target yaw
@@ -472,7 +471,14 @@ class AdcsController:
             print(f"Target: {setpoint:.2f}, Current: {pv:.2f}, Duty: {duty_cycle:.1f}%")
             previous_error = error
 
+            if abs(pv) < 1:  # Tolerance of 1
+                self.target_yaw = self.get_current_yaw()
+                self.log(f"Aligned with target at yaw: {self.target_yaw} degrees")
+                break
+
             time.sleep(dt)
+
+        self.current_reaction_wheel.activate_wheel_brushed(self.target_yaw, t=None, break_on_target=False)
 
         tag_thread.join()
 

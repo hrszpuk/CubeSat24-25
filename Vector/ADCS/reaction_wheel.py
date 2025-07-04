@@ -208,9 +208,12 @@ class ReactionWheel:
                     print("Target achieved, stopping wheel.")
                     break
                 else:
-                    if abs(time.time() - stop_t) > t:
-                        print("Target achieved, stopping wheel after time limit.")
-                        break
+                    if t is None:
+                        pass
+                    else:
+                        if abs(time.time() - stop_t) > t:
+                            print("Target achieved, stopping wheel after time limit.")
+                            break
 
             # Logging
             print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, Current Velocity: {self.imu.get_current_angular_velocity():.1f}, IN_TARGET: {abs(pv - setpoint) < tolerance}")
@@ -219,7 +222,7 @@ class ReactionWheel:
         self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
         self.stop_event.clear()  # Clear the stop event to allow future operations
 
-    def activate_wheel_brushed_one_rotation(self, kp=0.5, ki=0.05, kd=0.1, t=5, tolerance=10, break_on_target=True):
+    def activate_wheel_brushed_many_rotations(self, kp=0.5, ki=0.05, kd=0.1, t=5, tolerance=5, break_on_target=True):
         """
         Activate the reaction wheel to adjust the satellite's orientation.
         Parameters: 
@@ -231,7 +234,7 @@ class ReactionWheel:
         dt = 0.1  # Time step in seconds
         omega_wheel = 0  # Initialize angular velocity
 
-        initial_setpoint = (self.imu.get_current_yaw() % 360) + 360  # Set initial setpoint to current yaw + 360 degrees
+        initial_setpoint = (self.imu.get_current_yaw() % 360) + 180  # Set initial setpoint to current yaw + 360 degrees
         setpoint = initial_setpoint
         saturated_attempts = 0
         target_achieved_attempts = 0
@@ -288,15 +291,16 @@ class ReactionWheel:
                 setpoint = self.imu.get_current_yaw() - (360 * duty_cycle / 100)
                 saturated_attempts = 0  # Reset after handling saturation
             if target_achieved_attempts > 1:
-                if stop_t is None:
-                    stop_t = time.time()
-                if break_on_target:
-                    print("Target achieved, stopping wheel.")
-                    break
-                else:
-                    if abs(time.time() - stop_t) > t:
-                        print("Target achieved, stopping wheel after time limit.")
-                        break
+                setpoint = self.imu.get_current_yaw() + 180  # Reset setpoint to current yaw + 180 degrees
+                # if stop_t is None:
+                #     stop_t = time.time()
+                # if break_on_target:
+                #     print("Target achieved, stopping wheel.")
+                #     break
+                # else:
+                #     if abs(time.time() - stop_t) > t:
+                #         print("Target achieved, stopping wheel after time limit.")
+                #         break
 
             # Logging
             print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, Current Velocity: {self.imu.get_current_angular_velocity():.1f}, IN_TARGET: {abs(pv - setpoint) < tolerance}")

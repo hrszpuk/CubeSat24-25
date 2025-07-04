@@ -111,10 +111,10 @@ def run_phase3a(obdh, manager, logger):
         args = adcs_response["arguments"]
 
         if cmd == "detect_apriltag":
-            manager.send("Payload", "detect_apriltag")
+            manager.send("Payload", "detect_apriltag", log=False)
             pose = manager.receive("Payload")["response"]
             if pose is not None:
-                manager.send("ADCS", "apriltag_detected", {"pose": pose})
+                manager.send("ADCS", "apriltag_detected", {"pose": pose}, log=False)
                 if read_target:
                     if initial_time is None:
                         logger.info("Starting distance measurement")
@@ -124,9 +124,9 @@ def run_phase3a(obdh, manager, logger):
                     if elapsed_time not in distance_data_backup.keys():
                         distance_data_backup[elapsed_time] = pose["translation"][2] # Assuming Z-axis is distance
             else:
-                manager.send("ADCS", "apriltag_not_detected")
+                manager.send("ADCS", "apriltag_not_detected", log=False)
         elif cmd == "target_found":
-            manager.send("ADCS", "phase3_align_target", {"current_tag_yaw": args["current_tag_yaw"], "break_on_target_aligned": True})
+            manager.send("ADCS", "phase3_align_target", {"current_tag_yaw": args["current_tag_yaw"], "break_on_target_aligned": True}, log=False)
         elif cmd == "target_aligned":
             read_target = True
         elif cmd == "timeout":
