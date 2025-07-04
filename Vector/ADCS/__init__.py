@@ -4,7 +4,7 @@ import time, random
 
 def start(pipe, log_queue, telemetry):
     log_queue.put(("ADCS", "Starting Subsystem"))
-    adcs_controller = AdcsController(log_queue)
+    adcs_controller = AdcsController(log_queue, telemetry)
     
     running = True
     while running:
