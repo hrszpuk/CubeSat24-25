@@ -247,7 +247,7 @@ class AdcsController:
         else:
             offset_yaw = 0  # Default if no readings
 
-        readings_queue.put(offset_yaw)
+        readings_queue.put(offset_yaw-180)
 
         #     def sun_sensor_calibration_measurement(self, readings_queue):
         # readings = []
@@ -330,7 +330,7 @@ class AdcsController:
             target_yaw += 20
             pictures_taken += 1
         self.stop_reaction_wheel()
-        
+
     def phase2_sequence_rotation(self, pipe, sequence, targets):
         degree_distances = [0]
 
@@ -363,7 +363,7 @@ class AdcsController:
         rotation_thread.start()
 
         target_found = False
-        timeout = 30  # seconds
+        timeout = 90  # seconds
         start_time = time.time()
         while (time.time() - start_time < timeout) and self.is_reaction_wheel_rotating():
             pipe.send(("detect_apriltag", None))
@@ -434,7 +434,14 @@ class AdcsController:
                 target_pose = args.get("pose", None)
                 if target_pose is None:
                     self.log("April Tag lost")
-                    target_found = False
+                    # TAKE DISTANCE
+                    # cmd, args = pipe.recv()  # wait for the next command
+                    # if cmd == "phase3c_read_target":
+                    #     distance = args.get("distance", None)
+                    #     if args is not None and distance < 25:
+                    #         self.log(f"Distance to target: {distance} cm. Stopping Target detection. Docking in progress...")
+                    #         break
+                    # target_found = False
                 x, y, z = target_pose['translation']
                 pitch,yaw,roll = target_pose['degree']
                 self.current_reaction_wheel.desired_aligment = yaw
@@ -450,8 +457,11 @@ class AdcsController:
 
         rotation_thread.join()
 
-        self.log("Target lost during alignment")
-        pipe.send(("target_lost", None))
+        if not target_found:
+            self.log("Target lost during alignment")
+            pipe.send(("target_lost", None))
+        else:
+            pass
 
     def phase3b_read_target(self, pipe):
         # Lock target yaw and get any april tag pose

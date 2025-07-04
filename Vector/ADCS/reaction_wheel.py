@@ -151,7 +151,7 @@ class ReactionWheel:
 
         self.set_state("ROTATING")  # Set state to rotating
 
-        while self.get_state() == "ROTATING" or not self.stop_event.is_set():
+        while self.get_state() == "ROTATING" and not self.stop_event.is_set():
             pv = self.imu.get_current_yaw()
 
             # Get current yaw and compute PID control
@@ -197,7 +197,92 @@ class ReactionWheel:
                 
             if saturated_attempts > 2:
                 print("WHEEL SATURATION")
-                setpoint = setpoint - 360 * duty_cycle / 100
+                setpoint = setpoint - (360 * duty_cycle / 100)
+                saturated_attempts = 0  # Reset after handling saturation
+            if target_achieved_attempts > 1:
+                if stop_t is None:
+                    stop_t = time.time()
+                if break_on_target:
+                    print("Target achieved, stopping wheel.")
+                    break
+                else:
+                    if abs(time.time() - stop_t) > t:
+                        print("Target achieved, stopping wheel after time limit.")
+                        break
+
+            # Logging
+            print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, Current Velocity: {self.imu.get_current_angular_velocity():.1f}, IN_TARGET: {abs(pv - setpoint) < tolerance}")
+            
+            time.sleep(dt)
+        self.stop_reaction_wheel()  # Stop the reaction wheel after rotation
+        self.stop_event.clear()  # Clear the stop event to allow future operations
+
+    def activate_wheel_brushed_one_rotation(self, kp=1.8, ki=0.05, kd=0.1, t=5, tolerance=10, break_on_target=True):
+        """
+        Activate the reaction wheel to adjust the satellite's orientation.
+        Parameters: 
+            - setpoint: Target yaw angle (degrees/radians).
+        """
+        # Initialize PID variables
+        previous_error = 0
+        integral = 0
+        dt = 0.1  # Time step in seconds
+        omega_wheel = 0  # Initialize angular velocity
+
+        initial_setpoint = (self.imu.get_current_yaw() % 360) + 360  # Set initial setpoint to current yaw + 360 degrees
+        saturated_attempts = 0
+        target_achieved_attempts = 0
+        stop_t = None  # Initialize stop time
+
+        self.set_state("ROTATING")  # Set state to rotating
+
+        while self.get_state() == "ROTATING" and not self.stop_event.is_set():
+            pv = self.imu.get_current_yaw()
+
+            # Get current yaw and compute PID control
+            control, error, integral = self.pid_controller(
+                setpoint, kp, ki, kd, previous_error, integral, dt
+            )
+
+            # Calculate new satellite and wheel angles
+            new_pv = pv + control * dt
+            angle_delta_sat = new_pv - pv
+            angle_delta_wheel = -self.I_sat / self.I_wheel * angle_delta_sat
+
+            # Update angular velocities
+            new_omega_wheel = angle_delta_wheel / dt
+            alpha_wheel = (new_omega_wheel - omega_wheel) / dt
+            omega_wheel = -new_omega_wheel
+
+            rpm = omega_wheel * 60 / (2 * math.pi)
+
+            rpm = np.clip(rpm, -250, 250)  # Cap RPM to a reasonable range
+
+            duty_cycle = rpm / 2.5  # Assuming 250 RPM is 100% duty cycle
+            
+            # Ensure duty cycle stays within 0-100%
+            duty_cycle = np.clip(duty_cycle, -100, 100)
+            
+            # Update motor speed
+            self.motor.set_speed(duty_cycle)
+
+            previous_error = error
+
+            if (setpoint > pv + 360 or setpoint < pv - 360) and saturated_attempts < 3:
+                print("Setpoint is too far from current yaw, adjusting degree.")
+                turns = pv // 360
+                setpoint = turns * 360 + initial_setpoint
+
+            if abs(self.imu.get_current_angular_velocity()) < 2:
+                if abs(duty_cycle) == 100 and abs(pv - setpoint) > tolerance:
+                    print("Wheel may be saturated!")
+                    saturated_attempts += 1
+            if abs(pv - setpoint) < tolerance:
+                target_achieved_attempts += 1
+                
+            if saturated_attempts > 2:
+                print("WHEEL SATURATION")
+                setpoint = self.imu.get_current_yaw() - (360 * duty_cycle / 100)
                 saturated_attempts = 0  # Reset after handling saturation
             if target_achieved_attempts > 1:
                 if stop_t is None:
@@ -236,7 +321,7 @@ class ReactionWheel:
 
         self.set_state("ROTATING")  # Set state to rotating
 
-        while self.get_state() == "ROTATING" or not self.stop_event.is_set():
+        while self.get_state() == "ROTATING" and not self.stop_event.is_set():
             pv = self.imu.get_current_yaw()
 
             # Get current yaw and compute PID control
