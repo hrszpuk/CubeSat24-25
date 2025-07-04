@@ -1,7 +1,7 @@
 import datetime
-from gpiozero import CPUTemperature
 import psutil
 import time
+from gpiozero import CPUTemperature
 
 def read_all_errors(log_path="vector.log"):
     try:

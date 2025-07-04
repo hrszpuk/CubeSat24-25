@@ -7,7 +7,7 @@ import json
 import time
 from enums import TTCState, MessageType
 from datetime import datetime
-from TTC.utils import get_command_and_data_handling_status, get_connection_info, zip_folder, zip_file
+from TTC.utils import get_command_and_data_handling_status, get_connection_info, zip_file, zip_folder
 
 class TTC:
     def __init__(self, pipe, event_loop, log_queue, port=8080, buffer_size=1024, format="utf-8", byteorder_length=8, max_retries=3):
@@ -20,6 +20,7 @@ class TTC:
         self.pipe = pipe
         self.event_loop = event_loop
         self.log_queue = log_queue
+        self.backlog = []
         self.BUFFER_SIZE = buffer_size
         self.FORMAT = format
         self.BYTEORDER_LENGTH = byteorder_length
@@ -40,7 +41,7 @@ class TTC:
     def health_check(self):
         self.log("Performing subsystem health check...")
         health_check = {}
-        connection_info = get_connection_info()        
+        connection_info = get_connection_info()
 
         for metric, value in connection_info.items():
             if value is not None:
@@ -90,7 +91,7 @@ class TTC:
                         if args["data"]:
                             asyncio.run_coroutine_threadsafe(self.send_data(args["subsystem"], args["data"]), self.event_loop)
                         else:
-                            self.log("[ERROR] No message provided!")
+                            self.log("[ERROR] No data provided!")
                     case "send_file":
                         if args["path"]:
                             asyncio.run_coroutine_threadsafe(self.send_file(args["path"]), self.event_loop)
@@ -107,8 +108,7 @@ class TTC:
                     case "imu_data":
                         asyncio.run_coroutine_threadsafe(self.send_message(args["imu_data"]), self.event_loop)
                     case "stop":
-                        self.log("OBDH listener shutting down...")
-                        self.event_loop.call_soon_threadsafe(self.event_loop.stop)
+                        self.event_loop.call_soon_threadsafe(self.shutdown)
                         break
                     case _:
                         self.log(f"Invalid instruction received from OBDH: {cmd}")
@@ -131,10 +131,11 @@ class TTC:
         self.state = TTCState.CONNECTED
         self.log(f"Connection established with {self.connection.remote_address[0]}:{self.connection.remote_address[1]}")
 
-        while self.state == TTCState.CONNECTED:
-            
+        while self.connection:            
             try:
-                await self.send_status()
+                if len(self.backlog):
+                    await self.process_backlog()
+
                 await self.handle_message()
             except websockets.exceptions.ConnectionClosed:
                 self.log(f"Connection with {self.connection.remote_address[0]}:{self.connection.remote_address[1]} dropped")
@@ -146,66 +147,41 @@ class TTC:
 
     async def handle_message(self):
         try:
+            await self.send_status()            
             message = await self.connection.recv()
             self.last_command_received = datetime.now().strftime("%d-%m-%Y %H:%M GMT")
             self.log(f"({self.last_command_received}) TT&C received: {message}")
             await self.process_command(message)
+        except websockets.exceptions.ConnectionClosed:
+            self.connection = None
+            self.state = TTCState.READY
         except Exception as e:
             self.log(f"[ERROR] WebScoket message handler failed: {e}")
 
-    async def pong(self):
-        try:
-            await self.connection.send("pong")
-        except Exception as err:
-            self.log(f"[ERROR] Failed to send \"pong\": {err}")
-
-    async def send_status(self):
-        health = self.health_check()
-        status = get_command_and_data_handling_status()
-
-        for key, value in health.items():
-            status[key] = value
-
-        await self.send_data("TTC", status)
-
-    async def send_log(self, message):
-        if (self.state == TTCState.CONNECTED):
-            self.log(f"Sending \"{message}\" to Ground...")
+    async def process_backlog(self):
+        self.log(f"Processing backlog... ({len(self.backlog)} items)")
+        
+        for item in self.backlog:
+            instruction = item["instruction"]
+            arguments = item["arguments"]
+            self.log(f"Processing instruction {instruction} with arguments {arguments}")
 
             try:
-                await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
-                self.log(f"Sent \"{message}\" to Ground")
+                match instruction:
+                    case "send_log":
+                        await self.send_log(arguments[0])
+                    case "send_data":
+                        await self.send_data(arguments[0], arguments[1])
+                    case "send_message":
+                        await self.send_message(arguments[0])
+                    case "send_file":
+                        await self.send_file(arguments[0])
+                    case "send_folder":
+                        await self.send_folder(arguments[0])
             except Exception as err:
-                self.log(f"[ERROR] Failed to send \"{message}\": {err}")
-        else:
-            self.log("Not connected to ground, log not sent")
+                self.log(f"[ERROR] Failed to process instruction {instruction} in backlog")
 
-    async def send_data(self, subsystem, data):
-        self.log(f"Sending data from {subsystem} ({data}) to Ground...")
-
-        try:
-            await self.connection.send(json.dumps({"type": MessageType.DATA.name.lower(), "subsystem": subsystem, "data": data}))
-            self.log(f"Sent data from {subsystem} ({data}) to Ground")
-        except Exception as err:
-            self.log(f"[ERROR] Failed to send data from {subsystem} ({data}): {err}")    
-    
-    async def send_message(self, message):
-        self.log(f"Sending \"{message}\" to Ground...")
-
-        try:
-            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.MESSAGE.name.lower(), "data": message}))
-            self.log(f"Sent \"{message}\" to Ground")
-        except Exception as err:
-            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
-
-    async def send_error(self, message):
-        self.log(f"Sending \"{message}\" to Ground...")
-
-        try:
-            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.MESSAGE.name.lower(), "data": f"[ERROR] {message}"}))
-            self.log(f"Sent \"{message}\" to Ground")
-        except Exception as err:
-            self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+        self.backlog = []
 
     async def process_command(self, msg):
         self.log("Processing command...")
@@ -313,72 +289,152 @@ class TTC:
                 self.log(f"[ERROR] Invalid command received: {command}")
                 await self.send_error(f"{command} is not a valid command!")
 
-    async def send_file(self, path):
-        retries = 0
-        
-        while retries < self.MAX_RETRIES:
-            self.log(f"Sending file {path} to Ground... (Attempt {retries + 1})")
+    async def pong(self):
+        try:
+            await self.connection.send("pong")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"pong\": {err}")
+
+    async def send_status(self):
+        health = self.health_check()
+        status = get_command_and_data_handling_status()
+
+        for key, value in health.items():
+            status[key] = value
+
+        await self.send_data("TTC", status)
+
+    async def send_log(self, message):
+        if self.connection:
+            self.log(f"Sending \"{message}\" to Ground...")
 
             try:
-                zip_path = zip_file(path)
-                zip_file_size = os.path.getsize(zip_path)
-                self.log("Sending file metadata...")
-                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
-                self.log("Sent file metadata")
-
-                with open(zip_path, "rb") as f:
-                    self.log("Sending file data...")
-                    await self.connection.send("File transfer started")
-
-                    while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(chunk)
-
-                    self.log("Sent file data")
-                    await self.connection.send("File transfer complete")
-
-                break
+                await self.connection.send(json.dumps({"type": MessageType.LOG.name.lower(), "data": message}))
+                self.log(f"Sent \"{message}\" to Ground")
             except Exception as err:
-                self.log(f"[ERROR] {err}, retrying...")
-            finally:
-                if zip_path and os.path.exists(zip_path):
-                    os.unlink(zip_path)
+                self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+        else:
+            self.backlog.append({"instruction": "send_log", "arguments": [message]})
+            self.log(f"Not connected to Ground, send_log instruction added to backlog with arguments: {[message]}")
 
-            retries += 1
+    async def send_data(self, subsystem, data):
+        if self.connection:
+            self.log(f"Sending data from {subsystem} ({data}) to Ground...")
 
-        if retries >= self.MAX_RETRIES:
-            self.log(f"[ERROR] Failed to send file {path} after {self.MAX_RETRIES} retries!")
+            try:
+                await self.connection.send(json.dumps({"type": MessageType.DATA.name.lower(), "subsystem": subsystem, "data": data}))
+                self.log(f"Sent data from {subsystem} ({data}) to Ground")
+            except Exception as err:
+                self.log(f"[ERROR] Failed to send data from {subsystem} ({data}): {err}")
+        else:
+            self.backlog.append({"instruction": "send_data", "arguments": [subsystem, data]})
+            self.log(f"Not connected to Ground, send_data instruction added to backlog with arguments: {[subsystem, data]}")
+    
+    async def send_message(self, message):
+        if self.connection:
+            self.log(f"Sending \"{message}\" to Ground...")
+
+            try:
+                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.MESSAGE.name.lower(), "data": message}))
+                self.log(f"Sent \"{message}\" to Ground")
+            except Exception as err:
+                self.log(f"[ERROR] Failed to send \"{message}\": {err}")
+        else:
+            self.backlog.append({"instruction": "send_message", "arguments": [message]})
+            self.log(f"Not connected to Ground, send_message instruction added to backlog with arguments: {[message]}")
+
+    async def send_error(self, message):
+        self.log(f"Sending \"{message}\" to Ground...")
+
+        try:
+            await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.MESSAGE.name.lower(), "data": f"[ERROR] {message}"}))
+            self.log(f"Sent \"{message}\" to Ground")
+        except Exception as err:
+            self.log(f"[ERROR] Failed to send \"{message}\": {err}")    
+
+    async def send_file(self, path):
+        if self.connection:
+            retries = 0
+            
+            while retries < self.MAX_RETRIES:
+                self.log(f"Sending file {path} to Ground... (Attempt {retries + 1})")
+
+                try:
+                    zip_path = zip_file(path)
+                    zip_file_size = os.path.getsize(zip_path)
+                    self.log("Sending file metadata...")
+                    await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
+                    self.log("Sent file metadata")
+
+                    with open(zip_path, "rb") as f:
+                        self.log("Sending file data...")
+                        await self.connection.send("File transfer started")
+
+                        while chunk := f.read(self.BUFFER_SIZE):
+                            await self.connection.send(chunk)
+
+                        self.log("Sent file data")
+                        await self.connection.send("File transfer complete")
+
+                    break
+                except Exception as err:
+                    self.log(f"[ERROR] {err}, retrying...")
+                finally:
+                    if zip_path and os.path.exists(zip_path):
+                        os.unlink(zip_path)
+
+                retries += 1
+
+            if retries >= self.MAX_RETRIES:
+                self.log(f"[ERROR] Failed to send file {path} after {self.MAX_RETRIES} retries!")
+        else:
+            self.backlog.append({"instruction": "send_file", "arguments": [path]})
+            self.log(f"Not connected to Ground, send_file instruction added to backlog with arguments: {[path]}")
 
     async def send_folder(self, path):
-        retries = 0
-        
-        while retries < self.MAX_RETRIES:
-            self.log(f"Sending folder {path} to Ground... (Attempt {retries + 1})")
+        if self.connection:
+            retries = 0
+            
+            while retries < self.MAX_RETRIES:
+                self.log(f"Sending folder {path} to Ground... (Attempt {retries + 1})")
 
-            try:
-                zip_path = zip_folder(path)
-                zip_file_size = os.path.getsize(zip_path)
-                self.log("Sending folder metadata...")
-                await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
-                self.log("Sent folder metadata")
+                try:
+                    zip_path = zip_folder(path)
+                    zip_file_size = os.path.getsize(zip_path)
+                    self.log("Sending folder metadata...")
+                    await self.connection.send(json.dumps({"timestamp": datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "type": MessageType.FILEMETADATA.name.lower(), "data": {"size": zip_file_size, "name": f"{os.path.basename(path)}.zip"}}))
+                    self.log("Sent folder metadata")
 
-                with open(zip_path, "rb") as f:
-                    self.log("Sending folder data...")
-                    await self.connection.send("File transfer started")
+                    with open(zip_path, "rb") as f:
+                        self.log("Sending folder data...")
+                        await self.connection.send("File transfer started")
 
-                    while chunk := f.read(self.BUFFER_SIZE):
-                        await self.connection.send(chunk)
+                        while chunk := f.read(self.BUFFER_SIZE):
+                            await self.connection.send(chunk)
 
-                    self.log("Sent folder data")
-                    await self.connection.send("File transfer complete")
+                        self.log("Sent folder data")
+                        await self.connection.send("File transfer complete")
 
-                break
-            except Exception as err:
-                self.log(f"[ERROR] {err}, retrying...")
-            finally:
-                if zip_path and os.path.exists(zip_path):
-                    os.unlink(zip_path)
+                    break
+                except Exception as err:
+                    self.log(f"[ERROR] {err}, retrying...")
+                finally:
+                    if zip_path and os.path.exists(zip_path):
+                        os.unlink(zip_path)
 
-            retries += 1
+                retries += 1
 
-        if retries >= self.MAX_RETRIES:
-            self.log(f"[ERROR] Failed to send folder {path} after {self.MAX_RETRIES} retries!")
+            if retries >= self.MAX_RETRIES:
+                self.log(f"[ERROR] Failed to send folder {path} after {self.MAX_RETRIES} retries!")
+        else:
+            self.backlog.append({"instruction": "send_folder", "arguments": [path]})
+            self.log(f"Not connected to Ground, send_folder instruction added to backlog with arguments: {[path]}")
+
+    async def shutdown(self):
+        self.log("Shutting down...")
+
+        if self.connection:
+            await self.connection.close(1001, "Server shutting down")
+            
+        self.event_loop.stop()
+        self.event_loop.close()

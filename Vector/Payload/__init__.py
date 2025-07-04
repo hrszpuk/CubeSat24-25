@@ -1,30 +1,12 @@
 from Payload.payload_controller import PayloadController
-from datetime import datetime
-import threading
-import time
-
-TELEMETRY_INTERVAL = 1
-
-
-def log_payload_data(controller, telemetry_queue, telemetry_stop_event):
-    log_data = lambda origin, data: telemetry_queue.put((origin, datetime.now().strftime("%H:%M:%S.%f"), data))
-
-    while not telemetry_stop_event.is_set():
-
-        time.sleep(TELEMETRY_INTERVAL)
-
 
 def start(pipe, log_queue, telemetry):
     telemetry_queue = telemetry
     log_queue.put(("Payload", "Starting Subsystem"))
-    payload_controller = PayloadController(log_queue)
-
-    telemetry_stop_event = threading.Event()
-
-    t = threading.Thread(target=log_payload_data, args=(payload_controller, telemetry_queue, telemetry_stop_event))
-    t.start()
+    payload_controller = PayloadController(log_queue, telemetry_queue)
 
     running = True
+
     while running:
         line, args = pipe.recv()
         if line == "health_check":
@@ -56,8 +38,3 @@ def start(pipe, log_queue, telemetry):
             pipe.send(path)
         elif line == "stop":
             running = False
-
-    telemetry_stop_event.set()
-    t.join()
-
-

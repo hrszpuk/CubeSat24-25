@@ -7,7 +7,6 @@ from OBDH.logger import Logger
 from OBDH.health_check import construct_file
 from OBDH.phases import run_phase2, run_phase3a, run_phase3b, run_phase3c
 
-
 class OBDH:
     def __init__(self):
         self.state = OBDHState.INITIALISING
@@ -17,7 +16,8 @@ class OBDH:
         self.start_time = None
         self.phase = Phase.INITIALISATION
         self.subphase = None
-        self.subsystems = ["TTC", "ADCS", "Payload"]
+        # self.subsystems = ["TTC", "ADCS", "Payload"]
+        self.subsystems = ["TTC", "Payload"]
 
         for name in self.subsystems:
             is_ready = False
@@ -28,8 +28,9 @@ class OBDH:
                     self.manager.send(name, "is_ready")
 
                 is_ready = self.manager.receive(name)["response"]
-
-        self._logger.set_ttc_handler(self.manager.pipes["TTC"], "logger")
+        
+        self._logger.set_ttc_handler(self.manager.pipes["TTC"], "log")
+        self.manager.start_telemetry_listener()
         self.state = OBDHState.READY
         self.logger.info("All subsystems are ready")
 

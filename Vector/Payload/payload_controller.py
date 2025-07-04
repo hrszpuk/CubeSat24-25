@@ -1,22 +1,23 @@
+import os
 import glob
 import random
 from Payload.distance_sensor import DistanceSensor
 from Payload.stereo_camera import StereoCamera
 from Payload.number_identifier import identify_numbers_from_files
 from Payload import tag_finder
-import os
 
 class PayloadController:
-    def __init__(self, log_queue):
-        self.state = "INITIALIZING"
+    def __init__(self, log_queue, telemetry_queue):
+        self.state = "INITIALISING"
         self.log_queue = log_queue
+        self.telemetry_queue = telemetry_queue
         self.stereo_camera = StereoCamera()
-        self.distance_sensor = DistanceSensor()
+        self.distance_sensor = DistanceSensor(self.log_queue, self.telemetry_queue)
         self.state = "READY"
-        self.numbers_indentified = []
+        self.numbers_identified = []
 
-    def get_telemetry(self) -> list[tuple]:
-        pass
+    def get_camera_status(self):
+        return self.stereo_camera.get_camera_status()
 
     def get_state(self):
         return self.state
@@ -53,14 +54,19 @@ class PayloadController:
         status = self.stereo_camera.get_camera_status()
 
         if status["left_camera_available"] is False:
+            self.telemetry_queue.put(("Payload", "Left Camera", "INOPERATIVE", None))
             health_check_text += "Left camera: INACTIVE\n"
             errors.append("Left camera not available")
         else:
+            self.telemetry_queue.put(("Payload", "Left Camera", "OPERATIONAL", None))
             health_check_text += "Left camera: ACTIVE\n"
+
         if status["right_camera_available"] is False:
+            self.telemetry_queue.put(("Payload", "Right Camera", "INOPERATIVE", None))
             health_check_text += "Right camera: INACTIVE\n"
             errors.append("Right camera not available")
         else:
+            self.telemetry_queue.put(("Payload", "Right Camera", "OPERATIONAL", None))
             health_check_text += "Right camera: ACTIVE\n"
         
         if errors:
