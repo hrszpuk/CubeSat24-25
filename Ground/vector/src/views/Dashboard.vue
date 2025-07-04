@@ -46,9 +46,11 @@
     const adcsData = reactive({
         "Gyroscope": "Not Available",
         "Orientation": "Not Available",
+        "Current Angle": "Not Available",
+        "Target Angle": "None",
         "Sun Sensor 1": "Not Available",
         "Sun Sensor 2": "Not Available",
-        "Sun Sensor 3": "Not Available"
+        "Sun Sensor 3": "Not Available",        
     });
     const payloadData = reactive({
         "Left Camera": "Not Available",
@@ -134,7 +136,7 @@
                     elem.click();
                     document.body.removeChild(elem);
                     URL.revokeObjectURL(fileURL);
-                    toast.add({severity: "info", summary: "File from CubeSat", detail: `Received file ${fileMetadata.name} (${fileMetadata.size} ${["Bytes", "KB", "MB", "GB"][Math.floor(Math.log(total) / Math.log(1024))]})`, life: 3000})
+                    toast.add({severity: "info", summary: "File from CubeSat", detail: `Received file ${fileMetadata.name} (${formatBytes(fileMetadata.size)} ${["Bytes", "KB", "MB", "GB"][Math.floor(Math.log(total) / Math.log(1024))]})`, life: 3000})
                 } else if (data.localeCompare("pong")) {
                     let obj = JSON.parse(data);
                     
@@ -153,11 +155,14 @@
                                     }
 
                                     break;
+                                case "Power":
+                                    powerData[obj.data.label] = obj.data.data;
+                                    break;
                                 case "Payload":
                                     payloadData[obj.data.label] = obj.data.data;
                                     break;
-                                case "Power":
-                                    powerData[obj.data.label] = obj.data.data;
+                                case "ADCS":
+                                    adcsData[obj.data.label] = obj.data.data
                                     break;
                                 case _:
                                     console.log(obj.data);
@@ -222,9 +227,7 @@
                         <code class="block">Signal Strength: {{ cdhData["Signal Strength"] }}</code>
                         <code class="block">Data Transmission Rate: {{ cdhData["Data Transmission Rate"] }}</code>
                         <hr>
-                        <code class="block">--- ADCS Subsystem ---</code>
-                        <code class="block">Gyroscope: {{ adcsData["Gyroscope"] }}</code>
-                        <code class="block">Orientation: {{ adcsData["Orientation"] }}</code>
+                        <code class="block">--- ADCS Subsystem ---</code>                        
                         <code class="block">Sun Sensor 1: {{ adcsData["Sun Sensor 1"] }}</code>
                         <code class="block">Sun Sensor 2: {{ adcsData["Sun Sensor 2"] }}</code>
                         <code class="block">Sun Sensor 3: {{ adcsData["Sun Sensor 3"] }}</code>
@@ -247,11 +250,13 @@
         </section>
         <section class="col-span-12 xl:col-span-4">
             <Card>
-                <template #title>Messages</template>
+                <template #title>Telemetry</template>
                 <template #content>
                     <ScrollPanel style="width: 100%; height: 210px">
-                        <Message v-if="!messages.length" variant="simple" severity="secondary">No messages</Message>
-                        <Message v-else v-for="message in messages" variant="simple" :severity="message.data.includes('ERROR') ? 'error': 'secondary'"><Tag :value="message.timestamp"></Tag> {{ message.data }}</Message>
+                        <code class="block">Gyroscope: {{ adcsData["Gyroscope"] }}</code>
+                        <code class="block">Orientation: {{ adcsData["Orientation"] }}</code>
+                        <code class="block">Current Angle: {{ adcsData["Current Angle"] }}{{ typeof(adcsData["Current Angle"]) === "number" ? '°' : '' }}</code>
+                        <code class="block">Target Angle: {{ adcsData["Target Angle"] }}{{ typeof(adcsData["Target Angle"]) === "number" ? '°' : '' }}</code>
                     </ScrollPanel>
                 </template>
             </Card>

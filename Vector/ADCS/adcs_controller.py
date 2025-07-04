@@ -10,9 +10,10 @@ import numpy as np
 from ADCS.brushed_motor import BrushedMotor
 
 class AdcsController:
-    def __init__(self, log_queue):
+    def __init__(self, log_queue, telemetry_queue):
         self.state = "INITIALIZING"
         self.log_queue = log_queue
+        self.telemetry_queue = telemetry_queue
         self.initialize_sun_sensors()
         self.initialize_orientation_system()
         self.calibrating_orientation_system = False
@@ -27,9 +28,9 @@ class AdcsController:
         self.log_queue.put(("ADCS", msg))
 
     def initialize_orientation_system(self):
-        self.imu = Imu()
+        self.imu = Imu(self.telemetry_queue)
         #self.main_reaction_wheel = ReactionWheel(self.imu, motor_type="brushless")
-        self.backup_reaction_wheel = ReactionWheel(self.imu, motor_type="brushed")
+        self.backup_reaction_wheel = ReactionWheel(self.imu, self.telemetry_queue, motor_type="brushed")
         self.current_reaction_wheel = self.backup_reaction_wheel
         #self.current_reaction_wheel = self.main_reaction_wheel
         #self.calibrate_orientation_system()
@@ -157,6 +158,7 @@ class AdcsController:
         for sensor in self.sun_sensors:
             status = sensor.get_status()
             statuses.append(status)
+            self.telemetry_queue.put(("ADCS", f"Sun Sensor {sensor.id}", status, None))
         return statuses
 
     def get_sun_sensors_health_check(self):
@@ -411,7 +413,7 @@ class AdcsController:
                 pipe.send(("detect_apriltag", None))
                 line, args = pipe.recv()
                 if line == "apriltag_detected":
-                    
+                    current_tag_yaw = current_yaw
                     target_found = True
                     break
                 elif line == "apriltag_not_detected":

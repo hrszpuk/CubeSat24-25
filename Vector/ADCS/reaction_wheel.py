@@ -42,7 +42,7 @@ class ReactionWheel:
         desired_aligment (float): Desired aligment
         state (str): Current state of the reaction wheel.
     """
-    def __init__(self, imu, motor_type="brushless"):
+    def __init__(self, imu, telemetry_queue, motor_type="brushless"):
         # Satellite Parameters
         self.sat_mass = SAT_MASS
         self.sat_side1 = SAT_SIDE1
@@ -65,6 +65,7 @@ class ReactionWheel:
 
         # IMU and Motor Initialization
         self.imu = imu
+        self.telemetry_queue = telemetry_queue
         self.motor_type = motor_type
         if self.motor_type == "brushless":
             # Initialize Brushless Motor
@@ -138,6 +139,7 @@ class ReactionWheel:
         Parameters: 
             - setpoint: Target yaw angle (degrees/radians).
         """
+        self.telemetry_queue.put(("ADCS", "Target Angle", setpoint, None))
         # Initialize PID variables
         previous_error = 0
         integral = 0
@@ -216,6 +218,7 @@ class ReactionWheel:
                             break
 
             # Logging
+            self.telemetry_queue.put(("ADCS", "Current Angle", pv, None))
             print(f"Target: {setpoint:.1f}, Current: {pv:.1f}, Duty: {duty_cycle:.1f}%, output: {control}, Current Velocity: {self.imu.get_current_angular_velocity():.1f}, IN_TARGET: {abs(pv - setpoint) < tolerance}")
             
             time.sleep(dt)
