@@ -6,7 +6,8 @@ from typing import Optional, Tuple, Dict, List
 import json
 
 class Imu:
-    def __init__(self, port: str = '/dev/serial0', baudrate: int = 9600, timeout: float = 1.0):
+    def __init__(self, telemetry_queue, port: str = '/dev/serial0', baudrate: int = 9600, timeout: float = 1.0):
+        self.telemetry_queue = telemetry_queue
         self.serial_connection = serial.Serial(
             port=port,
             baudrate=baudrate,
@@ -85,6 +86,12 @@ class Imu:
             gyro, orient, bms_voltage, bms_current, bms_temp = self.parse_imu_data(line, cap_rotations)
 
             if gyro or orient:  # At least one dataset is valid
+                self.telemetry_queue.put(("ADCS", "Gyroscope", f"X: {gyro[0]:.2f} °/s, Y: {gyro[1]:.2f} °/s, Z: {gyro[2]:.2f} °/s", None))
+                self.telemetry_queue.put(("ADCS", "Orientation", f"X: {orient[0]:.2f} °/s, Y: {orient[1]:.2f} °/s, Z: {orient[2]:.2f} °/s", None))
+                self.telemetry_queue.put(("ADCS", "Battery Voltage", bms_voltage, None))
+                self.telemetry_queue.put(("ADCS", "Battery Current", bms_current, None))
+                self.telemetry_queue.put(("ADCS", "Battery Temperature", bms_temp, None))
+
                 return {"gyroscope": gyro, "orientation": orient, "bms_voltage": bms_voltage, "bms_current": bms_current, "bms_temp": bms_temp , "errors": errors}
             else:
                 errors.append(f"Attempt {attempt + 1}: Invalid data format. Response: {line}")
