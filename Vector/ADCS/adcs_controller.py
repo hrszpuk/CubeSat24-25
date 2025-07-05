@@ -183,7 +183,10 @@ class AdcsController:
     
     def get_reaction_wheel_health_check(self):
         # Get the status of the reaction wheel
-        #health_check_text = f"Main Reaction Wheel RPM: {self.main_reaction_wheel.get_current_speed():.2f}\n"
+        main_rpm = self.main_reaction_wheel.get_current_speed() if hasattr(self, 'main_reaction_wheel') and self.main_reaction_wheel is not None else 0.0
+        if main_rpm is None:
+            main_rpm = 0.0
+        health_check_text = f"Main Reaction Wheel RPM: {main_rpm:.2f}\n"
         health_check_text += f"Backup Reaction Wheel RPM: {self.backup_reaction_wheel.get_current_speed():.2f}\n"
         return health_check_text
 
@@ -259,22 +262,45 @@ class AdcsController:
 
     def sun_sensor_calibration_measurement(self, readings_queue):
         readings = []
-
+    
         while self.calibrating_orientation_system:
-            sum = 0
+            total_irradiance = 0
+            valid_sensors = 0
             for sensor in self.sun_sensors:
-                sum += sensor.get_data()
-            readings.append((sum, self.imu.get_current_yaw()))
-
-        offset = np.inf
-        yaw = 0
-
-        for reading in readings:
-            if reading[0] < offset:
-                offset = reading[0]
-                yaw = reading[1]
-        
-        readings_queue.put(yaw)
+                data = sensor.get_data()
+                if data is not None:
+                    total_irradiance += data
+                    valid_sensors += 1
+            if valid_sensors > 0:
+                avg_irradiance = total_irradiance / valid_sensors
+                readings.append((avg_irradiance, self.imu.get_current_yaw()))
+            time.sleep(0.05)
+    
+        if len(readings) == 0:
+            readings_queue.put(None)
+            return
+    
+        # Convert to NumPy arrays
+        irradiance_array = np.array([r[0] for r in readings])
+        yaw_array = np.array([r[1] for r in readings])
+    
+        # Find indices of the bottom N% irradiance values (e.g., bottom 10%)
+        percentile = 10
+        threshold = np.percentile(irradiance_array, percentile)
+        trough_indices = np.where(irradiance_array <= threshold)[0]
+    
+        if len(trough_indices) == 0:
+            self.log("No valid trough found in sun sensor data.")
+            readings_queue.put(None)
+            return
+    
+        # Average yaw at the trough
+        trough_yaws = yaw_array[trough_indices]
+        avg_trough_yaw = np.mean(trough_yaws)
+    
+        self.log(f"Trough irradiance yaw values: {trough_yaws}")
+        self.log(f"Calibrating to average yaw of trough: {avg_trough_yaw:.2f}°")
+        readings_queue.put(avg_trough_yaw)
 
     def old_sun_sensor_calibration_measurement(self, readings_queue):
         #TODO: handle sensor not available
@@ -411,8 +437,11 @@ class AdcsController:
                 pipe.send(("detect_apriltag", None))
                 line, args = pipe.recv()
                 if line == "apriltag_detected":
-                    
                     target_found = True
+                    target_pose = args.get("pose", None)
+                    if target_pose is not None:
+                        pitch, yaw, roll = target_pose['degree']
+                        self.current_aligment = yaw
                     break
                 elif line == "apriltag_not_detected":
                     # Continue searching
@@ -422,7 +451,7 @@ class AdcsController:
             rotation_thread.join()
 
             if target_found:
-                self.phase3_align_target(pipe, current_tag_yaw)
+                self.phase3_align_target(pipe, self.current_aligment, break_on_target_aligned=False)
             if not target_found:
                 self.log("Target not reacquired within timeout period. Initiating search.")
                 self.phase3_search_target()
@@ -451,7 +480,7 @@ class AdcsController:
 
         self.current_reaction_wheel.set_state("ALIGNING")  # Set state to aligning
 
-        while self.current_reaction_wheel.get_state() == "ALIGNING" and target_found:# and not self.stop_event.is_set():
+        while self.current_reaction_wheel.get_state() == "ALIGNING" and target_found and not self.current_reaction_wheel.stop_event.is_set():
             pv = self.current_aligment
             control, error, integral = self.current_reaction_wheel.pid_controller(
                 setpoint, kp, ki, kd, previous_error, integral, dt
@@ -476,12 +505,12 @@ class AdcsController:
                 self.target_yaw = self.get_current_yaw()
                 self.log(f"Aligned with target at yaw: {self.target_yaw} degrees")
                 pipe.send(("target_aligned", {}))
-                #break
+                break
             
             time.sleep(dt)
 
         #while not self.stop_tag_detection_event.is_set():
-        #self.current_reaction_wheel.activate_wheel_brushed(self.target_yaw, t=None, break_on_target=False)
+        self.current_reaction_wheel.activate_wheel_brushed(self.target_yaw, t=None, break_on_target=False)
         #self.stop_tag_detection_event.set()
 
         tag_thread.join()
@@ -502,10 +531,10 @@ class AdcsController:
                 self.current_aligment = yaw
             elif line == "apriltag_not_detected":
                 attempts += 1
-            if attempts > 10:
-                self.log("April Tag not detected for too long. Stopping alignment.")
-                pipe.send(("target_lost", None))
-                self.current_reaction_wheel.stop_reaction_wheel() 
+            #if attempts > 10:
+                #self.log("April Tag not detected for too long. Stopping alignment.")
+                #pipe.send(("target_lost", None))
+                #self.current_reaction_wheel.stop_reaction_wheel() 
             time.sleep(0.1)
 
 
@@ -581,6 +610,7 @@ class AdcsController:
         self.current_reaction_wheel.set_state("STANDBY")
         if not self.current_reaction_wheel.stop_event.is_set():
             self.current_reaction_wheel.stop_event.set()
+        time.sleep(0.5)
         self.current_reaction_wheel.stop_event.clear()
 
     def is_reaction_wheel_rotating(self):

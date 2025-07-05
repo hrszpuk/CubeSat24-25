@@ -51,6 +51,8 @@ class OBDH:
                     case "start_phase":
                         phase = args["phase"]
                         self.start_phase(phase, args)
+                    case "cancel_phase":
+                        self.reset_state()
                     case "test_wheel":
                         self.manager.send("ADCS", "test_wheel", {
                             "kp": args[0],
@@ -179,7 +181,6 @@ class OBDH:
 
                 match subphase:
                     case 'a':
-                        timer = threading.Timer(30, self.reset_state)
                         self.subphase = SubPhase.a
                         distance_data, distance_data_backup = run_phase3a(self, self.manager, logger=self.logger)
                         self.manager.send("ADCS", "phase3a_complete")
@@ -192,13 +193,12 @@ class OBDH:
                         self.manager.send("TTC", "send_data", {
                             "subsystem": "ADCS",
                             "data": {
-                                "current_wheel_velocity": args["current_wheel_velocity"] + " RPM" if "current_wheel_velocity" in args else None,
-                                "current_satellite_velocity": args["current_satellite_velocity"] + " °/s" if "current_satellite_velocity" in args else None,
+                                "current_wheel_velocity": args["current_wheel_velocity"] + " RPM" if args and "current_wheel_velocity" in args else None,
+                                "current_satellite_velocity": args["current_satellite_velocity"] + " °/s" if args and "current_satellite_velocity" in args else None,
                                 "distance_data": distance_data,
                                 "distance_data_backup": distance_data_backup
                             }
                         })
-                        self.reset_timer(timer)
                         self.reset_state()
                     case 'b':
                         timer = threading.Timer(300, self.reset_state)

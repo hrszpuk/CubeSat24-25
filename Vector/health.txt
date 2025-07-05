@@ -1,30 +1,30 @@
 --- Vector CubeSat Health Check Report ---
 Date: 04-07-2025
-Time: 06:41 GMT
+Time: 19:36 GMT
 
 --- Power Subsystem ---
-Battery Voltage: 6.69 V
-Battery Current: 1.82 A
-Battery Temperature: 23.31 °C (NOMINAL)
+Battery Voltage: 6.74 V
+Battery Current: 1.72 A
+Battery Temperature: 23.03 °C (NOMINAL)
 
 
 --- Thermal Subsystem ---
-Internal Temperature: 56.75 °C (NOMINAL)
+Internal Temperature: 57.30 °C (NOMINAL)
 Status: OK
 
 
 --- Communication Subsystem ---
 Downlink Frequency: 5.22 GHz (NOMINAL)
 Uplink Frequency: 5.22 GHz (NOMINAL)
-Signal Strength: 56 dBm (NOMINAL)
+Signal Strength: 55 dBm (NOMINAL)
 Data Transmission Rate: 433.3 Mb/s (NOMINAL)
 
 --- ADCS Subsystem ---
-Gyroscope: X: -1.28 °/s, Y: 0.18 °/s, Z: 7.85 °/s
-Orientation: X: 27.32 °, Y: 0.00 °, Z: 0.00 °
-Sun Sensor 0: ACTIVE
-Sun Sensor 1: ACTIVE
+Gyroscope: X: -0.63 °/s, Y: 0.73 °/s, Z: -0.2 °/s
+Orientation: X: 273.59 °, Y: 0.00 °, Z: 0.00 °
 Sun Sensor 2: ACTIVE
+Sun Sensor 1: ACTIVE
+Sun Sensor 3: ACTIVE
 Main Reaction Wheel RPM: 0.00
 Backup Reaction Wheel RPM: 0.00
 STATUS: OK
@@ -36,9 +36,9 @@ Distance Sensor: ACTIVE
 STATUS: OK
 
 --- Command and Data Handling Subsystem ---
-Memory Usage: 11.6%
-Last Command Received: 04-07-2025 07:41 GMT
-Uptime: 19 minutes
+Memory Usage: 12.7%
+Last Command Received: 04-07-2025 20:36 GMT
+Uptime: 5 minutes
 
 
 --- Error Log ---
@@ -46,7 +46,7 @@ No errors detected.
 
 
 --- Overall Status ---
-WARNING - Subsystems affected: ADCS, Payload
-Recommended actions: Reset and reinitialise ADCS, Payload; check connections.
+NOMINAL - All systems operational
+Recommended actions: Continue standard operations.
 
 --- End of Report ---

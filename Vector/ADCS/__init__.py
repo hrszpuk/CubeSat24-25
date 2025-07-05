@@ -71,6 +71,8 @@ def start(pipe, log_queue, telemetry):
         elif line == "phase3b_read_target":
             adcs_controller.phase3b_read_target(pipe)
         elif line == "stop_reaction_wheel":
+            adcs_controller.current_reaction_wheel.stop_reaction_wheel()
+            adcs_controller.current_reaction_wheel.stop_event.set()
             adcs_controller.stop_reaction_wheel()
         elif line == "calibrate_sun_sensors":
             adcs_controller.calibrate_sun_sensors()

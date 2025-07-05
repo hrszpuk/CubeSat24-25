@@ -91,8 +91,8 @@ def construct_file(ttc_health_check, adcs_health_check, payload_health_check, po
 
     # Overall Status
     health_check_text += ("\n--- Overall Status ---\n")
-    adcs_status = "STATUS: OK" in adcs_health_check[-1]
-    payload_status = "STATUS: OK" in payload_health_check[-1] # other subsystems go below
+    adcs_status = "STATUS: OK" in adcs_health_check[-2]
+    payload_status = "STATUS: OK" in payload_health_check[-2] # other subsystems go below
     affected = []
 
     if not adcs_status:

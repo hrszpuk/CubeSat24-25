@@ -1,8 +1,11 @@
 import glob
 import os
-from time import time
+import threading
+import time
 from scipy import stats
 from enums import OBDHState, Phase, SubPhase
+
+phase = ""
 
 def run_phase2(obdh, manager, logger, sequence):
     logger.info("Starting Phase 2")
@@ -96,6 +99,10 @@ def run_phase2(obdh, manager, logger, sequence):
     manager.send("TTC", "send_message", {"message": data if data else "No data collected"})
 
 def run_phase3a(obdh, manager, logger):
+    phase = "3a"
+    t = None
+    t = threading.Timer(15, reset_state, args=(manager, t))
+    t.start()
     # Search for target, if timeout occurs, return to OBDH
     logger.info("Starting Phase 3a: Search for target")
     manager.send("ADCS", "phase3_search_target")
@@ -105,7 +112,7 @@ def run_phase3a(obdh, manager, logger):
     distance_data_backup = {}
     read_target = False 
 
-    while obdh.phase == Phase.THIRD and obdh.subphase == SubPhase.a:
+    while phase == "3a":
         adcs_response = manager.receive("ADCS")
         cmd = adcs_response["command"]
         args = adcs_response["arguments"]
@@ -139,7 +146,7 @@ def run_phase3a(obdh, manager, logger):
         
         current_time = time.time()
         if read_target:
-            if current_time - (align_timer if align_timer else 0) < 30:
+            if (current_time - (align_timer if align_timer else 0) < 30) and t.is_alive():
                 if align_timer is None:
                     logger.info("Starting distance measurement")
                     align_timer = time.time()
@@ -153,6 +160,7 @@ def run_phase3a(obdh, manager, logger):
                 read_target = False
                 align_timer = None
                 manager.send("ADCS", "stop_reaction_wheel", log=False)
+                break
 
         # if read_target:
         #     if initial_time is None:
@@ -165,8 +173,12 @@ def run_phase3a(obdh, manager, logger):
         #         distance = manager.receive("Payload")["response"]
         #         distance_data[elapsed_time] = distance
 
+
     manager.send("ADCS", "stop_reaction_wheel")
     logger.info("Phase 3a completed, distance data collected")
+
+    data = {}
+    backup_data = {}
 
     x = list(distance_data.keys())
     y = [val for val in distance_data.values() if isinstance(val, (int, float))]
@@ -177,26 +189,29 @@ def run_phase3a(obdh, manager, logger):
         slope, intercept, r, p, std_err = 0, 0, 0, 0, 0
         
     data = {
-        "average_velocity": slope + " cm/s",
-        "first_distance": y[0] if y else 0 + " cm",
-        "last_distance": y[-1] if y else 0 + " cm",
+        "average_velocity": slope,
+        "first_distance": y[0] if y else 0,
+        "last_distance": y[-1]if y else 0,
         "raw_data": distance_data
     }
 
-    x = list(distance_data_backup.keys())
-    y = [val for val in distance_data_backup.values() if isinstance(val, (int, float))]
+    if distance_data_backup:
+        logger.info("Backup distance data collected")
+        manager.send("TTC", "send_message", {"message": "Backup distance data collected"})
+        x = list(distance_data_backup.keys())
+        y = [val for val in distance_data_backup.values() if isinstance(val, (int, float))]
 
-    if x and y:
-        slope, intercept, r, p, std_err = stats.linregress(x, y)
-    else:
-        slope, intercept, r, p, std_err = 0, 0, 0, 0, 0
-        
-    backup_data = {
-        "average_velocity": slope + " cm/s",
-        "first_distance": y[0] if y else 0 + " cm",
-        "last_distance": y[-1] if y else 0 + " cm",
-        "raw_data": distance_data_backup
-    }
+        if x and y:
+            slope, intercept, r, p, std_err = stats.linregress(x, y)
+        else:
+            slope, intercept, r, p, std_err = 0, 0, 0, 0, 0
+            
+        backup_data = {
+            "average_velocity": slope,
+            "first_distance": y[0] if y else 0,
+            "last_distance": y[-1]if y else 0,
+            "raw_data": distance_data_backup
+        }
     return data, backup_data
 
 def run_phase3b(obdh, manager, logger):
@@ -295,3 +310,10 @@ def run_phase3c(obdh, manager, logger):
     logger.info("Phase 3c completed, docking completed")
 
     manager.send("TTC", "send_message", {"message": "Contact Confirmed"})
+
+def reset_state(manager, timer=None):
+    manager.send("ADCS", "stop_reaction_wheel")
+    
+    phase = ""
+    if timer is not None:
+        timer.cancel()
