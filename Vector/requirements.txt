@@ -55,7 +55,7 @@ requests @ file:///croot/requests_1707355572290/work
 ruamel.yaml @ file:///work/perseverance-python-buildout/croot/ruamel.yaml_1698863605521/work
 scikit-learn @ file:///croot/scikit-learn_1721921875708/work
 scipy @ file:///croot/scipy_1710947333060/work/dist/scipy-1.12.0-cp312-cp312-linux_x86_64.whl#sha256=68ddf853c338a42d9bfea9e41f301327ac0c16ab685e3d12b6fc17bce5b92ab4
-setuptools==80.9.0
+setuptools==83.0.0
 sip @ file:///work/perseverance-python-buildout/croot/sip_1698846977033/work
 six @ file:///tmp/build/80754af9/six_1644875935023/work
 tenacity @ file:///croot/tenacity_1730302500303/work
